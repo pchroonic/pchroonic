@@ -11,6 +11,7 @@ Read `docs/AI_START.md` first for the compact current state and immediate next a
 - Hosting: Vercel project `namdar-website-starter-1`.
 - Canonical domain: `https://namdar.co.uk`.
 - Backend: Supabase project `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
+- Supabase organization plan: **Free**.
 - Current documented release heading: Namdar v6.4.16.
 
 Repository plus verified provider state are the source of truth.
@@ -78,7 +79,11 @@ Existing findings:
 - INFO: eight server-only operational tables have RLS enabled with no authenticated policies; intentional for tables accessed through service-role server code.
 - WARN: **Leaked Password Protection is disabled** in hosted Supabase Auth.
 
-Current Supabase docs state leaked-password protection rejects passwords known in HaveIBeenPwned's Pwned Passwords data and is available on Supabase Pro plan and above. It is configured in the project's hosted Auth settings. The currently connected Supabase tools do not expose a mutation for this hosted Auth setting, so it must be toggled in the Supabase Dashboard, then verified by rerunning Security Advisor. Do not request or store a Supabase personal access token solely for this toggle.
+Current Supabase docs state leaked-password protection rejects passwords known in HaveIBeenPwned's Pwned Passwords data and is available on **Supabase Pro plan and above**. The actual Namdar Supabase organization was verified on 2026-09-12 to be on the **Free plan**, so this advisor warning cannot be cleared without upgrading the organization.
+
+Treat Leaked Password Protection as a **plan-blocked optional hardening item**, not an active Free-plan blocker. Do not upgrade Supabase or incur a paid plan change without explicit owner approval. Do not repeatedly ask the owner to enable the setting while the organization remains on Free.
+
+The currently connected Supabase tools also do not expose hosted Auth configuration mutation/readback for these settings.
 
 ## Applied production migrations relevant to current work
 
@@ -90,12 +95,12 @@ Current Supabase docs state leaked-password protection rejects passwords known i
 
 ## Remaining launch work
 
-1. Enable Supabase Auth Leaked Password Protection in the Dashboard and verify the Security Advisor warning clears.
+1. Verify Supabase Auth Site URL is `https://namdar.co.uk` and review the redirect allowlist for stale/unintended URLs.
 2. Finish launch checks for Stripe, Turnstile, OAuth providers, SMS provider, Resend and legal configuration.
-3. Verify Supabase Auth Site URL / redirect allowlist for `https://namdar.co.uk`.
-4. Verify booking-notification/account-purge cron jobs and intended double-booking protection.
-5. Run safe recognized-mailbox/unknown-alias inbound behavior test.
-6. Complete controlled authenticated customer-support ticket test when a safe test customer is available.
+3. Verify booking-notification/account-purge cron jobs and intended double-booking protection.
+4. Run safe recognized-mailbox/unknown-alias inbound behavior test.
+5. Complete controlled authenticated customer-support ticket test when a safe test customer is available.
+6. Optional/plan-blocked: enable Supabase Leaked Password Protection only if the owner later chooses a Pro-or-above plan.
 
 ## Required workflow
 
@@ -109,4 +114,4 @@ Current Supabase docs state leaked-password protection rejects passwords known i
 
 ## Next recommended step
 
-Enable Supabase Auth Leaked Password Protection in the Dashboard, rerun Security Advisor to confirm the warning clears, then continue the provider launch-readiness checklist.
+Verify Supabase Auth Site URL and redirect allowlist for the production domain, then continue the provider launch-readiness checklist. Leaked Password Protection remains optional and plan-blocked while Supabase is on Free.

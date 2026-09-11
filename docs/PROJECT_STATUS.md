@@ -10,6 +10,7 @@ For fast continuation, read `docs/AI_START.md` first. This file is the broader r
 - Source: GitHub `main` in `pchroonic/pchroonic`.
 - Delivery: Vercel project `namdar-website-starter-1`, canonical domain `namdar.co.uk`.
 - Data/auth/storage: Supabase `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
+- Supabase organization plan: **Free**.
 - Application: static multi-page front end plus Vercel Node serverless APIs.
 
 ## Continuity system
@@ -87,7 +88,7 @@ Existing findings remain:
 - INFO: 8 operational/server-only tables have RLS enabled with no authenticated policies. These remain intentionally inaccessible through ordinary authenticated Data API access.
 - WARN: Supabase Auth **Leaked Password Protection is disabled**.
 
-Next security task: enable leaked-password protection in the Supabase Dashboard and rerun Security Advisor. Supabase documentation states the feature uses HaveIBeenPwned Pwned Passwords and is available on Pro plan and above. The currently connected Supabase tools cannot mutate this hosted Auth setting directly.
+Supabase documentation states leaked-password protection is available on **Pro plan and above**. The Namdar Supabase organization was verified on 2026-09-12 to be on the **Free plan**, so the warning cannot be cleared without an upgrade. This is now treated as an optional plan-blocked hardening item rather than an active launch blocker. Do not upgrade without explicit owner approval.
 
 ## Applied production migrations relevant to recent security work
 
@@ -99,12 +100,12 @@ Next security task: enable leaked-password protection in the Supabase Dashboard 
 
 ## Outstanding work
 
-1. Enable Supabase Auth Leaked Password Protection and verify the advisor warning clears.
+1. Confirm Supabase Auth Site URL is `https://namdar.co.uk` and review the redirect allowlist for stale/unintended URLs.
 2. Complete provider launch readiness for Stripe, Turnstile, OAuth, SMS, Resend and legal configuration.
-3. Confirm Supabase Auth Site URL and redirect allowlist for `https://namdar.co.uk`.
-4. Verify production cron jobs and intended double-booking protections.
-5. Run safe recognized-mailbox/unknown-alias inbound behavior test.
-6. Complete controlled customer-support ticket journey when a safe eligible test customer is available.
+3. Verify production cron jobs and intended double-booking protections.
+4. Run safe recognized-mailbox/unknown-alias inbound behavior test.
+5. Complete controlled customer-support ticket journey when a safe eligible test customer is available.
+6. Optional/plan-blocked: enable Leaked Password Protection only if the owner later chooses Supabase Pro or above.
 
 ## Handoff maintenance rule
 
