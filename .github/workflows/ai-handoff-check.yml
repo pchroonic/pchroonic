@@ -31,6 +31,8 @@ jobs:
           node --check admin-mfa-guard.js
           node --check api/support-inbox.js
           node --check api/resend-inbound.js
+          node --check lib/server.js
+          node --check lib/server-original.js
           node --check staff.js
           node --check staff-original.js
           node --check staff-mfa-guard.js

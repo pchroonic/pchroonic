@@ -10,7 +10,7 @@ This is the first file every AI should read after opening the repository. Keep i
 - Repository: `pchroonic/pchroonic`, default branch `main`.
 - Hosting: Vercel project `namdar-website-starter-1`.
 - Canonical domain: `https://namdar.co.uk`.
-- Backend: Supabase project `namdar-production`.
+- Backend: Supabase project `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
 - Current documented release heading: Namdar v6.4.16.
 
 Repository plus verified provider state are the source of truth.
@@ -19,70 +19,79 @@ Repository plus verified provider state are the source of truth.
 
 Customer support tickets remain private to signed-in customers with an existing quote, booking, subscription or project. Public visitors use quote/chat/email paths. External inbound email remains in Admin → Email inbox and does not become a customer support ticket.
 
-The homepage/support-routing fixes, My Namdar session-bootstrap fix, Email inbox spam protection and Inbox Security v2 are live.
+Homepage/support-routing fixes, My Namdar session bootstrap, Email inbox spam protection and Inbox Security v2 remain live.
 
 ## Phase 7 — Launch Security & Readiness
 
-**Stage 1 staged MFA is live in production.**
+### MFA Stage 1 — live
 
-Production was checked immediately before and after deployment: `auth.mfa_factors` contains **zero verified MFA factors**, so no existing user was disrupted by an already-enrolled factor.
+The administrator completed TOTP enrollment successfully. Production was then verified directly: there is **1 verified MFA factor for 1 admin user**.
 
-Live Stage 1 behavior:
+Current production still contains the Stage 1 browser rollout behavior until Stage 2 is merged:
+- customers who opt into MFA must complete it before My Namdar data loads;
+- Admin/Staff with verified MFA are challenged before privileged browser data loads;
+- Admin/Staff without MFA still have the temporary `Continue for now` rollout escape path;
+- Staff PWA keeps privacy-limited offline snapshots.
 
-- **Customers:** MFA remains optional. Once a customer has a verified factor, an `aal1` session must complete the second factor before My Namdar portal data loads.
-- **Admin/Staff dashboard:** a verified MFA factor is challenged before privileged dashboard data loads. Privileged accounts without MFA receive a TOTP authenticator-enrollment prompt. During rollout there is a visible **Continue for now** escape path to prevent accidental lockout; the prompt returns on a later session until MFA is enrolled.
-- **Staff PWA:** uses the same staged privileged MFA behavior while online. Existing privacy-limited offline snapshots remain unchanged. `staff.js` is now a small loader; the former source is preserved byte-for-byte as `staff-original.js`.
-- Staff service-worker cache `namdar-staff-v6.4.16-security-mfa-1` includes the loader/original/guard assets and activates immediately after its security assets are cached.
+### MFA Stage 2 — prepared on `feature/security-mfa-stage2-20260911`
 
-Important limitation: Stage 1 is an application/browser gate. Full API/database AAL2 enforcement is **not** complete yet. Admin, Staff and My Namdar still combine protected server APIs with some direct Supabase browser queries, so server/RLS enforcement must be audited as a separate change before being described as complete.
+Stage 2 is designed to remove reliance on the browser prompt alone:
+- `lib/server.js` becomes a thin security wrapper around byte-for-byte preserved `lib/server-original.js`;
+- the wrapped `requireStaff()` first performs the existing authenticated role/permission check, then requires the already-verified Supabase JWT claim `aal = aal2`; otherwise privileged server APIs return 403;
+- Admin and Staff MFA guards remove the temporary bypass: privileged users with no factor must enroll TOTP; users with a verified factor must complete the second-factor challenge;
+- Staff offline mode only accepts an unexpired cached session whose JWT already carries `aal2`; an old `aal1` session must reconnect and verify first;
+- planned migration `20260911231500_require_aal2_for_staff_permissions.sql` changes central `private.has_staff_permission()` so existing privileged RLS policies require AAL2, and also requires AAL2 for a staff member to read their own `staff_access` row.
+
+Important: at this handoff point the Stage 2 migration is **not yet applied** and the Stage 2 branch is **not yet production**. Do not claim Stage 2 is live until CI/preview pass, the PR is merged, production is READY on the merged SHA, the migration is applied, and verification is completed.
+
+## Why the Stage 2 approach is safe
+
+- Customer/public RLS conditions are not changed.
+- Service-role server database calls continue to bypass RLS as intended.
+- `private.has_staff_permission(...)` is already the central predicate used by privileged direct-client RLS policies, so adding AAL2 there hardens many tables without duplicating new policies everywhere.
+- The API wrapper checks AAL2 only after the existing `base.requireStaff()` has authenticated the token and confirmed role/permission, so an unverified JWT payload cannot grant access.
+- No new environment variable is required.
 
 ## Supabase/Auth security state
 
-Applied production inbox/security migrations remain:
-
+Applied production migrations before Stage 2 remain:
 - `20260911213820 inbox_spam_controls`
 - `20260911213842 inbox_spam_blocklist_fk_index`
 - `20260911220343 inbox_security_indexes`
 - `20260911220415 harden_invoice_number_function_search_path`
 
-No database migration and no new environment variable were required for MFA Stage 1.
-
-Supabase Security Advisor no longer reports the prior mutable-search-path warning. Remaining RLS-with-no-policy findings are intentional server-only operational tables.
-
-One hosted Auth warning remains: **Leaked Password Protection is disabled**. Supabase documentation says this feature rejects known breached passwords and is available on Pro plans and above. The current connector cannot mutate that hosted Auth dashboard setting; do not claim it is enabled until verified in the dashboard.
+Supabase Security Advisor still reports **Leaked Password Protection disabled**. This hosted Auth setting must be enabled and verified separately.
 
 ## Deployment and verification state
 
-GitHub `main` automatically deploys to Vercel production.
+Stage 1 production code is on `main`; handoff/status were last synced at `bc1e33477e074ce6992afad5401640eff8bd7889`, with Vercel production READY on that documentation-only commit.
 
-MFA Stage 1:
-- PR #7 exact feature commit `4e69b6da60f43724fd013e7fc0583ce983ca3823` passed the expanded JavaScript/handoff CI.
-- Exact Vercel preview `dpl_6vGV4fWwcNVVJJpnW92CNyaXqP8X` reached READY and cloned that exact commit.
-- PR #7 was rebased into `main` as `6cb1926b3da29d49a475f53e9dc07ddc0af915b9`.
-- Production Vercel deployment `dpl_6qMAURUKHJqbiY4ngZcHP3YaZtD2` reached READY, built the exact main SHA, attached `namdar.co.uk`, and reported no alias error.
-- Canonical live HTTP 200 verified for `account.js`, `account-mfa-guard.js`, `admin.js`, `admin-mfa-guard.js`, `staff.js`, `staff-mfa-guard.js`, and `staff-sw.js`.
-- The real administrator TOTP enrollment + next-session AAL2 challenge has **not yet been exercised**. Do not claim that interactive step is complete until the user performs it.
+Stage 2 pre-change checks completed:
+- user confirmed successful live administrator TOTP setup;
+- production database verified 1 admin user with 1 verified MFA factor;
+- current `private.has_staff_permission()` was inspected and currently checks staff role/permissions but not AAL;
+- representative sensitive APIs (`support-inbox`, `admin-users`, reporting, payments, address directory, staff jobs/actions/notifications/presence, ticket staff paths) were confirmed to use central `requireStaff()`;
+- current RLS policies were audited and privileged policies predominantly use `private.has_staff_permission(...)`.
 
 ## Known launch checks and cautions
 
-- Next, have the administrator enroll TOTP from the live Admin security prompt; preferably enroll a backup factor too.
-- After a successful next-login AAL2 challenge is demonstrated, remove the temporary privileged-user bypass in a separate change.
-- Then audit and add AAL2 enforcement to privileged server APIs and direct-data/RLS paths.
-- Enable Supabase Auth Leaked Password Protection in hosted Auth settings.
-- Verify Stripe, Turnstile, OAuth providers, SMS provider, Resend configuration and legal content before public advertising.
-- Confirm Supabase Auth Site URL/redirect allowlist for `https://namdar.co.uk`.
-- Verify booking-notification and account-purge cron jobs.
-- Confirm database/application double-booking protections.
+After Stage 2 is live:
+- verify an AAL2 administrator can still load Admin, Inbox, reports and a write action;
+- verify an `aal1` privileged session is rejected by both server API and direct RLS paths (use a controlled test, not a real customer session);
+- enable Supabase Auth Leaked Password Protection;
+- verify Stripe, Turnstile, OAuth providers, SMS provider, Resend configuration and legal content before public advertising;
+- confirm Supabase Auth Site URL/redirect allowlist for `https://namdar.co.uk`;
+- verify booking-notification/account-purge cron jobs and intended double-booking protection.
 
-## Required workflow for future AI sessions
+## Required workflow
 
 1. Read this file, `docs/PROJECT_STATUS.md` and `AGENTS.md`.
-2. Inspect source and live provider state before changing anything.
-3. Make the smallest safe change.
-4. Test adjacent customer/admin/staff paths.
+2. Inspect repository and provider state before changing anything.
+3. Use branch → PR → CI → Vercel preview → merge → production verification.
+4. Apply database migrations only with verified production intent and record the actual applied migration.
 5. Update this file and `docs/PROJECT_STATUS.md` in the same substantial-change commit.
-6. State DB/migration impact, env-var impact, deployment status and remaining verification accurately.
+6. Never include credentials or private customer data.
 
 ## Next recommended step
 
-Open the live Admin dashboard and complete the new TOTP authenticator enrollment. Sign out and sign back in to verify the AAL2 challenge appears before Admin data loads. Only after that verified recovery-safe enrollment should the temporary **Continue for now** bypass be removed.
+Open the Stage 2 PR, wait for JavaScript/handoff CI and the exact Vercel preview SHA to pass, merge to `main`, verify production, then apply the AAL2 RLS migration and run the post-deployment checks before marking Stage 2 live.
