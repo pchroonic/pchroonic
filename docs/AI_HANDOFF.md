@@ -19,21 +19,21 @@ The repository plus verified provider state are the source of truth. Never copy 
 
 v6.4.16 keeps public enquiries separate from private customer support tickets. Public visitors can request a quote, use general chat guidance or email Namdar. Support-ticket creation is private to signed-in customers with an existing quote, booking, subscription or project. External inbound email remains in Admin → Email inbox and does not become a customer support ticket.
 
-The homepage/support-routing hotfixes, My Namdar session-bootstrap hotfix, and first Admin Email Inbox spam-protection release are live. The inbox has a dedicated Spam/quarantine view, manual restore, exact-sender/domain block rules, an administrator unblock manager, conservative marketing/bot classification, and staff-notification suppression for quarantined mail. A real production administrator action has now exercised the spam/block flow: production contains active block rules and quarantined threads, so the first release is no longer only source/deployment-verified.
+The homepage/support-routing hotfixes, My Namdar session-bootstrap hotfix and Admin Email Inbox spam-protection release are live. The inbox has a dedicated Spam/quarantine view, manual restore, exact-sender/domain block rules, an administrator unblock manager, conservative marketing/bot classification and staff-notification suppression for quarantined mail. Production contains active block rules and quarantined threads, confirming the real Admin spam/block flow has been exercised.
 
-A second **Inbox Security v2** hardening pass is being prepared on branch `feature/inbox-security-v2-20260911`. It keeps the same customer-ticket separation and adds defense-in-depth around inbound email:
+**Inbox Security v2 is live in production.** It keeps customer tickets separate and adds defense-in-depth around inbound email:
 
-- only recognized Namdar role aliases (`support`, `bookings`, `accounts`, `billing`, `hello`) and valid reply aliases are accepted; unknown catch-all aliases are ignored instead of becoming Support;
-- internally generated `@namdar.co.uk` mail is ignored on inbound to prevent mail loops/system messages polluting the working inbox;
-- reply aliases only count as genuine reply context when the token resolves to an existing thread; forged `In-Reply-To` or random reply tokens no longer bypass marketing checks;
-- duplicate inbound messages are suppressed by provider email ID and by sender + RFC Message-ID, including the same email delivered to more than one Namdar alias;
-- repeated near-identical campaign content from multiple unknown senders is automatically quarantined;
-- explicit DMARC failure is quarantined as a sender-authentication security failure; weaker SPF/DKIM failures contribute to conservative scoring rather than automatically blocking known customers;
-- dangerous executable/script/macro attachment types are quarantined before staff notification; archive/active-content attachments are tagged with caution metadata;
-- Admin gains a separate **Report phishing** action; shared public mail-provider domains are no longer offered as a domain-block UI action;
-- blocking a non-shared domain also quarantines existing matching inbox threads, not only future mail.
+- only recognized Namdar aliases (`support`, `bookings`, `accounts`, `billing`, `hello`) and valid reply aliases are accepted; unknown catch-all aliases are ignored;
+- internal `@namdar.co.uk` inbound is ignored to prevent mail loops/system-message pollution;
+- reply aliases count as reply context only when the token resolves to an existing thread; forged/random reply context does not bypass filtering;
+- duplicates are suppressed by provider email ID and sender + RFC Message-ID, including the same message delivered to multiple Namdar aliases;
+- repeated near-identical campaigns from multiple unknown senders are quarantined;
+- explicit DMARC failure is a security quarantine; weaker SPF/DKIM failures contribute to conservative scoring;
+- dangerous executable/script/macro attachment types trigger quarantine; archive/active-content attachments carry caution metadata;
+- Admin includes **Report phishing** and safer shared-domain blocking behavior;
+- blocking a private/non-shared domain quarantines existing matching threads as well as future mail.
 
-Resend configuration was checked directly: the single enabled webhook points to `https://namdar.co.uk/api/resend-inbound` and subscribes to `email.received`. Webhook signing is already enforced in `api/resend-inbound.js` using the existing `RESEND_WEBHOOK_SECRET`; never record the secret value in repository docs.
+Resend receiving remains protected by signed Svix/Resend webhook verification with a five-minute timestamp window. Never record the webhook secret value in repository docs.
 
 ## Architecture at a glance
 
@@ -50,32 +50,28 @@ Resend configuration was checked directly: the single enabled webhook points to 
 
 ## Inbox/security schema and migration state
 
-Production Supabase was inspected before schema changes. Inbox tables remain server-managed/RLS-protected.
-
-Already-applied migrations with repository source under `supabase/migrations/`:
+Already-applied production migrations with repository source under `supabase/migrations/`:
 
 - `20260911213820 inbox_spam_controls`
 - `20260911213842 inbox_spam_blocklist_fk_index`
 - `20260911220343 inbox_security_indexes`
 - `20260911220415 harden_invoice_number_function_search_path`
 
-The 22:03 migration adds partial indexes used by inbound sender-frequency, RFC Message-ID dedupe, and campaign-subject lookups. The 22:04 migration fixes the Supabase Security Advisor warning for `public.namdar_set_invoice_number()` by pinning its search path to `pg_catalog, public`; the function definition otherwise remains unchanged.
+The inbox-security indexes support sender-frequency, RFC Message-ID dedupe and campaign-subject lookups. The invoice-number function search path is pinned to `pg_catalog, public`; Supabase Security Advisor no longer reports the mutable-search-path warning.
 
-Security Advisor was rerun after the hardening migration: the mutable-search-path warning is gone. Remaining RLS-with-no-policy findings are intentional server-only tables, including `support_inbox_blocklist`. One hosted Auth warning remains: **Leaked Password Protection is disabled**. This is a Supabase Auth dashboard setting, not a database migration.
+Security Advisor was rerun after Security v2 deployment. Remaining RLS-with-no-policy findings are intentional server-only operational tables. One hosted Auth warning remains: **Leaked Password Protection is disabled**. This is a hosted Supabase Auth setting, not a database migration, and has not been enabled by the current tools.
 
-No new environment variable is required for Inbox Security v2.
-
-## Production data and migration safety
-
-Do not rerun already-applied migrations on production. For future schema changes: inspect actual production schema/history, create a new forward-only migration, preserve its SQL source, check RLS/grants/indexes/data impact, run security/performance advisors, and record whether it was prepared or applied.
+No new environment variable was required for Inbox Security v2.
 
 ## Deployment and verification state
 
 GitHub `main` automatically deploys to Vercel production.
 
-The first Email inbox spam release remains verified live on production code commit `97014ad2c7dbd0cceb7ca8b97f193a3b5ce8e8bc`; its documentation state was synchronized by `57a7fa854853d68d46ac94f73371f4382f7503d5`. Canonical assets are live as `6.4.16-inbox-safety-1`.
+Inbox Security v2 PR #5 passed GitHub CI on feature commit `5aab371098e40ce664aa19b4f71ce5dd312c9f06` (workflow run `34652942698`). Exact preview deployment `dpl_6nLof8eSFXEVePbB1VEB4VsEHKre` reached READY. PR #5 was merged to `main` as `c3d788dfd61751faf888197801b0fce587d97d38`. Production deployment `dpl_CA4tTdYrtjxvxQR6jor1cs3Lvjwn` is READY, targets production, includes the `namdar.co.uk` alias and has no alias error.
 
-For Inbox Security v2, the two production Supabase migrations above are already applied and verified, but the application code is **not yet production-ready** until branch CI, exact Vercel preview, merge, canonical production verification and at least one safe inbound/duplicate-recipient behavior check are complete.
+A safe post-deployment end-to-end test for recognized-mailbox versus unknown-alias behavior is still recommended; do not claim that exact behavior has been exercised until tested. Do not send executable attachments merely to test quarantine.
+
+A duplicate concurrent hardening PR #6 was closed without merge because PR #5 already contained the broader implementation.
 
 ## Known launch checks and cautions
 
@@ -86,7 +82,7 @@ For Inbox Security v2, the two production Supabase migrations above are already 
 - Confirm intended database and application double-booking protections.
 - Test privileged admin/staff APIs with least-privilege accounts after permission changes.
 - Keep offline staff data minimal, short-lived and read-only.
-- Treat automatic spam classification conservatively; manual block rules are authoritative.
+- Treat automatic spam/security classification conservatively; quarantine and restore are preferred to destructive deletion.
 
 ## Required workflow for future AI sessions
 
@@ -99,4 +95,4 @@ For Inbox Security v2, the two production Supabase migrations above are already 
 
 ## Next recommended step
 
-Finish `feature/inbox-security-v2-20260911`: run JavaScript/API syntax CI and Vercel preview, merge only if green, verify canonical live assets/API deployment, then perform a safe inbound test to a recognized mailbox plus a deliberate unknown-alias test. Confirm the recognized message reaches Email inbox, the unknown alias is ignored, customer Support tickets remain unchanged, and no real customer data is used for testing.
+Enable Supabase Auth Leaked Password Protection in the hosted Auth dashboard, then perform one safe inbound test to a recognized mailbox plus an unknown-alias test. Confirm the recognized message reaches Email inbox, the unknown alias is ignored, customer Support tickets remain unchanged and no real customer data is used for testing.
