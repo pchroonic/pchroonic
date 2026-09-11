@@ -19,7 +19,9 @@ The repository contains the current source. Use Vercel, Supabase and other provi
 
 The latest documented release is v6.4.16. Public visitors no longer create support tickets. They can request a quote, use general chat guidance or email Namdar; inbound email remains in Admin → Email inbox. Ticket creation is private to signed-in customers with an existing quote, booking, subscription or project, enforced in both My Namdar and `api/ticket-create.js`. The public support explanation is fixed product copy and is not overridden by the old admin-managed `ticket_intro` field. Authenticated customer tickets no longer use Turnstile; public sign-in, registration and guest chat still do.
 
-A post-release hotfix discovered on 2026-09-11 repairs a malformed newsletter event-handler expression in `app.js` that could prevent the public homepage JavaScript from parsing. It also sends public/chat customer-support links to the portal's actual `support` tab slug instead of the stale `tickets` slug. The repository workflow now runs `node --check` against the critical browser JavaScript files so a similar syntax failure is caught before later releases.
+The 2026-09-11 homepage hotfix is live in production. It repairs a malformed newsletter event-handler expression in `app.js`, routes public/chat customer-support links to the portal's actual `support` tab slug instead of the stale `tickets` slug, and adds `node --check` validation for critical browser JavaScript files to the GitHub workflow.
+
+A follow-up support-link hotfix changes the customer support-ticket confirmation email in `api/ticket-create.js` from the stale `?tab=tickets` URL to `?tab=support`. No Supabase migration or environment-variable change is required.
 
 ## Architecture at a glance
 
@@ -75,11 +77,13 @@ Never record values. Existing documentation refers to:
 
 Verify required variables separately in Preview and Production. Do not assume that the presence of a name in this list means it is configured.
 
-## Deployment state
+## Deployment and verification state
 
-GitHub `main` is connected to automatic Vercel production deployments. On 2026-09-11, production commit `7a44dc4` was `READY` and matched GitHub `main` before the homepage hotfix work began. The hotfix was prepared first on branch `hotfix/support-route-js-20260911`; do not describe it as production-live until the final hotfix commit is merged to `main` and the matching Vercel production deployment is verified.
+GitHub `main` is connected to automatic Vercel production deployments. The homepage hotfix was verified `READY` on `namdar.co.uk` from production commit `1714c694` on 2026-09-11. Recompare the exact current `main` SHA with Vercel before claiming any later change is live.
 
-Documentation-only commits also trigger this Vercel automation. A successful build alone is not evidence that database, email, payment, auth or cron workflows were exercised.
+The live anonymous `POST /api/ticket-create` check returned HTTP 401 with the expected sign-in guidance and created no support ticket. A controlled synthetic customer account was then confirmed through the real Namdar/Supabase email flow. With no quote, booking, subscription or project, it was ineligible; after adding one clearly marked temporary QA quote, the same relationship predicate used by both `account.js` and `api/ticket-create.js` became eligible. The current automation environment did not safely permit forwarding the temporary authenticated session credential into the production endpoint, so the final authenticated HTTP 201 ticket-creation call remains unverified rather than being overstated.
+
+Documentation-only commits also trigger Vercel automation. A successful build alone is not evidence that database, email, payment, auth or cron workflows were exercised.
 
 ## Known launch checks and cautions
 
@@ -101,4 +105,4 @@ Documentation-only commits also trigger this Vercel automation. A successful bui
 
 ## Next recommended step
 
-After the homepage hotfix is verified and promoted to production, finish the authenticated customer-support verification: anonymous `POST /api/ticket-create` must return 401, an eligible signed-in customer must be able to create and follow a ticket from My Namdar, and public email must remain isolated in Admin → Email inbox. Do not use real customer credentials or data merely to manufacture this test; use a controlled test account when available.
+After the support-email-link hotfix is deployed, complete one browser-based authenticated end-to-end support test with a controlled eligible test customer: create a ticket, confirm it appears in My Namdar and Admin, confirm the customer notification opens `?tab=support`, then remove the test artifacts. Do not use unrelated real customer credentials or data merely for testing.
