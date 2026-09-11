@@ -11,18 +11,21 @@ This is the first file every AI/developer should read. It is intentionally short
 ## Current live baseline
 
 - Repository: `pchroonic/pchroonic`, branch `main`.
-- Current durable baseline commit: `d379cf1effdf8763c3b4112fcb0dcd63bfc48975`.
+- Latest verified product/security code baseline: `ece88931bd5e05b26173b25ff7fa75c46b6b4e63`.
 - Production: `https://namdar.co.uk` on Vercel project `namdar-website-starter-1`.
 - Backend/Auth: Supabase `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
-- MFA Stage 2 is LIVE.
+- MFA Stage 2 is LIVE and user smoke-tested successfully on 2026-09-12: sign out → sign in → authenticator challenge → Admin/Inbox loaded normally.
 - Admin/Staff privileged browser, API and direct-RLS access require AAL2.
 - Applied MFA migration: `20260911230055 require_aal2_for_staff_permissions`.
 - Customer support tickets remain customer-only; public inbound email remains Admin Email inbox.
 
 ## Immediate next action
 
-1. Complete the fresh Admin smoke test: sign out → sign in → authenticator challenge → confirm Admin/Inbox loads and a harmless read/save action works.
-2. Then enable Supabase Auth **Leaked Password Protection** and verify the Security Advisor warning clears.
+Enable Supabase Auth **Leaked Password Protection** in the Supabase Dashboard, then rerun Security Advisor and confirm the warning clears.
+
+Current connected Supabase tools cannot mutate this hosted Auth setting directly. Do not ask for or store a Supabase personal access token just to perform this dashboard toggle.
+
+Supabase docs: Authentication → Auth settings / Email provider settings → enable leaked-password protection. Feature availability requires Supabase Pro plan or above.
 
 ## After that
 
@@ -30,6 +33,7 @@ Continue launch-readiness checks for Stripe, Turnstile, OAuth, SMS, Resend, lega
 
 ## Do not repeat
 
+- Do not repeat the MFA Stage 2 smoke test unless a future auth change requires regression testing; it passed on 2026-09-12.
 - Do not rebuild MFA Stage 1/2; it is already live.
 - Do not reapply migration `20260911230055`.
 - Do not make support tickets public.
