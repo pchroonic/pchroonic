@@ -39,20 +39,23 @@ const documentationOnly = (file) =>
 const productChanges = changedFiles.filter((file) => !documentationOnly(file));
 
 if (productChanges.length === 0) {
-  console.log("No product-source changes require a handoff update.");
+  console.log("No product-source changes require a continuity update.");
   process.exit(0);
 }
 
-const required = ["docs/AI_HANDOFF.md", "docs/PROJECT_STATUS.md"];
+const required = [
+  "docs/AI_START.md",
+  "docs/AI_HANDOFF.md",
+  "docs/PROJECT_STATUS.md",
+];
 const missing = required.filter((file) => !changedFiles.includes(file));
 
 if (missing.length > 0) {
   console.error("Product-source changes were detected:");
   productChanges.forEach((file) => console.error(`- ${file}`));
-  console.error("\nUpdate these handoff files in the same change:");
+  console.error("\nUpdate these continuity files in the same change:");
   missing.forEach((file) => console.error(`- ${file}`));
   process.exit(1);
 }
 
-console.log("Namdar AI handoff files were updated with the product change.");
-
+console.log("Namdar fast-resume, technical handoff and project-status files were updated with the product change.");

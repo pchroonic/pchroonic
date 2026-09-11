@@ -1,6 +1,8 @@
 # Namdar project status
 
-Last updated: 2026-09-11 UTC
+Last updated: 2026-09-12 UTC
+
+For fast continuation, read `docs/AI_START.md` first. This file is the broader roadmap/status view.
 
 ## Current baseline
 
@@ -9,6 +11,15 @@ Last updated: 2026-09-11 UTC
 - Delivery: Vercel project `namdar-website-starter-1`, canonical domain `namdar.co.uk`.
 - Data/auth/storage: Supabase `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
 - Application: static multi-page front end plus Vercel Node serverless APIs.
+
+## Continuity system
+
+Namdar now has a three-layer AI handoff system:
+- `docs/AI_START.md` — fast resume, exact current step and do-not-repeat notes.
+- `docs/AI_HANDOFF.md` — detailed technical handoff.
+- `docs/PROJECT_STATUS.md` — this broader roadmap/status file.
+
+CI requires all three files to change whenever product-source files change, reducing the chance that ChatGPT/Claude finishes work without recording the next step.
 
 ## Main product areas
 
@@ -58,7 +69,7 @@ Verified after migration:
 - controlled database test: AAL1 denied, AAL2 allowed for the same active administrator identity;
 - post-migration Security Advisor reported no new Stage 2 security regression.
 
-Migration filename is aligned in source to the actual applied version `20260911230055_require_aal2_for_staff_permissions.sql` (the feature branch had a provisional timestamp before Supabase assigned the production version).
+Migration filename is aligned in source to the actual applied version `20260911230055_require_aal2_for_staff_permissions.sql`.
 
 ## Security advisor state
 
@@ -86,4 +97,4 @@ Existing findings remain:
 
 ## Handoff maintenance rule
 
-Any substantial change must update this file and `docs/AI_HANDOFF.md` in the same commit. Never include credentials or customer data.
+Any substantial product change must update **all three** continuity files in the same change: `docs/AI_START.md`, `docs/AI_HANDOFF.md`, and `docs/PROJECT_STATUS.md`. CI enforces this for product-source changes. Never include credentials or customer data.
