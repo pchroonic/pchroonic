@@ -1,3 +1,9 @@
+# Namdar v6.4.16 — Customer-only Support Tickets
+
+This release moves support-ticket creation out of the public website and into My Namdar. Public visitors can request a quote, use the assistant for general guidance or email Namdar; inbound email remains in Admin → Email inbox and does not create a ticket. A signed-in customer can create a ticket only after the account has an existing quote, booking, subscription or project. The rule is enforced both in the customer interface and by the server API. Authenticated ticket creation no longer depends on Cloudflare Turnstile; Turnstile remains in place for public sign-in, registration and guest chat.
+
+No Supabase migration or new environment variable is required.
+
 # Namdar v6.4.15 — Email / Ticket Separation
 
 This release separates external email conversations from website support tickets. Incoming mail to Namdar role addresses remains in Admin → Email inbox and no longer creates or synchronises duplicate `support_tickets` records. Admin and customer ticket views hide legacy email-generated copies without deleting the historical data. Website/My Namdar tickets are explicitly tagged `source=website`, feedback escalations use `source=feedback`, and system alert emails are prevented from looping back into Namdar-managed inbound addresses; Management Notifications remain the staff alert channel.

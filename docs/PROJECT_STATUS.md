@@ -4,7 +4,7 @@ Last updated: 2026-09-11 UTC
 
 ## Current baseline
 
-- Release documented in `README.md`: v6.4.15.
+- Release documented in `README.md`: v6.4.16.
 - Source branch: GitHub `main` in `pchroonic/pchroonic`.
 - Delivery: Vercel project `namdar-website-starter-1` with `namdar.co.uk` assigned.
 - Data/auth/storage: Supabase.
@@ -25,6 +25,7 @@ Last updated: 2026-09-11 UTC
 
 ## Recently documented capabilities
 
+- v6.4.16: public enquiries separated from relationship-gated customer support tickets.
 - v6.4.15: external email and website ticket separation.
 - v6.4.8: searchable/filterable customer notification centre.
 - v6.4: installable staff PWA with privacy-limited offline read-only data.
@@ -47,12 +48,13 @@ Last updated: 2026-09-11 UTC
 - Continuity commit `50783b5` reached a `READY` production deployment: verified on 2026-09-11.
 - Current production commit for future changes: compare Vercel deployment metadata with GitHub `main` before making a claim.
 - Production Supabase schema/migration state: not independently verified in this session.
-- v6.4.15 end-to-end email/ticket behaviour: not independently tested in this session.
+- v6.4.15 inbound email separation: controlled live test passed; inbound email reached Admin → Email inbox and created no new ticket.
+- Public website ticket submission: repeated controlled attempts returned HTTP 400 at Turnstile and created no records; v6.4.16 removes that public ticket path in favour of signed-in customer support.
 
 ## Outstanding work
 
 1. Verify the canonical-domain response and repeat the deployment-commit comparison after the next product change.
-2. Test the v6.4.15 inbound email, Admin Email inbox, website ticket and feedback-escalation flows without using real customer data.
+2. Verify v6.4.16 after deployment: anonymous ticket requests return 401, eligible customers can create tickets in My Namdar, and customers without a Namdar relationship see the eligibility guidance.
 3. Confirm production schema/migration history and preserve a complete migration source set.
 4. Confirm production readiness of Stripe, Turnstile, OAuth, SMS, Resend and legal configuration.
 5. Confirm intended database-level and application-level double-booking protections.

@@ -11,13 +11,13 @@ This is the first file every AI should read after opening the repository. Keep i
 - Hosting project: Vercel project `namdar-website-starter-1`.
 - Canonical domain assigned in Vercel: `namdar.co.uk`.
 - Backend: Supabase project referred to in the existing documentation as `namdar-production`.
-- Current code/release heading: Namdar v6.4.15.
+- Current code/release heading: Namdar v6.4.16.
 
 The repository contains the current source. Use Vercel, Supabase and other provider dashboards only to verify live state. Never copy secret values from those services into this file.
 
 ## Current release
 
-The latest documented release is v6.4.15, which separates external email conversations from website support tickets. Incoming role-address email remains in Admin → Email inbox and no longer creates or synchronises duplicate `support_tickets`. Website tickets use `source=website`, feedback escalations use `source=feedback`, and system-alert email loop protection remains in place.
+The latest documented release is v6.4.16. Public visitors no longer create support tickets. They can request a quote, use general chat guidance or email Namdar; inbound email remains in Admin → Email inbox. Ticket creation is private to signed-in customers with an existing quote, booking, subscription or project, enforced in both My Namdar and `api/ticket-create.js`. Authenticated customer tickets no longer use Turnstile; public sign-in, registration and guest chat still do.
 
 ## Architecture at a glance
 
@@ -35,6 +35,7 @@ The latest documented release is v6.4.15, which separates external email convers
 ## Major working capabilities documented in the repository
 
 - Public service and area pages, postcode/service-area checks and self-managed address handling.
+- Public enquiries are separated from private customer support: quotes/email for visitors, account tickets for eligible signed-in customers.
 - Customer accounts, projects, quotes, bookings, billing, support, notifications and account deletion/recovery.
 - Admin CRM, diary, quote/booking management, payments, reporting, follow-ups, feedback, audit history, support and email inboxes.
 - Staff job workflow, route planning, before/after uploads and installable mobile PWA behaviour.
@@ -98,4 +99,4 @@ Documentation-only commits also trigger this Vercel automation. A successful bui
 
 ## Next recommended step
 
-Run an end-to-end verification of the v6.4.15 email/ticket separation on a preview or controlled environment, then confirm which commit is currently serving `namdar.co.uk`. Record the exact result here without including message contents, email addresses, tokens or customer data.
+Verify the v6.4.16 customer-only support flow after deployment: anonymous `POST /api/ticket-create` must return 401, eligible signed-in customers must be able to create and follow a ticket from My Namdar, and public email must remain isolated in Admin → Email inbox.
