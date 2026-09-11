@@ -7,11 +7,20 @@
   const baseTools=supportInboxTools;
   const baseOpen=openSupportInboxThread;
   const basePatch=patchSupportInboxThread;
+  const baseAttachmentLabel=attachmentLabel;
+  const SHARED_PROVIDER_DOMAINS=new Set(['gmail.com','googlemail.com','outlook.com','hotmail.com','live.com','yahoo.com','icloud.com','me.com','proton.me','protonmail.com','aol.com','namdar.co.uk']);
 
   const senderDomain=email=>{
     const value=String(email||'').trim().toLowerCase();
     const at=value.lastIndexOf('@');
     return at>0?value.slice(at+1):'';
+  };
+
+  attachmentLabel=function(a={}){
+    const label=baseAttachmentLabel(a);
+    if(a.risk==='blocked')return`⚠ Unsafe attachment · ${label}`;
+    if(a.risk==='caution')return`⚠ Check attachment · ${label}`;
+    return label;
   };
 
   function ensureInboxSafetyUi(){
@@ -37,9 +46,10 @@
       const panel=document.createElement('details');
       panel.id='inboxSafetyPanel';
       panel.className='inbox-safety-panel';
-      panel.innerHTML=`<summary><span><strong>Spam protection</strong><small>Quarantine junk, block senders and stop repeated bot mail from reaching the working inbox.</small></span><span id="inboxBlockCount" class="crm-chip">0 blocked</span></summary>
+      panel.innerHTML=`<summary><span><strong>Spam & security protection</strong><small>Quarantine junk, phishing and dangerous mail before it reaches the working inbox.</small></span><span id="inboxBlockCount" class="crm-chip">0 blocked</span></summary>
         <div class="inbox-safety-body">
-          <div class="inbox-safety-note"><strong>Automatic protection is conservative.</strong><span>Known customers and genuine reply threads bypass automatic marketing heuristics. Manually blocked senders or domains are always quarantined.</span></div>
+          <div class="inbox-safety-note"><strong>Security checks are active.</strong><span>Signed webhook verification, unknown-address rejection, duplicate/campaign detection, sender-authentication checks and dangerous-attachment quarantine run before staff are notified.</span></div>
+          <div class="inbox-safety-note"><strong>False-positive protection remains conservative.</strong><span>Known customers and genuine Namdar reply threads bypass marketing heuristics. Shared providers such as Gmail and Outlook can only be blocked by exact sender, not by whole domain.</span></div>
           <div id="inboxBlockedRules"><div class="crm-empty"><span>Blocked sender and domain rules load for administrators.</span></div></div>
         </div>`;
       refreshLine.insertAdjacentElement('afterend',panel);
@@ -139,16 +149,18 @@
 
     const head=root.querySelector('.support-inbox-detail-head');
     if(head&&!root.querySelector('.inbox-safety-actions')){
-      const domain=senderDomain(t.customer_email);
+      const domain=senderDomain(t.customer_email),canBlockDomain=domain&&!SHARED_PROVIDER_DOMAINS.has(domain);
       const box=document.createElement('div');
       box.className='inbox-safety-actions';
-      const spamInfo=t.status==='spam'&&t.spam_reason?`<span class="inbox-spam-reason"><strong>Quarantined:</strong> ${esc(t.spam_reason)}${Number(t.spam_score||0)?` · score ${Number(t.spam_score)}`:''}</span>`:'';
+      const label=t.spam_source==='security'?'Security quarantine':t.spam_source==='campaign'?'Campaign quarantine':'Quarantined';
+      const spamInfo=t.status==='spam'&&t.spam_reason?`<span class="inbox-spam-reason"><strong>${esc(label)}:</strong> ${esc(t.spam_reason)}${Number(t.spam_score||0)?` · score ${Number(t.spam_score)}`:''}</span>`:'';
       box.innerHTML=`${spamInfo}<div class="inbox-safety-action-buttons">${t.status==='spam'
         ?'<button type="button" class="primary-btn small" data-inbox-not-spam>Not spam / restore</button>'
-        :'<button type="button" class="ghost-btn small" data-inbox-mark-spam>Mark as spam</button>'}
-        ${currentProfile?.role==='admin'?`<button type="button" class="danger-btn small" data-inbox-block-sender>Block sender</button>${domain?'<button type="button" class="danger-btn small" data-inbox-block-domain>Block domain</button>':''}`:''}</div>`;
+        :'<button type="button" class="ghost-btn small" data-inbox-mark-spam>Mark as spam</button><button type="button" class="danger-btn small" data-inbox-phishing>Report phishing</button>'}
+        ${currentProfile?.role==='admin'?`<button type="button" class="danger-btn small" data-inbox-block-sender>Block sender</button>${canBlockDomain?'<button type="button" class="danger-btn small" data-inbox-block-domain>Block domain</button>':''}`:''}</div>`;
       head.insertAdjacentElement('afterend',box);
       box.querySelector('[data-inbox-mark-spam]')?.addEventListener('click',()=>runInboxSafetyAction(id,'spam'));
+      box.querySelector('[data-inbox-phishing]')?.addEventListener('click',()=>runInboxSafetyAction(id,'phishing'));
       box.querySelector('[data-inbox-not-spam]')?.addEventListener('click',()=>runInboxSafetyAction(id,'not_spam'));
       box.querySelector('[data-inbox-block-sender]')?.addEventListener('click',()=>runInboxSafetyAction(id,'block_sender'));
       box.querySelector('[data-inbox-block-domain]')?.addEventListener('click',()=>runInboxSafetyAction(id,'block_domain'));
@@ -169,9 +181,10 @@
     const domain=senderDomain(t.customer_email);
     const prompts={
       spam:'Move this conversation to Spam? It will leave the working inbox and stop counting as unread.',
+      phishing:'Report this as phishing or dangerous mail? It will be quarantined with urgent security priority.',
       not_spam:'Restore this conversation to the working inbox?',
       block_sender:`Block ${t.customer_email}? Future messages from this exact address will be quarantined automatically.`,
-      block_domain:`Block all future inbound mail from @${domain}? Use this only when the whole domain is unwanted.`
+      block_domain:`Block all future inbound mail from @${domain}? Existing conversations from this domain will also be quarantined.`
     };
     if(!confirm(prompts[action]||'Continue?'))return;
     try{
@@ -182,7 +195,8 @@
       await supportInboxTools({silent:true});
       await openSupportInboxThread(id,{preserveDraft:true});
       if(currentProfile?.role==='admin')await loadInboxBlockRules().catch(()=>null);
-      updateSupportInboxUpdated(action==='not_spam'?'Conversation restored to inbox':action==='spam'?'Conversation moved to Spam':'Sender rule saved · conversation quarantined');
+      const message=action==='not_spam'?'Conversation restored to inbox':action==='spam'?'Conversation moved to Spam':action==='phishing'?'Security report saved · conversation quarantined':'Sender rule saved · conversation quarantined';
+      updateSupportInboxUpdated(message);
     }catch(e){alert(e.message)}
   }
 
