@@ -1,8 +1,8 @@
 # Namdar AI handoff
 
-Last verified: 2026-09-11 UTC
+Last verified: 2026-09-12 UTC
 
-Read this file first after opening the repository. Keep it concise, factual and current. Never store secret values or private customer data here.
+Read `docs/AI_START.md` first for the compact current state and immediate next action. Use this file for detailed technical continuity. Never store secret values or private customer data here.
 
 ## Source of truth
 
@@ -14,6 +14,15 @@ Read this file first after opening the repository. Keep it concise, factual and 
 - Current documented release heading: Namdar v6.4.16.
 
 Repository plus verified provider state are the source of truth.
+
+## Fast-resume continuity model
+
+Namdar now uses three continuity layers:
+- `docs/AI_START.md` — compact current state, exact next action, blockers and do-not-repeat notes.
+- `docs/AI_HANDOFF.md` — detailed technical continuity, migrations, deployment checks and implementation decisions.
+- `docs/PROJECT_STATUS.md` — broader roadmap and launch status.
+
+CI requires all three to be updated with any product-source change. This is designed so a new ChatGPT/Claude session can resume quickly without rereading the full history unless the task is substantial.
 
 ## Support model — unchanged
 
@@ -58,7 +67,7 @@ Stage 2 is now enforced in three layers:
 
 ## Migration history note
 
-The branch originally contained a pre-named migration file `20260911231500_require_aal2_for_staff_permissions.sql`. Supabase assigned the actual applied migration version `20260911230055`; repository filename is being aligned to `20260911230055_require_aal2_for_staff_permissions.sql` so local/source history matches production.
+The branch originally contained a pre-named migration file `20260911231500_require_aal2_for_staff_permissions.sql`. Supabase assigned the actual applied migration version `20260911230055`; repository filename is aligned to `20260911230055_require_aal2_for_staff_permissions.sql` so local/source history matches production.
 
 ## Security advisor state
 
@@ -87,13 +96,14 @@ Existing findings:
 
 ## Required workflow
 
-1. Read this file, `docs/PROJECT_STATUS.md` and `AGENTS.md`.
-2. Inspect repository and provider state before changing anything.
-3. Use branch → PR → CI → Vercel preview → merge → production verification.
-4. Apply database migrations only with verified production intent and record the actual applied migration.
-5. Update this file and `docs/PROJECT_STATUS.md` in the same substantial-change commit.
-6. Never include credentials or private customer data.
+1. Read `docs/AI_START.md` first.
+2. For substantial work, read this file, `docs/PROJECT_STATUS.md` and `AGENTS.md` completely.
+3. Inspect repository and provider state before changing anything.
+4. Use branch → PR → CI → Vercel preview/testing → merge → production verification.
+5. Apply database migrations only with verified production intent and record the actual applied migration.
+6. Update `docs/AI_START.md`, this file and `docs/PROJECT_STATUS.md` in the same substantial product change.
+7. Never include credentials or private customer data.
 
 ## Next recommended step
 
-Enable and verify Supabase Auth Leaked Password Protection, then continue the provider launch-readiness checklist.
+Complete the fresh Admin MFA smoke test. Then enable and verify Supabase Auth Leaked Password Protection and continue the provider launch-readiness checklist.
