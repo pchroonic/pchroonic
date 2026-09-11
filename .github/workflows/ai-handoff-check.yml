@@ -18,13 +18,17 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check critical browser JavaScript syntax
+      - name: Check critical JavaScript syntax
         run: |
           node --check app.js
           node --check account.js
           node --check account-original.js
           node --check account-auth-hotfix.js
           node --check admin.js
+          node --check admin-original.js
+          node --check admin-inbox-safety.js
+          node --check api/support-inbox.js
+          node --check api/resend-inbound.js
           node --check staff.js
           node --check conversion.js
 

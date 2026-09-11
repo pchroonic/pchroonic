@@ -16,60 +16,69 @@ Last updated: 2026-09-11 UTC
 | --- | --- | --- |
 | Public website | `index.html`, `app.js`, `styles.css`, `services/`, `areas/` | Present; homepage JS hotfix live |
 | Customer portal | `account.html`, `account.js`, `account-original.js`, `account-auth-hotfix.js`, customer APIs | Present; session-bootstrap hotfix live |
-| Admin workspace | `admin.html`, `admin.js`, admin APIs | Present |
+| Admin workspace | `admin.html`, `admin.js`, `admin-original.js`, `admin-inbox-safety.js`, admin APIs | Inbox spam-protection upgrade in feature branch |
 | Staff PWA | `staff.html`, `staff.js`, manifest and service worker | Present |
-| Server functions | `api/` | Present; support-email routing hotfix live |
+| Server functions | `api/` | Spam enforcement prepared in `support-inbox.js` and `resend-inbound.js` |
 | Shared server utilities | `lib/server.js` | Present |
-| Hosting, headers and cron | `vercel.json` | Present |
-| Production database | Supabase | Live project verified healthy; schema history still needs dedicated review |
+| Production database | Supabase | Healthy; inbox spam migrations applied |
 
 ## Recently documented capabilities
 
 - v6.4.16: public enquiries separated from relationship-gated customer support tickets.
-- v6.4.16 post-release homepage hotfix: repaired malformed public `app.js` newsletter handler, routed runtime customer-support links to `tab=support`, and added browser-JavaScript syntax checks to CI.
-- v6.4.16 support-email follow-up: customer ticket confirmation email now opens `account?tab=support` instead of the stale `account?tab=tickets` path.
-- v6.4.16 account-session hotfix: preserves the previous portal source as `account-original.js`, defers Supabase auth-state callbacks outside the auth lock, adds an eight-second fail-safe for `getSession()`, and prevents the “Restoring your secure session” screen from remaining indefinitely.
+- v6.4.16 homepage/support-routing fixes.
+- v6.4.16 My Namdar session restore hotfix.
+- Post-release Email inbox safety upgrade in progress: Spam/quarantine folder, manual spam restore, exact-sender/domain blocklist, admin unblock manager, conservative automatic marketing/bot quarantine, and staff-notification suppression for quarantined inbound mail.
 - v6.4.15: external email and website ticket separation.
-- v6.4.8: searchable/filterable customer notification centre.
-- v6.4: installable staff PWA with privacy-limited offline read-only data.
-- v6.3: administrator-only audit log and activity history.
-- v6.0: automatic quote, invoice, cancellation, unassigned-job and overdue-job follow-ups.
-- v5.x: staff route planning, quote workflow, customer booking changes, reporting, feedback, reminders, billing and job tracking.
+- v6.4.8: customer notification centre.
+- v6.4: installable staff PWA.
+- v6.3: admin audit history.
+- v6.0: business follow-ups.
 
-## Configuration and data status
+## Email inbox spam-protection design
 
-- `vercel.json` defines security headers, no-index/no-store rules for private surfaces, staff PWA caching rules, two cron schedules, sitemap rewrite and public work-page rewrite.
-- Production migration claims in the README must be treated as historical facts to verify, not commands to rerun.
-- The homepage, support-email routing and account-session hotfixes require no Supabase migration and no environment-variable change.
-- Secret values belong in provider environment settings only.
-- The repository currently uses a long release-history README; future work should keep it, while these two handoff files hold the concise current state.
+- `spam` is a separate thread state and is excluded from Open/unread working counts.
+- Inbox staff can mark or restore spam.
+- Only administrators can create/remove persistent block rules.
+- Sender blocks are exact email addresses.
+- Domain blocks affect future inbound mail from that domain, but the API refuses broad shared providers such as Gmail, Outlook, Yahoo, iCloud, Proton and Namdar’s own domain.
+- Automatic classification applies only to unknown, non-reply senders and uses conservative signals for SEO/link-building/cold-marketing outreach plus high-frequency unknown senders.
+- Known customers and genuine email-reply context bypass automatic marketing heuristics.
+- Blocked/auto-spam mail remains quarantined for audit/recovery and does not create a staff notification.
+- This is application-level quarantine after Resend receiving; it does not claim to reject SMTP upstream.
+
+## Database and configuration status
+
+Applied production migrations:
+- `20260911213820 inbox_spam_controls`
+- `20260911213842 inbox_spam_blocklist_fk_index`
+
+Repository migration source is being added under `supabase/migrations/` in the same feature commit.
+
+The first migration extends inbox thread status/metadata and creates `support_inbox_blocklist`; the second adds the covering index for `created_by` after the performance advisor flagged it.
+
+`support_inbox_blocklist` is RLS-enabled, has no browser policies, and `anon`/`authenticated` privileges are revoked; it is server/service-role managed like other private operational tables.
+
+No environment variable change is required.
 
 ## Verification status
 
-- Repository and Vercel project linkage: verified on 2026-09-11.
-- GitHub `main` automatically deploys to Vercel production: verified on 2026-09-11.
-- Homepage/support-routing hotfix: GitHub checks passed and production commit `1714c694` was verified `READY` on `namdar.co.uk`.
-- Support-ticket confirmation email routing hotfix: GitHub checks and Vercel preview passed; production commit `89fe0b80` was verified `READY` with the `namdar.co.uk` alias and no alias error.
-- My Namdar session restore: a live screenshot showed `/account` stuck on “Restoring your secure session”. The canonical production `/api/config` endpoint was independently verified HTTP 200, so current production configuration was not the cause. Source inspection matched Supabase's documented async `onAuthStateChange` deadlock condition because the callback awaited portal code that can perform further Supabase session/API work.
-- The account-session hotfix passed GitHub `AI handoff and JavaScript checks`, including syntax checks for `account.js`, `account-original.js` and `account-auth-hotfix.js`. The exact hotfix commit also built to a READY Vercel preview before merge.
-- The hotfix was merged to `main` as commit `4a5d15bd305412b1ba244aa8444b875471ee2866`. Production deployment `dpl_Fyn26yMHhCMXao8JvS8dLF3DGLsv` was verified `READY`, targeted production, included `namdar.co.uk` with no alias error, and canonical live requests returned HTTP 200 for `account.js`, `account-original.js` and `account-auth-hotfix.js`.
-- The live account loader identifies the deployed patch as `6.4.16-session-hotfix-1`. A final browser symptom check remains because an already-open pre-hotfix tab may retain an old Supabase auth lock until it is closed or reloaded.
-- Live anonymous `POST /api/ticket-create`: verified HTTP 401 with expected sign-in guidance before and after the latest support hotfix; no QA support ticket was created.
-- `api/ticket-create.js` source independently enforces authentication, active customer role and an existing quote, booking, subscription or project before ticket creation.
-- The customer portal uses the same quote/booking/subscription/project relationship threshold to reveal the customer ticket form.
-- A controlled synthetic customer account was confirmed through the real Supabase/Namdar email flow. It had no qualifying relationship initially; one clearly marked temporary QA quote made the relationship predicate eligible. The automation environment did not permit safely forwarding the temporary authenticated session credential into the live endpoint, so a full authenticated HTTP 201 ticket creation is still pending rather than claimed as complete.
-- Temporary QA cleanup is complete and verified: synthetic auth user/profile, temporary quote, support tickets for that account and stored HTTP test responses are all absent. No real customer data was used or modified.
-- Production Supabase project health and the relevant relationship tables were inspected; full migration-history reconciliation remains outstanding.
-- v6.4.15 inbound email separation: controlled live test passed; inbound email reached Admin → Email inbox and created no new ticket.
+- Repository ↔ Vercel production linkage: verified.
+- My Namdar session hotfix: CI, preview, production deployment and canonical assets verified.
+- Inbox spam migrations: applied successfully to `namdar-production`.
+- Supabase security advisor: no new error; RLS-with-no-policy is informational and intentional for the server-only blocklist.
+- Supabase performance advisor: new blocklist foreign-key warning was fixed by the second migration.
+- Local syntax checks passed for the new `admin.js` loader, `admin-inbox-safety.js`, `api/support-inbox.js`, and `api/resend-inbound.js`.
+- Feature branch application CI/preview/production deployment still pending; do not claim the new inbox UI or inbound filtering is live yet.
 
 ## Outstanding work
 
-1. Confirm in the user's browser that `/account` now opens normally or exits to the recoverable sign-in state instead of remaining indefinitely on the session-restoring spinner. Close older Namdar tabs once before the first post-hotfix reload if needed.
-2. Complete one browser-based authenticated end-to-end ticket test with a controlled eligible customer: create a ticket, confirm it appears in My Namdar and Admin, verify the notification route, then remove test artifacts.
-3. Confirm production schema/migration history and preserve a complete migration source set.
-4. Confirm production readiness of Stripe, Turnstile, OAuth, SMS, Resend and legal configuration.
-5. Confirm intended database-level and application-level double-booking protections.
+1. Finish CI/preview/merge/production verification for `feature/inbox-spam-controls-20260911`.
+2. After deployment, use the administrator’s visible junk conversation to verify Mark spam and/or Block sender, then confirm it leaves Open and appears under Spam without affecting customer Support tickets.
+3. Complete a controlled authenticated customer-support ticket test.
+4. Continue production schema/migration source reconciliation.
+5. Confirm launch readiness for Stripe, Turnstile, OAuth, SMS, Resend and legal configuration.
+6. Confirm intended database/application double-booking protections.
 
 ## Handoff maintenance rule
 
-Any substantial change must update this file and `docs/AI_HANDOFF.md` in the same commit. Replace stale status instead of endlessly appending. Put detailed release history in `README.md` or a dedicated changelog, and never include credentials or customer data.
+Any substantial change must update this file and `docs/AI_HANDOFF.md` in the same commit. Never include credentials or customer data.
