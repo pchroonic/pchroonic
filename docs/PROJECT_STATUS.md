@@ -14,7 +14,7 @@ For fast continuation, read `docs/AI_START.md` first. This file is the broader r
 
 ## Continuity system
 
-Namdar now has a three-layer AI handoff system:
+Namdar has a three-layer AI handoff system:
 - `docs/AI_START.md` — fast resume, exact current step and do-not-repeat notes.
 - `docs/AI_HANDOFF.md` — detailed technical handoff.
 - `docs/PROJECT_STATUS.md` — this broader roadmap/status file.
@@ -27,18 +27,18 @@ CI requires all three files to change whenever product-source files change, redu
 | --- | --- |
 | Public website | Live |
 | Customer portal | Session fix + optional customer MFA live |
-| Admin workspace | Inbox Security v2 + mandatory privileged MFA/AAL2 live |
+| Admin workspace | Inbox Security v2 + mandatory privileged MFA/AAL2 live and user smoke-tested |
 | Staff PWA | Mandatory privileged MFA/AAL2 live; AAL2 required for offline cached session |
 | Server functions | Privileged APIs require AAL2 through central `requireStaff()` wrapper |
 | Production DB | Central privileged RLS requires AAL2 |
 
 ## Phase 7 — Launch Security & Readiness
 
-### MFA Stage 2 — LIVE
+### MFA Stage 2 — LIVE AND VERIFIED
 
 The admin authenticator was successfully enrolled before Stage 2. Production currently has 1 verified admin MFA factor.
 
-Enforcement now exists at browser, API and database levels:
+Enforcement exists at browser, API and database levels:
 - Admin/Staff browser bypass removed.
 - Privileged users must enroll/verify TOTP and reach AAL2 before privileged UI loads.
 - Central Vercel `requireStaff()` requires AAL2 after the existing validated identity/permission check.
@@ -46,6 +46,16 @@ Enforcement now exists at browser, API and database levels:
 - `Staff read own access` requires AAL2.
 - Old AAL1 Staff sessions cannot use privacy-limited offline job snapshots until they reconnect and verify.
 - Customer/public access policies and customer support-ticket rules are unchanged.
+
+### User smoke test
+
+Passed on 2026-09-12:
+- signed out of Admin completely;
+- signed back in normally;
+- authenticator challenge appeared and was completed;
+- Admin → Inbox loaded normally.
+
+This smoke test is complete and should not be repeated unless a future auth change needs regression testing.
 
 ## Deployment verification
 
@@ -75,7 +85,9 @@ Migration filename is aligned in source to the actual applied version `202609112
 
 Existing findings remain:
 - INFO: 8 operational/server-only tables have RLS enabled with no authenticated policies. These remain intentionally inaccessible through ordinary authenticated Data API access.
-- WARN: Supabase Auth **Leaked Password Protection is disabled** and should be enabled as the next Auth-hardening task.
+- WARN: Supabase Auth **Leaked Password Protection is disabled**.
+
+Next security task: enable leaked-password protection in the Supabase Dashboard and rerun Security Advisor. Supabase documentation states the feature uses HaveIBeenPwned Pwned Passwords and is available on Pro plan and above. The currently connected Supabase tools cannot mutate this hosted Auth setting directly.
 
 ## Applied production migrations relevant to recent security work
 
@@ -87,13 +99,12 @@ Existing findings remain:
 
 ## Outstanding work
 
-1. Smoke test a fresh Admin login after signing out: password/login → authenticator → Admin/Inbox load → harmless action.
-2. Enable Supabase Auth Leaked Password Protection and verify the advisor warning clears.
-3. Complete provider launch readiness for Stripe, Turnstile, OAuth, SMS, Resend and legal configuration.
-4. Confirm Supabase Auth Site URL and redirect allowlist for `https://namdar.co.uk`.
-5. Verify production cron jobs and intended double-booking protections.
-6. Run safe recognized-mailbox/unknown-alias inbound behavior test.
-7. Complete controlled customer-support ticket journey when a safe eligible test customer is available.
+1. Enable Supabase Auth Leaked Password Protection and verify the advisor warning clears.
+2. Complete provider launch readiness for Stripe, Turnstile, OAuth, SMS, Resend and legal configuration.
+3. Confirm Supabase Auth Site URL and redirect allowlist for `https://namdar.co.uk`.
+4. Verify production cron jobs and intended double-booking protections.
+5. Run safe recognized-mailbox/unknown-alias inbound behavior test.
+6. Complete controlled customer-support ticket journey when a safe eligible test customer is available.
 
 ## Handoff maintenance rule
 

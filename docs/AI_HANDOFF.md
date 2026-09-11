@@ -17,7 +17,7 @@ Repository plus verified provider state are the source of truth.
 
 ## Fast-resume continuity model
 
-Namdar now uses three continuity layers:
+Namdar uses three continuity layers:
 - `docs/AI_START.md` — compact current state, exact next action, blockers and do-not-repeat notes.
 - `docs/AI_HANDOFF.md` — detailed technical continuity, migrations, deployment checks and implementation decisions.
 - `docs/PROJECT_STATUS.md` — broader roadmap and launch status.
@@ -30,11 +30,11 @@ Customer support tickets remain private to signed-in customers with an existing 
 
 ## Phase 7 — Launch Security & Readiness
 
-### MFA Stage 2 — LIVE
+### MFA Stage 2 — LIVE AND USER-VERIFIED
 
-The administrator successfully enrolled TOTP before Stage 2. Production still has **1 verified MFA factor for 1 admin user**.
+The administrator successfully enrolled TOTP before Stage 2. Production has 1 verified MFA factor for 1 admin user.
 
-Stage 2 is now enforced in three layers:
+Stage 2 is enforced in three layers:
 
 1. **Browser/Admin/Staff**
    - Admin/Staff no longer have a `Continue for now` bypass.
@@ -49,11 +49,11 @@ Stage 2 is now enforced in three layers:
 
 3. **Supabase direct-client / RLS**
    - Applied production migration: `20260911230055 require_aal2_for_staff_permissions`.
-   - `private.has_staff_permission(...)` now requires `(auth.jwt()->>'aal') = 'aal2'` before granting any privileged permission.
+   - `private.has_staff_permission(...)` requires `(auth.jwt()->>'aal') = 'aal2'` before granting privileged permission.
    - `Staff read own access` on `public.staff_access` also requires AAL2.
    - Customer/public RLS behavior was not changed.
 
-## Stage 2 deployment verification
+## Stage 2 deployment and smoke-test verification
 
 - Feature commit: `d203c64d9e5da3cca049bcb43e988f7432e2864c`.
 - PR: #8, `Enforce AAL2 for privileged Namdar access`.
@@ -63,19 +63,22 @@ Stage 2 is now enforced in three layers:
 - Production deployment: `dpl_Jkb8ZavhqrBD6PLpqjAPnEdiGAsW`, READY on exact main SHA with `namdar.co.uk` and no alias error.
 - Canonical `admin.js` serves `6.4.16-security-mfa-2` and live `admin-mfa-guard.js` has no bypass.
 - Database definition checks confirmed both central staff-permission function and staff self-access policy require AAL2.
-- Controlled database test using the same active admin identity internally: `aal1` was denied and `aal2` was allowed. No account ID, password, session token or TOTP code was exposed.
+- Controlled database test using the same active admin identity internally: `aal1` denied, `aal2` allowed.
+- **User production smoke test passed on 2026-09-12:** full Admin sign-out, fresh sign-in, authenticator challenge completed, and Admin → Inbox loaded normally. Do not repeat unless a future auth change needs regression testing.
 
 ## Migration history note
 
-The branch originally contained a pre-named migration file `20260911231500_require_aal2_for_staff_permissions.sql`. Supabase assigned the actual applied migration version `20260911230055`; repository filename is aligned to `20260911230055_require_aal2_for_staff_permissions.sql` so local/source history matches production.
+The branch originally contained a pre-named migration file `20260911231500_require_aal2_for_staff_permissions.sql`. Supabase assigned the actual applied migration version `20260911230055`; repository filename is aligned to `20260911230055_require_aal2_for_staff_permissions.sql` so source history matches production.
 
 ## Security advisor state
 
-Post-migration Supabase Security Advisor shows no new Stage 2 regression.
+Post-migration Supabase Security Advisor showed no new Stage 2 regression.
 
 Existing findings:
-- INFO: eight server-only operational tables have RLS enabled with no authenticated policies; this is intentional for tables accessed through service-role server code.
-- WARN: **Leaked Password Protection is disabled** in hosted Supabase Auth. This remains the next Auth-hardening task.
+- INFO: eight server-only operational tables have RLS enabled with no authenticated policies; intentional for tables accessed through service-role server code.
+- WARN: **Leaked Password Protection is disabled** in hosted Supabase Auth.
+
+Current Supabase docs state leaked-password protection rejects passwords known in HaveIBeenPwned's Pwned Passwords data and is available on Supabase Pro plan and above. It is configured in the project's hosted Auth settings. The currently connected Supabase tools do not expose a mutation for this hosted Auth setting, so it must be toggled in the Supabase Dashboard, then verified by rerunning Security Advisor. Do not request or store a Supabase personal access token solely for this toggle.
 
 ## Applied production migrations relevant to current work
 
@@ -87,11 +90,11 @@ Existing findings:
 
 ## Remaining launch work
 
-1. User smoke test: sign out of Admin, sign back in, complete authenticator challenge, then confirm Admin/Inbox still loads and a harmless save/read action works.
-2. Enable Supabase Auth Leaked Password Protection and verify it.
-3. Finish launch checks for Stripe, Turnstile, OAuth providers, SMS provider, Resend and legal configuration.
-4. Verify Supabase Auth Site URL / redirect allowlist for `https://namdar.co.uk`.
-5. Verify booking-notification/account-purge cron jobs and intended double-booking protection.
+1. Enable Supabase Auth Leaked Password Protection in the Dashboard and verify the Security Advisor warning clears.
+2. Finish launch checks for Stripe, Turnstile, OAuth providers, SMS provider, Resend and legal configuration.
+3. Verify Supabase Auth Site URL / redirect allowlist for `https://namdar.co.uk`.
+4. Verify booking-notification/account-purge cron jobs and intended double-booking protection.
+5. Run safe recognized-mailbox/unknown-alias inbound behavior test.
 6. Complete controlled authenticated customer-support ticket test when a safe test customer is available.
 
 ## Required workflow
@@ -106,4 +109,4 @@ Existing findings:
 
 ## Next recommended step
 
-Complete the fresh Admin MFA smoke test. Then enable and verify Supabase Auth Leaked Password Protection and continue the provider launch-readiness checklist.
+Enable Supabase Auth Leaked Password Protection in the Dashboard, rerun Security Advisor to confirm the warning clears, then continue the provider launch-readiness checklist.
