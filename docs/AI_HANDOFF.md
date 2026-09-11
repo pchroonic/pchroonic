@@ -21,7 +21,7 @@ The latest documented release is v6.4.16. Public visitors no longer create suppo
 
 The 2026-09-11 homepage hotfix is live in production. It repairs a malformed newsletter event-handler expression in `app.js`, routes public/chat customer-support links to the portal's actual `support` tab slug instead of the stale `tickets` slug, and adds `node --check` validation for critical browser JavaScript files to the GitHub workflow.
 
-A follow-up support-link hotfix changes the customer support-ticket confirmation email in `api/ticket-create.js` from the stale `?tab=tickets` URL to `?tab=support`. No Supabase migration or environment-variable change is required.
+The follow-up support-link hotfix is also live. Customer support-ticket confirmation emails in `api/ticket-create.js` now open `https://namdar.co.uk/account?tab=support` instead of the stale `?tab=tickets` URL. No Supabase migration or environment-variable change was required.
 
 ## Architecture at a glance
 
@@ -79,9 +79,11 @@ Verify required variables separately in Preview and Production. Do not assume th
 
 ## Deployment and verification state
 
-GitHub `main` is connected to automatic Vercel production deployments. The homepage hotfix was verified `READY` on `namdar.co.uk` from production commit `1714c694` on 2026-09-11. Recompare the exact current `main` SHA with Vercel before claiming any later change is live.
+GitHub `main` is connected to automatic Vercel production deployments. The support-email routing hotfix was verified `READY` on `namdar.co.uk` from production commit `89fe0b80` on 2026-09-11. The exact production deployment included the canonical `namdar.co.uk` alias with no alias error.
 
-The live anonymous `POST /api/ticket-create` check returned HTTP 401 with the expected sign-in guidance and created no support ticket. A controlled synthetic customer account was then confirmed through the real Namdar/Supabase email flow. With no quote, booking, subscription or project, it was ineligible; after adding one clearly marked temporary QA quote, the same relationship predicate used by both `account.js` and `api/ticket-create.js` became eligible. The current automation environment did not safely permit forwarding the temporary authenticated session credential into the production endpoint, so the final authenticated HTTP 201 ticket-creation call remains unverified rather than being overstated.
+The live anonymous `POST /api/ticket-create` check returned HTTP 401 with the expected sign-in guidance both before and after the support-email hotfix, and it created no support ticket. A controlled synthetic customer account was confirmed through the real Namdar/Supabase email flow. With no quote, booking, subscription or project, it was ineligible; after adding one clearly marked temporary QA quote, the same relationship predicate used by both `account.js` and `api/ticket-create.js` became eligible. The current automation environment did not safely permit forwarding the temporary authenticated session credential into the production endpoint, so the final authenticated HTTP 201 ticket-creation call remains unverified rather than being overstated.
+
+All temporary QA database artifacts from that check were removed and verified absent: the synthetic auth user/profile, temporary quote, support tickets for that account and stored HTTP test responses are all zero. No real customer data was used or modified.
 
 Documentation-only commits also trigger Vercel automation. A successful build alone is not evidence that database, email, payment, auth or cron workflows were exercised.
 
@@ -105,4 +107,4 @@ Documentation-only commits also trigger Vercel automation. A successful build al
 
 ## Next recommended step
 
-After the support-email-link hotfix is deployed, complete one browser-based authenticated end-to-end support test with a controlled eligible test customer: create a ticket, confirm it appears in My Namdar and Admin, confirm the customer notification opens `?tab=support`, then remove the test artifacts. Do not use unrelated real customer credentials or data merely for testing.
+Complete one browser-based authenticated end-to-end support test with a controlled eligible test customer: create a ticket, confirm it appears in My Namdar and Admin, confirm the customer notification opens `?tab=support`, then remove the test artifacts. Do not use unrelated real customer credentials or data merely for testing.
