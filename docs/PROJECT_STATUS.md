@@ -16,9 +16,9 @@ Last updated: 2026-09-11 UTC
 | --- | --- | --- |
 | Public website | `index.html`, `app.js`, `styles.css`, `services/`, `areas/` | Present; homepage JS hotfix live |
 | Customer portal | `account.html`, `account.js`, `account-original.js`, `account-auth-hotfix.js`, customer APIs | Present; session-bootstrap hotfix live |
-| Admin workspace | `admin.html`, `admin.js`, `admin-original.js`, `admin-inbox-safety.js`, admin APIs | Inbox spam-protection upgrade in feature branch |
+| Admin workspace | `admin.html`, `admin.js`, `admin-original.js`, `admin-inbox-safety.js`, admin APIs | Email inbox spam protection live |
 | Staff PWA | `staff.html`, `staff.js`, manifest and service worker | Present |
-| Server functions | `api/` | Spam enforcement prepared in `support-inbox.js` and `resend-inbound.js` |
+| Server functions | `api/` | Spam enforcement live in `support-inbox.js` and `resend-inbound.js` |
 | Shared server utilities | `lib/server.js` | Present |
 | Production database | Supabase | Healthy; inbox spam migrations applied |
 
@@ -27,7 +27,7 @@ Last updated: 2026-09-11 UTC
 - v6.4.16: public enquiries separated from relationship-gated customer support tickets.
 - v6.4.16 homepage/support-routing fixes.
 - v6.4.16 My Namdar session restore hotfix.
-- Post-release Email inbox safety upgrade in progress: Spam/quarantine folder, manual spam restore, exact-sender/domain blocklist, admin unblock manager, conservative automatic marketing/bot quarantine, and staff-notification suppression for quarantined inbound mail.
+- Post-release Email inbox safety: Spam/quarantine folder, manual spam restore, exact-sender/domain blocklist, admin unblock manager, conservative automatic marketing/bot quarantine, and staff-notification suppression for quarantined inbound mail.
 - v6.4.15: external email and website ticket separation.
 - v6.4.8: customer notification centre.
 - v6.4: installable staff PWA.
@@ -52,7 +52,7 @@ Applied production migrations:
 - `20260911213820 inbox_spam_controls`
 - `20260911213842 inbox_spam_blocklist_fk_index`
 
-Repository migration source is being added under `supabase/migrations/` in the same feature commit.
+Repository migration source is preserved under `supabase/migrations/`.
 
 The first migration extends inbox thread status/metadata and creates `support_inbox_blocklist`; the second adds the covering index for `created_by` after the performance advisor flagged it.
 
@@ -67,13 +67,16 @@ No environment variable change is required.
 - Inbox spam migrations: applied successfully to `namdar-production`.
 - Supabase security advisor: no new error; RLS-with-no-policy is informational and intentional for the server-only blocklist.
 - Supabase performance advisor: new blocklist foreign-key warning was fixed by the second migration.
-- Local syntax checks passed for the new `admin.js` loader, `admin-inbox-safety.js`, `api/support-inbox.js`, and `api/resend-inbound.js`.
-- Feature branch application CI/preview/production deployment still pending; do not claim the new inbox UI or inbound filtering is live yet.
+- Email inbox spam-protection PR #4: GitHub CI passed, exact Vercel preview READY, PR mergeable and merged.
+- Production code commit: `97014ad2c7dbd0cceb7ca8b97f193a3b5ce8e8bc`.
+- Production Vercel deployment: `dpl_8eu3eknmgXXcyChJwugfUjn1raWq`, READY on the exact code commit.
+- Canonical `namdar.co.uk` returned HTTP 200 for `admin.js`, `admin-original.js`, `admin-inbox-safety.js`, and `admin-inbox-safety.css`, confirming the new Admin loader/extension is live.
+- A post-deployment real administrator click on Mark spam / Block sender is still pending; do not claim that interactive end-to-end step until it is exercised.
 
 ## Outstanding work
 
-1. Finish CI/preview/merge/production verification for `feature/inbox-spam-controls-20260911`.
-2. After deployment, use the administrator’s visible junk conversation to verify Mark spam and/or Block sender, then confirm it leaves Open and appears under Spam without affecting customer Support tickets.
+1. Refresh Admin → Email inbox and use the visible junk conversation to verify Mark spam and/or Block sender; confirm it moves to Spam and no longer counts as Open/unread.
+2. Confirm the same action leaves customer Support tickets unchanged.
 3. Complete a controlled authenticated customer-support ticket test.
 4. Continue production schema/migration source reconciliation.
 5. Confirm launch readiness for Stripe, Turnstile, OAuth, SMS, Resend and legal configuration.
