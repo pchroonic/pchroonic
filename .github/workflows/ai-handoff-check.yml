@@ -1,4 +1,4 @@
-name: AI handoff check
+name: AI handoff and JavaScript checks
 
 on:
   pull_request:
@@ -17,6 +17,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Check critical browser JavaScript syntax
+        run: |
+          node --check app.js
+          node --check account.js
+          node --check admin.js
+          node --check staff.js
+          node --check conversion.js
 
       - name: Require current AI handoff documentation
         run: node scripts/check-ai-handoff.mjs

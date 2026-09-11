@@ -5,7 +5,7 @@ Last updated: 2026-09-11 UTC
 ## Current baseline
 
 - Release documented in `README.md`: v6.4.16.
-- Source branch: GitHub `main` in `pchroonic/pchroonic`.
+- Source branch: GitHub `main` in `pchroonic/pchroonic`; homepage hotfix prepared on `hotfix/support-route-js-20260911` until verified.
 - Delivery: Vercel project `namdar-website-starter-1` with `namdar.co.uk` assigned.
 - Data/auth/storage: Supabase.
 - Application shape: static multi-page front end plus Vercel Node serverless APIs.
@@ -14,7 +14,7 @@ Last updated: 2026-09-11 UTC
 
 | Area | Primary source | Status summary |
 | --- | --- | --- |
-| Public website | `index.html`, `app.js`, `styles.css`, `services/`, `areas/` | Present |
+| Public website | `index.html`, `app.js`, `styles.css`, `services/`, `areas/` | Present; homepage JS hotfix prepared |
 | Customer portal | `account.html`, `account.js`, customer APIs | Present |
 | Admin workspace | `admin.html`, `admin.js`, admin APIs | Present |
 | Staff PWA | `staff.html`, `staff.js`, manifest and service worker | Present |
@@ -26,6 +26,7 @@ Last updated: 2026-09-11 UTC
 ## Recently documented capabilities
 
 - v6.4.16: public enquiries separated from relationship-gated customer support tickets.
+- v6.4.16 post-release hotfix: repair malformed public `app.js` newsletter handler, route customer-support links to `tab=support`, and add browser-JavaScript syntax checks to CI.
 - v6.4.15: external email and website ticket separation.
 - v6.4.8: searchable/filterable customer notification centre.
 - v6.4: installable staff PWA with privacy-limited offline read-only data.
@@ -37,24 +38,25 @@ Last updated: 2026-09-11 UTC
 
 - `vercel.json` defines security headers, no-index/no-store rules for private surfaces, staff PWA caching rules, two cron schedules, sitemap rewrite and public work-page rewrite.
 - Production migration claims in the README must be treated as historical facts to verify, not commands to rerun.
+- The homepage hotfix requires no Supabase migration and no environment-variable change.
 - Secret values belong in provider environment settings only.
 - The repository currently uses a long release-history README; future work should keep it, while these two handoff files hold the concise current state.
 
 ## Verification status
 
 - Repository and Vercel project linkage: verified on 2026-09-11.
-- Current source heading v6.4.15: verified from `README.md` on 2026-09-11.
 - GitHub `main` automatically deploys to Vercel production: verified on 2026-09-11.
-- Continuity commit `50783b5` reached a `READY` production deployment: verified on 2026-09-11.
-- v6.4.16 customer-only support UI and its fixed public guidance were verified deployed on `namdar.co.uk` from commit `1e94149` on 2026-09-11.
+- Production commit `7a44dc4` was `READY` and matched GitHub `main` immediately before hotfix work began.
+- Canonical homepage returned HTTP 200 and displayed the intended customer-only support copy, but source inspection found a malformed newsletter event-handler expression in `app.js` that could stop public JavaScript parsing.
+- Customer portal uses `support` as the support-tab URL slug; public/chat links were still using stale `tickets` URLs. The hotfix corrects this routing in `app.js` and includes a compatibility rewrite for any stale homepage support link.
+- `api/ticket-create.js` source enforces authentication, active customer role and an existing quote, booking, subscription or project before ticket creation.
 - Production Supabase schema/migration state: not independently verified in this session.
 - v6.4.15 inbound email separation: controlled live test passed; inbound email reached Admin → Email inbox and created no new ticket.
-- Public website ticket submission: repeated controlled attempts returned HTTP 400 at Turnstile and created no records; v6.4.16 removes that public ticket path in favour of signed-in customer support.
 
 ## Outstanding work
 
-1. After the next product change, compare the canonical-domain Vercel deployment commit with GitHub `main` before declaring it live.
-2. Complete v6.4.16 authenticated API verification: anonymous ticket requests return 401, eligible customers can create tickets in My Namdar, and customers without a Namdar relationship see the eligibility guidance.
+1. Verify the hotfix branch's JavaScript checks and Vercel preview, then promote the squashed hotfix to `main` and confirm the matching production deployment on `namdar.co.uk`.
+2. Complete the live ticket API verification: anonymous ticket requests return 401; then use a controlled eligible test customer to create and follow a ticket in My Namdar. Do not use unrelated real customer credentials merely for testing.
 3. Confirm production schema/migration history and preserve a complete migration source set.
 4. Confirm production readiness of Stripe, Turnstile, OAuth, SMS, Resend and legal configuration.
 5. Confirm intended database-level and application-level double-booking protections.
