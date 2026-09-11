@@ -43,14 +43,15 @@ Last updated: 2026-09-11 UTC
 
 - Repository and Vercel project linkage: verified on 2026-09-11.
 - Current source heading v6.4.15: verified from `README.md` on 2026-09-11.
-- A recent Vercel deployment reports `READY`: verified on 2026-09-11.
-- Latest code serving the production domain: not yet verified.
+- GitHub `main` automatically deploys to Vercel production: verified on 2026-09-11.
+- Continuity commit `50783b5` reached a `READY` production deployment: verified on 2026-09-11.
+- Current production commit for future changes: compare Vercel deployment metadata with GitHub `main` before making a claim.
 - Production Supabase schema/migration state: not independently verified in this session.
 - v6.4.15 end-to-end email/ticket behaviour: not independently tested in this session.
 
 ## Outstanding work
 
-1. Verify the production deployment commit and canonical-domain response.
+1. Verify the canonical-domain response and repeat the deployment-commit comparison after the next product change.
 2. Test the v6.4.15 inbound email, Admin Email inbox, website ticket and feedback-escalation flows without using real customer data.
 3. Confirm production schema/migration history and preserve a complete migration source set.
 4. Confirm production readiness of Stripe, Turnstile, OAuth, SMS, Resend and legal configuration.
@@ -59,4 +60,3 @@ Last updated: 2026-09-11 UTC
 ## Handoff maintenance rule
 
 Any substantial change must update this file and `docs/AI_HANDOFF.md` in the same commit. Replace stale status instead of endlessly appending. Put detailed release history in `README.md` or a dedicated changelog, and never include credentials or customer data.
-

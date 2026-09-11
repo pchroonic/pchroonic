@@ -74,9 +74,9 @@ Verify required variables separately in Preview and Production. Do not assume th
 
 ## Deployment state
 
-On 2026-09-11, Vercel reported a recent deployment in `READY` state, but the project response did not confirm it as the live production target. The domain is assigned, but future developers must verify the production target and the canonical domain before saying the latest code is live.
+GitHub `main` is connected to automatic Vercel production deployments. On 2026-09-11, the AI-continuity commit `50783b5` produced a Vercel deployment with both `READY` state and `production` target. Future developers must still compare the current `main` commit with the production deployment commit before saying later code is live.
 
-Documentation-only commits may trigger Vercel automation depending on repository settings. A successful build alone is not evidence that database, email, payment, auth or cron workflows were exercised.
+Documentation-only commits also trigger this Vercel automation. A successful build alone is not evidence that database, email, payment, auth or cron workflows were exercised.
 
 ## Known launch checks and cautions
 
@@ -99,4 +99,3 @@ Documentation-only commits may trigger Vercel automation depending on repository
 ## Next recommended step
 
 Run an end-to-end verification of the v6.4.15 email/ticket separation on a preview or controlled environment, then confirm which commit is currently serving `namdar.co.uk`. Record the exact result here without including message contents, email addresses, tokens or customer data.
-

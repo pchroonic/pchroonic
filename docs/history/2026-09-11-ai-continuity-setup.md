@@ -18,5 +18,4 @@ Make the Namdar project understandable across ChatGPT/Codex, Claude, GitHub Copi
 - Environment variables: none added or changed.
 - Migration: none required.
 - Product behaviour: unchanged.
-- Deployment: documentation and repository-workflow change only; the production target was not changed deliberately in this session.
-
+- Deployment: no product behaviour was changed. Vercel automatically created a `READY` production deployment from the GitHub `main` continuity commit.
