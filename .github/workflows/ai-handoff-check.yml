@@ -22,6 +22,8 @@ jobs:
         run: |
           node --check app.js
           node --check account.js
+          node --check account-original.js
+          node --check account-auth-hotfix.js
           node --check admin.js
           node --check staff.js
           node --check conversion.js
@@ -31,4 +33,3 @@ jobs:
         env:
           HANDOFF_BASE: ${{ github.event.before }}
           HANDOFF_HEAD: ${{ github.sha }}
-

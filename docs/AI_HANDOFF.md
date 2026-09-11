@@ -23,10 +23,12 @@ The 2026-09-11 homepage hotfix is live in production. It repairs a malformed new
 
 The follow-up support-link hotfix is also live. Customer support-ticket confirmation emails in `api/ticket-create.js` now open `https://namdar.co.uk/account?tab=support` instead of the stale `?tab=tickets` URL. No Supabase migration or environment-variable change was required.
 
+A My Namdar session-bootstrap hotfix was prepared on 2026-09-11 after the live account page was observed stuck on “Restoring your secure session”. Production `/api/config` was independently verified healthy. Source inspection matched Supabase's documented deadlock condition: the existing `onAuthStateChange` callback awaited portal rendering, which can perform further Supabase session/API work while the auth lock is held. The hotfix preserves the previous customer-portal code as `account-original.js`, uses `account.js` as a small loader, and applies `account-auth-hotfix.js` to defer auth-state callbacks outside the lock and make session restoration fail safely after eight seconds instead of displaying an endless spinner. No Supabase migration or environment-variable change is required. Do not describe this hotfix as production-live until its PR checks, Vercel preview and matching production deployment are verified.
+
 ## Architecture at a glance
 
 - Public static pages: root HTML/JavaScript/CSS, service pages under `services/`, and location pages under `areas/`.
-- Customer portal: `account.html`, `account.js` and customer-facing serverless endpoints.
+- Customer portal: `account.html`; during the session hotfix `account.js` is a small loader, `account-original.js` preserves the v6.4.16 portal source, and `account-auth-hotfix.js` wraps Supabase session/auth-state behaviour. Customer-facing serverless endpoints remain unchanged.
 - Admin workspace: `admin.html`, `admin.js` and protected admin endpoints under `api/`.
 - Staff app: `staff.html`, `staff.js`, `staff.webmanifest` and `staff-sw.js`; this is an installable, privacy-limited PWA.
 - Server API: Vercel Node serverless functions under `api/`.
@@ -79,7 +81,9 @@ Verify required variables separately in Preview and Production. Do not assume th
 
 ## Deployment and verification state
 
-GitHub `main` is connected to automatic Vercel production deployments. The support-email routing hotfix was verified `READY` on `namdar.co.uk` from production commit `89fe0b80` on 2026-09-11. The exact production deployment included the canonical `namdar.co.uk` alias with no alias error.
+GitHub `main` is connected to automatic Vercel production deployments. The support-email routing hotfix was verified `READY` on `namdar.co.uk` from production commit `89fe0b80` on 2026-09-11. The exact production deployment included the canonical `namdar.co.uk` alias with no alias error. The later documentation-only `main` commit `d3689230` was also verified `READY` before the account-session hotfix work began.
+
+For the session problem, the canonical production `/api/config` endpoint returned HTTP 200 with the expected public configuration, so the observed endless loading screen was not caused by a missing current production Supabase URL/configuration. The session hotfix has local JavaScript syntax checks and expands CI to check `account-original.js` plus `account-auth-hotfix.js`; PR/preview verification is still required before promotion.
 
 The live anonymous `POST /api/ticket-create` check returned HTTP 401 with the expected sign-in guidance both before and after the support-email hotfix, and it created no support ticket. A controlled synthetic customer account was confirmed through the real Namdar/Supabase email flow. With no quote, booking, subscription or project, it was ineligible; after adding one clearly marked temporary QA quote, the same relationship predicate used by both `account.js` and `api/ticket-create.js` became eligible. The current automation environment did not safely permit forwarding the temporary authenticated session credential into the production endpoint, so the final authenticated HTTP 201 ticket-creation call remains unverified rather than being overstated.
 
@@ -107,4 +111,4 @@ Documentation-only commits also trigger Vercel automation. A successful build al
 
 ## Next recommended step
 
-Complete one browser-based authenticated end-to-end support test with a controlled eligible test customer: create a ticket, confirm it appears in My Namdar and Admin, confirm the customer notification opens `?tab=support`, then remove the test artifacts. Do not use unrelated real customer credentials or data merely for testing.
+First run PR CI and Vercel preview verification for the My Namdar session-bootstrap hotfix, promote it only if those checks pass, and verify the exact matching production deployment on `namdar.co.uk`. Then complete one browser-based authenticated end-to-end support test with a controlled eligible test customer: create a ticket, confirm it appears in My Namdar and Admin, confirm the customer notification opens `?tab=support`, then remove the test artifacts. Do not use unrelated real customer credentials or data merely for testing.

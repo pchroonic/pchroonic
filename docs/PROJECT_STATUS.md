@@ -5,7 +5,7 @@ Last updated: 2026-09-11 UTC
 ## Current baseline
 
 - Release documented in `README.md`: v6.4.16.
-- Source branch: GitHub `main` in `pchroonic/pchroonic`.
+- Source branch: GitHub `main` in `pchroonic/pchroonic`; My Namdar session hotfix is prepared on `hotfix/account-session-restore-20260911` until verified.
 - Delivery: Vercel project `namdar-website-starter-1` with `namdar.co.uk` assigned.
 - Data/auth/storage: Supabase.
 - Application shape: static multi-page front end plus Vercel Node serverless APIs.
@@ -15,7 +15,7 @@ Last updated: 2026-09-11 UTC
 | Area | Primary source | Status summary |
 | --- | --- | --- |
 | Public website | `index.html`, `app.js`, `styles.css`, `services/`, `areas/` | Present; homepage JS hotfix live |
-| Customer portal | `account.html`, `account.js`, customer APIs | Present |
+| Customer portal | `account.html`, `account.js`, `account-original.js`, `account-auth-hotfix.js`, customer APIs | Present; session-bootstrap hotfix prepared |
 | Admin workspace | `admin.html`, `admin.js`, admin APIs | Present |
 | Staff PWA | `staff.html`, `staff.js`, manifest and service worker | Present |
 | Server functions | `api/` | Present; support-email routing hotfix live |
@@ -28,6 +28,7 @@ Last updated: 2026-09-11 UTC
 - v6.4.16: public enquiries separated from relationship-gated customer support tickets.
 - v6.4.16 post-release homepage hotfix: repaired malformed public `app.js` newsletter handler, routed runtime customer-support links to `tab=support`, and added browser-JavaScript syntax checks to CI.
 - v6.4.16 support-email follow-up: customer ticket confirmation email now opens `account?tab=support` instead of the stale `account?tab=tickets` path.
+- v6.4.16 account-session hotfix: preserves the previous portal source as `account-original.js`, defers Supabase auth-state callbacks outside the auth lock, adds an eight-second fail-safe for `getSession()`, and prevents the “Restoring your secure session” screen from remaining indefinitely.
 - v6.4.15: external email and website ticket separation.
 - v6.4.8: searchable/filterable customer notification centre.
 - v6.4: installable staff PWA with privacy-limited offline read-only data.
@@ -39,7 +40,7 @@ Last updated: 2026-09-11 UTC
 
 - `vercel.json` defines security headers, no-index/no-store rules for private surfaces, staff PWA caching rules, two cron schedules, sitemap rewrite and public work-page rewrite.
 - Production migration claims in the README must be treated as historical facts to verify, not commands to rerun.
-- The homepage and support-email routing hotfixes require no Supabase migration and no environment-variable change.
+- The homepage, support-email routing and account-session hotfixes require no Supabase migration and no environment-variable change.
 - Secret values belong in provider environment settings only.
 - The repository currently uses a long release-history README; future work should keep it, while these two handoff files hold the concise current state.
 
@@ -49,9 +50,11 @@ Last updated: 2026-09-11 UTC
 - GitHub `main` automatically deploys to Vercel production: verified on 2026-09-11.
 - Homepage/support-routing hotfix: GitHub checks passed and production commit `1714c694` was verified `READY` on `namdar.co.uk`.
 - Support-ticket confirmation email routing hotfix: GitHub checks and Vercel preview passed; production commit `89fe0b80` was verified `READY` with the `namdar.co.uk` alias and no alias error.
-- Live anonymous `POST /api/ticket-create`: verified HTTP 401 with expected sign-in guidance before and after the latest hotfix; no QA support ticket was created.
+- My Namdar session restore: a live screenshot showed `/account` stuck on “Restoring your secure session”. The canonical production `/api/config` endpoint was independently verified HTTP 200, so current production configuration was not the cause. Source inspection matched Supabase's documented async `onAuthStateChange` deadlock condition because the callback awaited portal code that can perform further Supabase session/API work. The hotfix has passed local syntax checks; PR CI and Vercel preview remain required before promotion.
+- CI on the hotfix is expanded to syntax-check the preserved `account-original.js` and new `account-auth-hotfix.js` in addition to `account.js`.
+- Live anonymous `POST /api/ticket-create`: verified HTTP 401 with expected sign-in guidance before and after the latest support hotfix; no QA support ticket was created.
 - `api/ticket-create.js` source independently enforces authentication, active customer role and an existing quote, booking, subscription or project before ticket creation.
-- `account.js` uses the same quote/booking/subscription/project relationship threshold to reveal the customer ticket form.
+- The customer portal uses the same quote/booking/subscription/project relationship threshold to reveal the customer ticket form.
 - A controlled synthetic customer account was confirmed through the real Supabase/Namdar email flow. It had no qualifying relationship initially; one clearly marked temporary QA quote made the relationship predicate eligible. The automation environment did not permit safely forwarding the temporary authenticated session credential into the live endpoint, so a full authenticated HTTP 201 ticket creation is still pending rather than claimed as complete.
 - Temporary QA cleanup is complete and verified: synthetic auth user/profile, temporary quote, support tickets for that account and stored HTTP test responses are all absent. No real customer data was used or modified.
 - Production Supabase project health and the relevant relationship tables were inspected; full migration-history reconciliation remains outstanding.
@@ -59,10 +62,12 @@ Last updated: 2026-09-11 UTC
 
 ## Outstanding work
 
-1. Complete one browser-based authenticated end-to-end ticket test with a controlled eligible customer: create a ticket, confirm it appears in My Namdar and Admin, verify the notification route, then remove test artifacts.
-2. Confirm production schema/migration history and preserve a complete migration source set.
-3. Confirm production readiness of Stripe, Turnstile, OAuth, SMS, Resend and legal configuration.
-4. Confirm intended database-level and application-level double-booking protections.
+1. Run PR CI and Vercel preview for the My Namdar session-bootstrap hotfix, then promote it to `main` only if both pass and verify the exact matching production deployment on `namdar.co.uk`.
+2. After deployment, confirm `/account` no longer remains indefinitely on the session-restoring screen; a previously stuck browser may need all older Namdar tabs closed once before reloading.
+3. Complete one browser-based authenticated end-to-end ticket test with a controlled eligible customer: create a ticket, confirm it appears in My Namdar and Admin, verify the notification route, then remove test artifacts.
+4. Confirm production schema/migration history and preserve a complete migration source set.
+5. Confirm production readiness of Stripe, Turnstile, OAuth, SMS, Resend and legal configuration.
+6. Confirm intended database-level and application-level double-booking protections.
 
 ## Handoff maintenance rule
 
