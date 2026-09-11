@@ -1,0 +1,21 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Tell Namdar how your service went."><meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer"><title>Service feedback · Namdar</title><link rel="stylesheet" href="styles.css"></head>
+<body class="feedback-page">
+<header class="site-header"><a class="brand" href="/"><span class="brand-mark">N</span><span>NAMDAR</span></a><a class="ghost-btn small" href="/account">My Namdar</a></header>
+<main class="feedback-shell">
+  <section class="feedback-card" id="feedbackCard">
+    <div class="eyebrow">Service feedback</div><h1>How did we do?</h1><p id="feedbackIntro">Loading your completed Namdar job…</p>
+    <div id="feedbackLoading" class="feedback-loading">Checking your secure feedback link…</div>
+    <form id="feedbackForm" class="hidden">
+      <div class="feedback-stars" role="radiogroup" aria-label="Service rating">
+        <button type="button" data-rating="1" role="radio" aria-checked="false" aria-label="1 star">★</button><button type="button" data-rating="2" role="radio" aria-checked="false" aria-label="2 stars">★</button><button type="button" data-rating="3" role="radio" aria-checked="false" aria-label="3 stars">★</button><button type="button" data-rating="4" role="radio" aria-checked="false" aria-label="4 stars">★</button><button type="button" data-rating="5" role="radio" aria-checked="false" aria-label="5 stars">★</button>
+      </div>
+      <div id="ratingLabel" class="feedback-rating-label">Choose 1–5 stars</div>
+      <label>Anything you'd like us to know? <span class="optional">(optional)</span><textarea id="feedbackComments" rows="5" maxlength="4000" placeholder="Tell us what went well or what we could improve."></textarea></label>
+      <p class="feedback-privacy">Your rating is sent directly to Namdar. Lower ratings are handled privately by our support team.</p>
+      <button id="submitFeedback" class="primary-btn full" type="submit">Send feedback</button><p id="feedbackStatus" role="status" aria-live="polite"></p>
+    </form>
+    <div id="feedbackResult" class="hidden"></div>
+  </section>
+</main>
+<footer><a class="brand" href="/"><span class="brand-mark">N</span><span>NAMDAR</span></a><p>Thank you for helping us improve.</p><div><a href="/privacy">Privacy</a><a href="/#contact">Contact</a></div></footer>
+<script src="feedback.js"></script></body></html>

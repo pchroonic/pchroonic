@@ -1,0 +1,24 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#173c32"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Namdar Staff"><meta name="application-name" content="Namdar Staff"><meta name="description" content="Namdar field-team jobs, routes and job updates."><title>Namdar Staff Jobs</title><link rel="manifest" href="/staff.webmanifest"><link rel="apple-touch-icon" sizes="180x180" href="/staff-icon-180.png"><link rel="icon" type="image/png" sizes="192x192" href="/staff-icon-192.png"><link rel="stylesheet" href="styles.css?v=6.4.15"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"></head>
+<body class="staff-jobs-page">
+<div id="staffSessionLoading" class="staff-login-shell session-loading-shell" aria-live="polite"><div class="session-loading-card"><span class="session-spinner" aria-hidden="true"></span><div><strong>Opening Namdar Staff…</strong><small>Restoring your secure staff session.</small></div></div></div>
+<div id="staffLogin" class="staff-login-shell hidden">
+  <form id="staffLoginForm" class="staff-login-card">
+    <a class="brand" href="/"><span class="brand-mark">N</span><span>NAMDAR</span></a>
+    <div class="eyebrow">Field team</div><h1>My jobs</h1><p>Sign in with your Namdar staff account.</p>
+    <label>Email<input id="staffEmail" type="email" autocomplete="username" required></label>
+    <label>Password<input id="staffPassword" type="password" autocomplete="current-password" required></label>
+    <button id="staffLoginBtn" class="primary-btn full">Sign in</button><p id="staffLoginStatus" class="form-status"></p>
+  </form>
+</div>
+<div id="staffApp" class="staff-job-shell hidden">
+  <header class="staff-job-header"><div><a class="brand light" href="/"><span class="brand-mark">N</span><span>NAMDAR</span></a><small id="staffIdentity">Field team</small></div><div class="staff-header-actions"><button id="staffInstall" class="staff-icon-btn hidden" type="button" aria-label="Install Namdar Staff app" title="Install app">↓</button><a class="staff-icon-btn" href="/admin" aria-label="Admin dashboard" title="Admin dashboard">☷</a><button id="staffRefresh" class="staff-icon-btn" type="button" aria-label="Refresh jobs" title="Refresh">↻</button><button id="staffSignOut" class="staff-icon-btn" type="button" aria-label="Sign out" title="Sign out">↪</button></div></header>
+  <div id="staffConnectivity" class="staff-connectivity online" role="status" aria-live="polite"><span class="staff-connectivity-dot"></span><strong>Online</strong><small id="staffSyncStatus">Ready to sync</small></div>
+  <main class="staff-job-main">
+    <section class="staff-job-intro"><div><div class="eyebrow">Work diary</div><h1 id="staffGreeting">My jobs</h1><p id="staffDayLine"></p></div><div class="staff-job-count" id="staffJobCount">0 jobs</div></section>
+    <nav class="staff-job-tabs" aria-label="Job filter"><button type="button" class="active" data-job-filter="today"><span aria-hidden="true">◷</span><b>Today</b></button><button type="button" data-job-filter="route"><span aria-hidden="true">⌖</span><b>Route</b></button><button type="button" data-job-filter="upcoming"><span aria-hidden="true">→</span><b>Upcoming</b></button><button type="button" data-job-filter="completed"><span aria-hidden="true">✓</span><b>Completed</b></button></nav>
+    <div id="staffJobList" class="staff-job-list"></div>
+  </main>
+</div>
+<dialog id="staffInstallDialog" class="modal staff-install-dialog"><div class="modal-card"><button class="modal-close" id="closeStaffInstall" type="button">×</button><div class="eyebrow">Namdar Staff app</div><h2>Install on this phone</h2><div id="staffInstallInstructions" class="staff-install-instructions"></div></div></dialog>
+<dialog id="staffJobDialog" class="modal staff-job-dialog"><div class="modal-card staff-job-modal-card"><button class="modal-close" id="closeStaffJob" type="button">×</button><div id="staffJobDetail"></div></div></dialog>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="staff.js?v=6.4.15"></script></body></html>
