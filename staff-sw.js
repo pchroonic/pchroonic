@@ -1,4 +1,4 @@
-const VERSION='namdar-staff-v6.4.16-security-mfa-1';
+const VERSION='namdar-staff-v6.4.16-security-mfa-2';
 const STATIC_CACHE=`${VERSION}-static`;
 const RUNTIME_CACHE=`${VERSION}-runtime`;
 const LOCAL_ASSETS=['/staff','/staff.html','/staff.js','/staff-original.js','/staff-mfa-guard.js','/styles.css','/staff.webmanifest','/staff-icon-180.png','/staff-icon-192.png','/staff-icon-512.png'];
