@@ -8,81 +8,71 @@ This is the first file every AI should read after opening the repository. Keep i
 
 - Product: Namdar, a UK exterior-cleaning and handyman service platform.
 - Repository: `pchroonic/pchroonic`, default branch `main`.
-- Hosting project: Vercel project `namdar-website-starter-1`.
+- Hosting: Vercel project `namdar-website-starter-1`.
 - Canonical domain: `https://namdar.co.uk`.
 - Backend: Supabase project `namdar-production`.
 - Current documented release heading: Namdar v6.4.16.
 
-The repository plus verified provider state are the source of truth. Never copy secret values from providers into repository documentation.
+Repository plus verified provider state are the source of truth.
 
-## Current release and live post-release work
+## Live baseline
 
-v6.4.16 keeps public enquiries separate from private customer support tickets. Public visitors can request a quote, use general chat guidance or email Namdar. Support-ticket creation is private to signed-in customers with an existing quote, booking, subscription or project. External inbound email remains in Admin → Email inbox and does not become a customer support ticket.
+Customer support tickets remain private to signed-in customers with an existing quote, booking, subscription or project. Public visitors use quote/chat/email paths. External inbound email remains in Admin → Email inbox and does not become a customer support ticket.
 
-The homepage/support-routing hotfixes, My Namdar session-bootstrap hotfix and Admin Email Inbox spam-protection release are live. The inbox has a dedicated Spam/quarantine view, manual restore, exact-sender/domain block rules, an administrator unblock manager, conservative marketing/bot classification and staff-notification suppression for quarantined mail. Production contains active block rules and quarantined threads, confirming the real Admin spam/block flow has been exercised.
+The homepage/support-routing fixes, My Namdar session-bootstrap fix, Email inbox spam protection and Inbox Security v2 are live. Inbox Security v2 includes recognized-mailbox allowlisting, mail-loop suppression, validated reply context, provider/RFC Message-ID dedupe, repeated-campaign quarantine, sender-authentication signals, risky-attachment quarantine/caution metadata, Report phishing, and safe sender/domain blocking.
 
-**Inbox Security v2 is live in production.** It keeps customer tickets separate and adds defense-in-depth around inbound email:
+## Phase 7 — Launch Security & Readiness
 
-- only recognized Namdar aliases (`support`, `bookings`, `accounts`, `billing`, `hello`) and valid reply aliases are accepted; unknown catch-all aliases are ignored;
-- internal `@namdar.co.uk` inbound is ignored to prevent mail loops/system-message pollution;
-- reply aliases count as reply context only when the token resolves to an existing thread; forged/random reply context does not bypass filtering;
-- duplicates are suppressed by provider email ID and sender + RFC Message-ID, including the same message delivered to multiple Namdar aliases;
-- repeated near-identical campaigns from multiple unknown senders are quarantined;
-- explicit DMARC failure is a security quarantine; weaker SPF/DKIM failures contribute to conservative scoring;
-- dangerous executable/script/macro attachment types trigger quarantine; archive/active-content attachments carry caution metadata;
-- Admin includes **Report phishing** and safer shared-domain blocking behavior;
-- blocking a private/non-shared domain quarantines existing matching threads as well as future mail.
+A staged MFA security upgrade is prepared on branch `feature/security-mfa-phase-20260911`.
 
-Resend receiving remains protected by signed Svix/Resend webhook verification with a five-minute timestamp window. Never record the webhook secret value in repository docs.
+Production was checked before implementation: there are currently **zero verified MFA factors** in `auth.mfa_factors`, so no existing user is relying on an MFA factor today.
 
-## Architecture at a glance
+Stage 1 behavior prepared in this branch:
 
-- Public website: root HTML/JavaScript/CSS, `services/`, `areas/`.
-- Customer portal: `account.html`, `account.js`, `account-original.js`, `account-auth-hotfix.js`, customer APIs.
-- Admin workspace: `admin.html`, `admin.js` loader, `admin-original.js`, `admin-inbox-safety.js`, `admin-inbox-safety.css`, protected admin APIs.
-- Staff app: `staff.html`, `staff.js`, `staff.webmanifest`, `staff-sw.js`.
-- Server API: Vercel Node serverless functions under `api/`.
-- Shared server utilities: `lib/server.js`.
-- Hosting/security/cron: `vercel.json`.
-- Data/auth/storage: Supabase; privileged service-role access remains server-side only.
-- Email: Resend outbound and inbound receiving/webhook flows.
-- Payments: Stripe-ready server flows; verify live configuration before claiming launch readiness.
+- **Customers:** MFA remains optional. If a customer has a verified factor and signs in at `aal1`, My Namdar blocks portal loading and requires the second factor before continuing.
+- **Admin/Staff dashboard:** verified MFA is challenged before privileged dashboard data loads. Accounts without MFA receive an authenticator-enrollment gate. During this rollout there is a visible **Continue for now** escape path so existing privileged users are not unexpectedly locked out. The prompt returns next session until MFA is enrolled.
+- **Staff PWA:** uses the same staged privileged MFA behavior when online. The existing privacy-limited offline snapshot remains usable while offline; no new personal data is cached.
+- Current large account/admin/staff sources are preserved. `account.js`, `admin.js`, and `staff.js` are small loaders; new guard files layer MFA behavior without rewriting unrelated application logic.
+- Staff service-worker cache version is bumped and now includes `staff-original.js` and `staff-mfa-guard.js`.
 
-## Inbox/security schema and migration state
+Important limitation: Stage 1 is a browser/application gate. Full API/database AAL2 enforcement is a later hardening step and must be audited carefully because Admin, Staff and My Namdar currently include direct Supabase browser queries as well as server APIs. Do not claim server/RLS MFA enforcement is complete.
 
-Already-applied production migrations with repository source under `supabase/migrations/`:
+## Supabase/Auth security state
+
+Applied production inbox/security migrations remain:
 
 - `20260911213820 inbox_spam_controls`
 - `20260911213842 inbox_spam_blocklist_fk_index`
 - `20260911220343 inbox_security_indexes`
 - `20260911220415 harden_invoice_number_function_search_path`
 
-The inbox-security indexes support sender-frequency, RFC Message-ID dedupe and campaign-subject lookups. The invoice-number function search path is pinned to `pg_catalog, public`; Supabase Security Advisor no longer reports the mutable-search-path warning.
+Supabase Security Advisor no longer reports the prior mutable-search-path warning. Remaining RLS-with-no-policy findings are intentional server-only operational tables.
 
-Security Advisor was rerun after Security v2 deployment. Remaining RLS-with-no-policy findings are intentional server-only operational tables. One hosted Auth warning remains: **Leaked Password Protection is disabled**. This is a hosted Supabase Auth setting, not a database migration, and has not been enabled by the current tools.
+One hosted Auth warning remains: **Leaked Password Protection is disabled**. Supabase documentation says this feature rejects known breached passwords and is available on Pro plans and above. The current connector cannot mutate that hosted Auth dashboard setting; do not claim it is enabled until verified in the dashboard.
 
-No new environment variable was required for Inbox Security v2.
+No database migration and no new environment variable are required for Phase 7 Stage 1.
 
 ## Deployment and verification state
 
 GitHub `main` automatically deploys to Vercel production.
 
-Inbox Security v2 PR #5 passed GitHub CI on feature commit `5aab371098e40ce664aa19b4f71ce5dd312c9f06` (workflow run `34652942698`). Exact preview deployment `dpl_6nLof8eSFXEVePbB1VEB4VsEHKre` reached READY. PR #5 was merged to `main` as `c3d788dfd61751faf888197801b0fce587d97d38`. Production deployment `dpl_CA4tTdYrtjxvxQR6jor1cs3Lvjwn` is READY, targets production, includes the `namdar.co.uk` alias and has no alias error.
+Current verified live security baseline before the MFA branch:
+- Inbox Security v2 PR #5 merged to `main` as `c3d788dfd61751faf888197801b0fce587d97d38`.
+- Production deployment `dpl_CA4tTdYrtjxvxQR6jor1cs3Lvjwn` reached READY with `namdar.co.uk` and no alias error.
+- Final handoff sync `1dc4b2535c6b16c99137e484d23d691643542082` passed CI and deployed READY.
 
-A safe post-deployment end-to-end test for recognized-mailbox versus unknown-alias behavior is still recommended; do not claim that exact behavior has been exercised until tested. Do not send executable attachments merely to test quarantine.
-
-A duplicate concurrent hardening PR #6 was closed without merge because PR #5 already contained the broader implementation.
+Phase 7 Stage 1 is **not production-ready until** its branch passes JavaScript CI, an exact Vercel preview, PR merge, and canonical production verification. Do not describe the new MFA behavior as live before those checks complete.
 
 ## Known launch checks and cautions
 
-- Enable Supabase Auth **Leaked Password Protection** in the hosted Auth security/password settings; Security Advisor currently warns that it is disabled.
-- Verify Stripe, Turnstile, OAuth providers, SMS provider, Resend sending/inbound configuration and legal content before public advertising.
+- Enable Supabase Auth Leaked Password Protection in the hosted Auth settings.
+- After Stage 1 is live, enroll the administrator with a TOTP authenticator and preferably a backup factor before removing the temporary privileged-user bypass.
+- Then add audited AAL2 enforcement to privileged server APIs and direct-data paths/RLS.
+- Verify Stripe, Turnstile, OAuth providers, SMS provider, Resend configuration and legal content before public advertising.
 - Confirm Supabase Auth Site URL/redirect allowlist for `https://namdar.co.uk`.
 - Verify booking-notification and account-purge cron jobs.
-- Confirm intended database and application double-booking protections.
-- Test privileged admin/staff APIs with least-privilege accounts after permission changes.
+- Confirm database/application double-booking protections.
 - Keep offline staff data minimal, short-lived and read-only.
-- Treat automatic spam/security classification conservatively; quarantine and restore are preferred to destructive deletion.
 
 ## Required workflow for future AI sessions
 
@@ -91,8 +81,8 @@ A duplicate concurrent hardening PR #6 was closed without merge because PR #5 al
 3. Make the smallest safe change.
 4. Test adjacent customer/admin/staff paths.
 5. Update this file and `docs/PROJECT_STATUS.md` in the same substantial-change commit.
-6. State database/migration impact, environment-variable impact, deployment status and remaining verification accurately.
+6. State DB/migration impact, env-var impact, deployment status and remaining verification accurately.
 
 ## Next recommended step
 
-Enable Supabase Auth Leaked Password Protection in the hosted Auth dashboard, then perform one safe inbound test to a recognized mailbox plus an unknown-alias test. Confirm the recognized message reaches Email inbox, the unknown alias is ignored, customer Support tickets remain unchanged and no real customer data is used for testing.
+Finish `feature/security-mfa-phase-20260911`: run CI and exact Vercel preview, merge only if green, verify the new guard assets on `namdar.co.uk`, then have the administrator enroll TOTP from the staged security prompt. After a successful AAL2 login is demonstrated, plan removal of the temporary Admin/Staff bypass and server/RLS enforcement as a separate audited change.

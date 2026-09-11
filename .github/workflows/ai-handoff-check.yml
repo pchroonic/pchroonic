@@ -24,12 +24,17 @@ jobs:
           node --check account.js
           node --check account-original.js
           node --check account-auth-hotfix.js
+          node --check account-mfa-guard.js
           node --check admin.js
           node --check admin-original.js
           node --check admin-inbox-safety.js
+          node --check admin-mfa-guard.js
           node --check api/support-inbox.js
           node --check api/resend-inbound.js
           node --check staff.js
+          node --check staff-original.js
+          node --check staff-mfa-guard.js
+          node --check staff-sw.js
           node --check conversion.js
 
       - name: Require current AI handoff documentation
