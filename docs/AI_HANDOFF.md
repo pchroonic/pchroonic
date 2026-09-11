@@ -32,6 +32,19 @@ The inbox upgrade provides:
 - bypass of automatic marketing heuristics for known customers and genuine reply threads;
 - no staff notification for quarantined mail.
 
+A follow-up **inbound-email security hardening** change is being prepared on branch `security/inbound-email-hardening-20260911`. It changes only `api/resend-inbound.js` plus the handoff documentation and requires no schema migration or new environment variable. It adds:
+- a 1 MiB maximum webhook payload before parsing/verification to limit memory-abuse requests;
+- strict inbound email-ID validation before the Resend retrieval request;
+- explicit safe failure when the Resend API key is unavailable;
+- security quarantine for automated replies/auto-responders and potential `@namdar.co.uk` mail loops;
+- quarantine when Authentication-Results reports DMARC failure together with SPF or DKIM failure for non-reply context;
+- quarantine for executable/script/macro-enabled attachment filename types while retaining metadata only;
+- exact-sender rate protection plus a global unknown-sender flood threshold;
+- duplicate-insert race handling so Resend retries/manual replays return HTTP 200 instead of causing a retry loop;
+- retention of limited security-relevant headers (`auto-submitted`, `authentication-results`) for server-side audit context.
+
+The current inbound webhook already requires a valid Resend/Svix signature with a five-minute timestamp window. Production runtime logs on 2026-09-11 showed recent `POST /api/resend-inbound` requests returning HTTP 200, and production Supabase has a unique partial index on `support_inbox_messages.resend_email_id`, so normal duplicate/replay storage is already idempotent. The hardening branch improves race/error handling around those existing protections.
+
 Important limitation: Namdar’s application-level blocklist cannot stop a remote sender from attempting SMTP delivery to the Resend receiving address. A blocked message may still reach Resend, but Namdar quarantines it before it enters the working inbox or creates a staff notification.
 
 ## Architecture at a glance
@@ -49,14 +62,14 @@ Important limitation: Namdar’s application-level blocklist cannot stop a remot
 
 ## Inbox spam schema and migration state
 
-Production Supabase was inspected before changing the schema. The existing inbox tables were already RLS-enabled and service-role-only.
+Production Supabase was inspected before changing the spam schema. The existing inbox tables were already RLS-enabled and service-role-only.
 
 Two forward-only migrations were applied successfully to `namdar-production` and their SQL source is preserved under `supabase/migrations/`:
 
 - `20260911213820_inbox_spam_controls.sql` / database migration `20260911213820 inbox_spam_controls`
 - `20260911213842_inbox_spam_blocklist_fk_index.sql` / database migration `20260911213842 inbox_spam_blocklist_fk_index`
 
-They extend `support_inbox_threads.status` with `spam`, add `spam_reason`, `spam_score`, and `spam_source`, create server-only `support_inbox_blocklist`, revoke browser roles, grant service-role access, and add lookup/status/foreign-key indexes. No environment variable was added or changed.
+They extend `support_inbox_threads.status` with `spam`, add `spam_reason`, `spam_score`, and `spam_source`, create server-only `support_inbox_blocklist`, revoke browser roles, grant service-role access, and add lookup/status/foreign-key indexes. The follow-up inbound security hardening requires no additional database migration.
 
 The Supabase security advisor reported the blocklist’s “RLS enabled, no policy” state as informational, matching Namdar’s other server-only tables. The performance advisor initially flagged the new `created_by` foreign key; the second migration added the covering index.
 
@@ -70,17 +83,20 @@ GitHub `main` automatically deploys to Vercel production.
 
 The My Namdar session hotfix remains verified live. The Email inbox spam-protection PR #4 passed GitHub CI and its exact Vercel preview. It was rebased into `main` as commit `97014ad2c7dbd0cceb7ca8b97f193a3b5ce8e8bc`. Production deployment `dpl_8eu3eknmgXXcyChJwugfUjn1raWq` built the exact commit and reached READY. Canonical live requests to `namdar.co.uk` returned HTTP 200 for `admin.js`, `admin-original.js`, `admin-inbox-safety.js`, and `admin-inbox-safety.css`; live `admin.js` serves version `6.4.16-inbox-safety-1`.
 
-The database migrations are applied, application code is deployed, and no environment-variable change is required. A real administrator browser action using the visible junk conversation has not yet been exercised after deployment, so Mark spam / Block sender still needs one live UI confirmation rather than being overstated as end-to-end tested.
+The later documentation sync `57a7fa854853d68d46ac94f73371f4382f7503d5` also passed CI and deployed READY with `namdar.co.uk` assigned.
+
+The inbound security hardening branch is **not yet production** until its PR passes CI, exact Vercel preview verification, merge, and canonical production verification. Do not claim the new flood/loop/authentication/attachment safeguards are live before that occurs.
 
 ## Known launch checks and cautions
 
 - Verify Stripe, Turnstile, OAuth providers, SMS provider, Resend sending/inbound configuration and legal content before public advertising.
+- Keep `RESEND_WEBHOOK_SECRET` configured in Production/Preview where inbound webhook testing is expected; never expose its value in browser code or documentation.
 - Confirm Supabase Auth Site URL/redirect allowlist for `https://namdar.co.uk`.
 - Verify booking-notification and account-purge cron jobs.
 - Confirm intended database and application double-booking protections.
 - Test privileged admin/staff APIs with least-privilege accounts after permission changes.
 - Keep offline staff data minimal, short-lived and read-only.
-- Treat automatic spam classification conservatively; manual block rules are authoritative.
+- Treat automatic spam/security classification conservatively; quarantine and restore are preferred to destructive deletion.
 
 ## Required workflow for future AI sessions
 
@@ -93,4 +109,4 @@ The database migrations are applied, application code is deployed, and no enviro
 
 ## Next recommended step
 
-Refresh Admin → Email inbox and use the visible junk conversation to verify either **Mark as spam** or **Block sender**. Confirm it leaves Open, appears under Spam, no longer contributes to unread/working counts, and customer Support tickets remain unchanged. Do not block a broad shared email domain merely to test the feature.
+Finish `security/inbound-email-hardening-20260911`: run the repository JavaScript/API syntax checks and Vercel preview, merge only if green, verify the exact production deployment and canonical endpoint health, then use a controlled inbound email to confirm legitimate mail still reaches Admin → Email inbox. Separately, use the visible junk conversation to verify Mark spam / Block sender in the live UI. Do not intentionally send executable attachments merely to test quarantine.
