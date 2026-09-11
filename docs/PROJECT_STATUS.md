@@ -15,43 +15,31 @@ Last updated: 2026-09-11 UTC
 | Area | Primary source | Status |
 | --- | --- | --- |
 | Public website | `index.html`, `app.js`, `styles.css`, `services/`, `areas/` | Live |
-| Customer portal | `account.html`, loader + original + auth/MFA guards, customer APIs | Session fix live; MFA Stage 1 prepared |
-| Admin workspace | loader + original + inbox safety + MFA guard, admin APIs | Inbox Security v2 live; MFA Stage 1 prepared |
-| Staff PWA | loader + preserved original + MFA guard + service worker | Existing PWA live; MFA Stage 1 prepared |
+| Customer portal | account loader + original + session/MFA guards, customer APIs | Session fix + staged MFA live |
+| Admin workspace | admin loader + original + inbox safety + MFA guard, admin APIs | Inbox Security v2 + staged MFA live |
+| Staff PWA | staff loader + preserved original + MFA guard + service worker | Staged MFA live |
 | Server functions | `api/` | Hardened email/inbox APIs live |
 | Production DB | Supabase | Healthy; inbox/security migrations applied |
 
 ## Phase 7 — Launch Security & Readiness
 
-Branch: `feature/security-mfa-phase-20260911`.
+**MFA Stage 1 is live.**
 
-Pre-change production check: `auth.mfa_factors` contains **0 verified factors**. This means the rollout must first let privileged users enroll safely instead of immediately hard-requiring AAL2.
+Production factor check before and after deployment: **0 verified MFA factors**.
 
-Prepared Stage 1:
+Live behavior:
+- Customers who opt into MFA must complete their second factor before My Namdar portal data loads.
+- Admin/Staff with verified MFA must complete the second factor before privileged dashboard/job data loads.
+- Admin/Staff without MFA are prompted to enroll a TOTP authenticator. A temporary **Continue for now** option remains during rollout to prevent lockout and appears again on a later session until enrollment is complete.
+- Staff online access follows the same staged gate; privacy-limited offline snapshot behavior is unchanged.
+- `staff.js` is a loader and the previous source is preserved exactly as `staff-original.js`.
+- Staff service worker uses `namdar-staff-v6.4.16-security-mfa-1`, caches the new security assets and calls `skipWaiting()` after successful cache preparation.
 
-- Customer accounts that have opted into MFA must satisfy the second factor before My Namdar loads.
-- Admin and Staff with verified MFA must satisfy the second factor before privileged data loads.
-- Admin/Staff without MFA are prompted to enroll a TOTP authenticator. A temporary “Continue for now” option remains during rollout to prevent accidental lockout; the prompt returns on a later session.
-- Staff online access follows the same staged gate. Existing offline snapshot behavior is unchanged and remains session-expiry/TTL limited.
-- `staff.js` becomes a small loader and preserves the previous source as `staff-original.js`.
-- `staff-sw.js` cache version is bumped to include the new loader/guard assets.
-- CI is extended to syntax-check all new MFA guard files and preserved staff source.
-
-Stage 1 does **not** yet provide comprehensive API/RLS AAL2 enforcement. That is intentionally deferred until direct Supabase browser access and server API paths are audited together.
+Stage 1 does **not** yet provide comprehensive server/API/RLS AAL2 enforcement. That remains a separate audited follow-up.
 
 ## Email/security baseline already live
 
-Inbox spam protection + Inbox Security v2 are live, including:
-- spam/quarantine folder and manual restore;
-- exact-sender/domain blocks with shared-provider safeguards;
-- recognized mailbox allowlist;
-- loop suppression and valid reply-token context;
-- provider/RFC Message-ID dedupe;
-- repeated campaign detection;
-- DMARC/SPF/DKIM signals;
-- dangerous attachment quarantine/caution metadata;
-- Report phishing;
-- no staff notification for quarantined mail.
+Inbox spam protection + Inbox Security v2 remain live, including Spam/quarantine, sender/domain block rules, mailbox allowlisting, mail-loop suppression, valid reply context, provider/RFC Message-ID dedupe, repeated campaign detection, authentication signals, dangerous attachment quarantine/caution labels and Report phishing.
 
 ## Database/Auth security state
 
@@ -61,31 +49,26 @@ Applied production migrations:
 - `20260911220343 inbox_security_indexes`
 - `20260911220415 harden_invoice_number_function_search_path`
 
-No new database migration or environment variable is required for Phase 7 Stage 1.
+No migration or new environment variable was required for MFA Stage 1.
 
-Supabase Security Advisor still reports **Leaked Password Protection disabled**. This is a hosted Auth setting and must be enabled/verified separately. RLS-with-no-policy INFO findings on server-only operational tables are intentional.
+Supabase Security Advisor still reports **Leaked Password Protection disabled**; this hosted Auth setting must be enabled/verified separately. RLS-with-no-policy INFO findings on server-only operational tables remain intentional.
 
 ## Verification status
 
-Verified current production baseline:
-- Inbox Security v2 PR #5 CI passed and exact preview reached READY.
-- Main security commit: `c3d788dfd61751faf888197801b0fce587d97d38`.
-- Production deployment: `dpl_CA4tTdYrtjxvxQR6jor1cs3Lvjwn`, READY with `namdar.co.uk` and no alias error.
-- Handoff sync commit `1dc4b2535c6b16c99137e484d23d691643542082` passed CI and deployed READY.
-
-Phase 7 Stage 1 verification still required before it can be called live:
-1. GitHub syntax/handoff CI.
-2. Exact Vercel preview READY.
-3. PR merge to `main`.
-4. Matching production deployment and canonical asset checks.
-5. Real administrator TOTP enrollment + subsequent AAL2 challenge test.
+MFA Stage 1:
+- PR #7 feature SHA `4e69b6da60f43724fd013e7fc0583ce983ca3823` passed expanded CI.
+- Vercel preview `dpl_6vGV4fWwcNVVJJpnW92CNyaXqP8X` READY on exact feature SHA.
+- Main code SHA: `6cb1926b3da29d49a475f53e9dc07ddc0af915b9`.
+- Production deployment: `dpl_6qMAURUKHJqbiY4ngZcHP3YaZtD2`, READY with `namdar.co.uk` and no alias error.
+- Canonical HTTP 200 verified for account/admin/staff loaders, all three MFA guards and the Staff service worker.
+- Real administrator TOTP enrollment and next-session AAL2 challenge remain pending; do not mark interactive MFA verification complete yet.
 
 ## Outstanding work
 
-1. Finish Phase 7 Stage 1 branch verification/deployment.
-2. Enable Supabase Auth Leaked Password Protection in hosted Auth settings.
-3. Enroll administrator TOTP (plus backup factor if practical), test next-login challenge, then remove temporary Admin/Staff bypass in a separate change.
-4. Audit and enforce AAL2 on privileged server APIs and direct Supabase/RLS paths.
+1. Administrator: enroll TOTP from the live security prompt, then sign out/in and confirm the second-factor challenge.
+2. After recovery-safe enrollment, remove the temporary Admin/Staff bypass in a separate change.
+3. Audit and enforce AAL2 on privileged server APIs and direct Supabase/RLS paths.
+4. Enable Supabase Auth Leaked Password Protection in hosted Auth settings.
 5. Run safe recognized-mailbox/unknown-alias inbound behavior test and confirm customer Support stays unchanged.
 6. Complete controlled authenticated customer-support ticket test.
 7. Confirm launch readiness for Stripe, Turnstile, OAuth, SMS, Resend and legal configuration.
