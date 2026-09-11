@@ -1,0 +1,102 @@
+# Namdar AI handoff
+
+Last verified: 2026-09-11 UTC
+
+This is the first file every AI should read after opening the repository. Keep it concise, factual and current. Never store secret values or personal customer data here.
+
+## Source of truth
+
+- Product: Namdar, a UK exterior-cleaning and handyman service platform.
+- Repository: `pchroonic/pchroonic`, default branch `main`.
+- Hosting project: Vercel project `namdar-website-starter-1`.
+- Canonical domain assigned in Vercel: `namdar.co.uk`.
+- Backend: Supabase project referred to in the existing documentation as `namdar-production`.
+- Current code/release heading: Namdar v6.4.15.
+
+The repository contains the current source. Use Vercel, Supabase and other provider dashboards only to verify live state. Never copy secret values from those services into this file.
+
+## Current release
+
+The latest documented release is v6.4.15, which separates external email conversations from website support tickets. Incoming role-address email remains in Admin → Email inbox and no longer creates or synchronises duplicate `support_tickets`. Website tickets use `source=website`, feedback escalations use `source=feedback`, and system-alert email loop protection remains in place.
+
+## Architecture at a glance
+
+- Public static pages: root HTML/JavaScript/CSS, service pages under `services/`, and location pages under `areas/`.
+- Customer portal: `account.html`, `account.js` and customer-facing serverless endpoints.
+- Admin workspace: `admin.html`, `admin.js` and protected admin endpoints under `api/`.
+- Staff app: `staff.html`, `staff.js`, `staff.webmanifest` and `staff-sw.js`; this is an installable, privacy-limited PWA.
+- Server API: Vercel Node serverless functions under `api/`.
+- Shared server logic: `lib/server.js`.
+- Hosting/security/cron routing: `vercel.json`.
+- Data/auth/storage: Supabase, accessed through public anon credentials in the browser where appropriate and privileged service-role access only on the server.
+- Email: Resend-related API flows and inbound handling.
+- Payments: Stripe-ready server flows; verify live configuration before enabling or claiming production readiness.
+
+## Major working capabilities documented in the repository
+
+- Public service and area pages, postcode/service-area checks and self-managed address handling.
+- Customer accounts, projects, quotes, bookings, billing, support, notifications and account deletion/recovery.
+- Admin CRM, diary, quote/booking management, payments, reporting, follow-ups, feedback, audit history, support and email inboxes.
+- Staff job workflow, route planning, before/after uploads and installable mobile PWA behaviour.
+- Automated booking reminders, business follow-ups and account-purge cron jobs.
+- Supabase RLS-backed data access with server-only handling for privileged workflows.
+
+## Production data and migration safety
+
+The README states that multiple v4-v6 migrations have already been applied to the production Supabase project. Do not rerun them on production. Before any schema change:
+
+1. Inspect the actual production schema and migration history.
+2. Confirm whether the required SQL file is present in the current checkout. Some README references may describe files that are not present in this repository snapshot.
+3. Create a new forward-only migration; do not edit history and assume it can be replayed safely.
+4. Check RLS, privileges, indexes, data backfill impact and rollback/recovery strategy.
+5. Record whether the migration was only prepared or was actually applied.
+
+## Environment-variable names
+
+Never record values. Existing documentation refers to:
+
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY` or publishable equivalent
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `RESEND_API_KEY`
+- `NAMDAR_FROM_EMAIL`
+- `NAMDAR_SUPPORT_EMAIL`
+- `NAMDAR_NOTIFY_EMAIL`
+- `TURNSTILE_SITE_KEY`
+- `TURNSTILE_SECRET_KEY`
+- `OPENAI_API_KEY`
+- `OPENAI_MODEL`
+- `STRIPE_SECRET_KEY`
+- `CRON_SECRET`
+- optional `OVERPASS_API_URL`
+
+Verify required variables separately in Preview and Production. Do not assume that the presence of a name in this list means it is configured.
+
+## Deployment state
+
+On 2026-09-11, Vercel reported a recent deployment in `READY` state, but the project response did not confirm it as the live production target. The domain is assigned, but future developers must verify the production target and the canonical domain before saying the latest code is live.
+
+Documentation-only commits may trigger Vercel automation depending on repository settings. A successful build alone is not evidence that database, email, payment, auth or cron workflows were exercised.
+
+## Known launch checks and cautions
+
+- Verify Stripe, Turnstile, OAuth providers, SMS provider, Resend sending/inbound configuration and legal content before a public advertising launch.
+- Confirm Supabase Auth site URL and redirect allowlist for `https://namdar.co.uk`.
+- Verify the hourly booking-notification cron and daily account-purge cron with `CRON_SECRET` configured.
+- Confirm that app-level booking overlap checks and any database-level double-booking protection match the intended business rules.
+- Test privileged admin/staff APIs with least-privilege accounts after permission changes.
+- Keep offline staff data minimal, short-lived and read-only as designed.
+
+## Required workflow for future AI sessions
+
+1. Read this file, `docs/PROJECT_STATUS.md` and `AGENTS.md` before changing anything.
+2. Inspect the relevant code and current provider state rather than trusting an old chat or ZIP filename.
+3. Make the smallest safe change that meets the request.
+4. Test the affected flow and check for regressions in adjacent customer/admin/staff paths.
+5. Update this file and `docs/PROJECT_STATUS.md` in the same commit.
+6. State clearly whether Supabase changed, environment variables changed, a migration is required, the change was deployed, and it is production-ready.
+
+## Next recommended step
+
+Run an end-to-end verification of the v6.4.15 email/ticket separation on a preview or controlled environment, then confirm which commit is currently serving `namdar.co.uk`. Record the exact result here without including message contents, email addresses, tokens or customer data.
+

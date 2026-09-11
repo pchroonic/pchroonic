@@ -1,0 +1,26 @@
+name: AI handoff check
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  handoff:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Require current AI handoff documentation
+        run: node scripts/check-ai-handoff.mjs
+        env:
+          HANDOFF_BASE: ${{ github.event.before }}
+          HANDOFF_HEAD: ${{ github.sha }}
+
