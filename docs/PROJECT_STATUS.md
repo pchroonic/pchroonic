@@ -16,63 +16,73 @@ Last updated: 2026-09-11 UTC
 | --- | --- |
 | Public website | Live |
 | Customer portal | Session fix + optional customer MFA live |
-| Admin workspace | Inbox Security v2 + Stage 1 MFA live; Stage 2 prepared |
-| Staff PWA | Stage 1 MFA live; Stage 2 prepared |
-| Server functions | Hardened email/inbox APIs live; AAL2 wrapper prepared |
-| Production DB | Healthy; Stage 2 AAL2 RLS migration pending |
+| Admin workspace | Inbox Security v2 + mandatory privileged MFA/AAL2 live |
+| Staff PWA | Mandatory privileged MFA/AAL2 live; AAL2 required for offline cached session |
+| Server functions | Privileged APIs require AAL2 through central `requireStaff()` wrapper |
+| Production DB | Central privileged RLS requires AAL2 |
 
 ## Phase 7 — Launch Security & Readiness
 
-### Stage 1 live
+### MFA Stage 2 — LIVE
 
-Administrator TOTP enrollment worked and production now shows **1 verified factor for 1 admin user**.
+The admin authenticator was successfully enrolled before Stage 2. Production currently has 1 verified admin MFA factor.
 
-### Stage 2 prepared
+Enforcement now exists at browser, API and database levels:
+- Admin/Staff browser bypass removed.
+- Privileged users must enroll/verify TOTP and reach AAL2 before privileged UI loads.
+- Central Vercel `requireStaff()` requires AAL2 after the existing validated identity/permission check.
+- Central Supabase `private.has_staff_permission()` requires AAL2 for direct-client privileged RLS.
+- `Staff read own access` requires AAL2.
+- Old AAL1 Staff sessions cannot use privacy-limited offline job snapshots until they reconnect and verify.
+- Customer/public access policies and customer support-ticket rules are unchanged.
 
-Branch: `feature/security-mfa-stage2-20260911`.
+## Deployment verification
 
-Planned changes:
-- remove Admin/Staff `Continue for now` bypass;
-- force TOTP enrollment for privileged users who have no verified factor;
-- force second-factor challenge for verified privileged accounts before privileged UI data loads;
-- wrap central server `requireStaff()` so privileged API access requires verified JWT `aal2`;
-- preserve the previous server helper byte-for-byte as `lib/server-original.js` and keep `lib/server.js` as the small AAL2 wrapper;
-- update Staff offline security so old `aal1` sessions cannot open cached job snapshots;
-- apply `20260911231500_require_aal2_for_staff_permissions.sql` so central `private.has_staff_permission()` and staff self-access require AAL2.
+- Stage 2 feature SHA: `d203c64d9e5da3cca049bcb43e988f7432e2864c`.
+- PR #8.
+- GitHub CI run `34656209581`: success.
+- Preview deployment: `dpl_2bfBkHgR4k8SY4hL4AcUrn3NWzzT`, READY on exact feature SHA.
+- Main Stage 2 code SHA: `ece88931bd5e05b26173b25ff7fa75c46b6b4e63`.
+- Production deployment: `dpl_Jkb8ZavhqrBD6PLpqjAPnEdiGAsW`, READY with `namdar.co.uk` and no alias error.
+- Live `admin.js` serves `6.4.16-security-mfa-2`.
+- Live Admin MFA guard contains no `Continue for now` bypass.
 
-Customer/public policies and customer MFA behavior are intentionally unchanged.
+## Database/Auth verification
 
-## Database/Auth security state
+Applied migration:
+- `20260911230055 require_aal2_for_staff_permissions`
 
-Applied production migrations before Stage 2:
+Verified after migration:
+- central `private.has_staff_permission()` definition includes AAL2 requirement;
+- `Staff read own access` policy includes AAL2 requirement;
+- controlled database test: AAL1 denied, AAL2 allowed for the same active administrator identity;
+- post-migration Security Advisor reported no new Stage 2 security regression.
+
+Migration filename is aligned in source to the actual applied version `20260911230055_require_aal2_for_staff_permissions.sql` (the feature branch had a provisional timestamp before Supabase assigned the production version).
+
+## Security advisor state
+
+Existing findings remain:
+- INFO: 8 operational/server-only tables have RLS enabled with no authenticated policies. These remain intentionally inaccessible through ordinary authenticated Data API access.
+- WARN: Supabase Auth **Leaked Password Protection is disabled** and should be enabled as the next Auth-hardening task.
+
+## Applied production migrations relevant to recent security work
+
 - `20260911213820 inbox_spam_controls`
 - `20260911213842 inbox_spam_blocklist_fk_index`
 - `20260911220343 inbox_security_indexes`
 - `20260911220415 harden_invoice_number_function_search_path`
-
-Stage 2 migration is present in the branch but **not yet applied**.
-
-Supabase Security Advisor still reports **Leaked Password Protection disabled**; this hosted Auth setting remains a separate launch task.
-
-## Verification completed before Stage 2 merge
-
-- Production MFA state: 1 verified admin factor / 1 MFA-enabled admin user.
-- Audited current RLS policies: privileged direct-client policies use `private.has_staff_permission(...)` across bookings, quotes, profiles, support, loyalty, content, settings and related admin tables.
-- Audited central function: it currently checks active role and permission but does not yet require AAL2.
-- Confirmed representative sensitive APIs use central `requireStaff()` including support inbox, admin users/reporting/payments/address directory, staff jobs/actions/notifications/presence and staff ticket paths.
-- New Stage 2 JavaScript wrapper/guards were syntax-checked locally before branch packaging.
-- No new environment variable is required.
+- `20260911230055 require_aal2_for_staff_permissions`
 
 ## Outstanding work
 
-1. Package Stage 2 as one branch commit with both handoff files.
-2. Open PR; require CI and exact Vercel preview READY.
-3. Merge and verify production exact SHA + `namdar.co.uk` alias.
-4. Apply the Stage 2 Supabase migration and record its actual migration ID.
-5. Verify live Admin AAL2 read/write paths and controlled AAL1 rejection at API/RLS layers.
-6. Run Supabase security advisor again.
-7. Enable hosted Auth Leaked Password Protection.
-8. Continue launch checks for Stripe, Turnstile, OAuth, SMS, Resend, legal configuration, cron jobs and double-booking protection.
+1. Smoke test a fresh Admin login after signing out: password/login → authenticator → Admin/Inbox load → harmless action.
+2. Enable Supabase Auth Leaked Password Protection and verify the advisor warning clears.
+3. Complete provider launch readiness for Stripe, Turnstile, OAuth, SMS, Resend and legal configuration.
+4. Confirm Supabase Auth Site URL and redirect allowlist for `https://namdar.co.uk`.
+5. Verify production cron jobs and intended double-booking protections.
+6. Run safe recognized-mailbox/unknown-alias inbound behavior test.
+7. Complete controlled customer-support ticket journey when a safe eligible test customer is available.
 
 ## Handoff maintenance rule
 
