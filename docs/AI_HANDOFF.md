@@ -17,7 +17,7 @@ The repository contains the current source. Use Vercel, Supabase and other provi
 
 ## Current release
 
-The latest documented release is v6.4.16. Public visitors no longer create support tickets. They can request a quote, use general chat guidance or email Namdar; inbound email remains in Admin → Email inbox. Ticket creation is private to signed-in customers with an existing quote, booking, subscription or project, enforced in both My Namdar and `api/ticket-create.js`. Authenticated customer tickets no longer use Turnstile; public sign-in, registration and guest chat still do.
+The latest documented release is v6.4.16. Public visitors no longer create support tickets. They can request a quote, use general chat guidance or email Namdar; inbound email remains in Admin → Email inbox. Ticket creation is private to signed-in customers with an existing quote, booking, subscription or project, enforced in both My Namdar and `api/ticket-create.js`. The public support explanation is fixed product copy and is not overridden by the old admin-managed `ticket_intro` field. Authenticated customer tickets no longer use Turnstile; public sign-in, registration and guest chat still do.
 
 ## Architecture at a glance
 
@@ -99,4 +99,4 @@ Documentation-only commits also trigger this Vercel automation. A successful bui
 
 ## Next recommended step
 
-Verify the v6.4.16 customer-only support flow after deployment: anonymous `POST /api/ticket-create` must return 401, eligible signed-in customers must be able to create and follow a ticket from My Namdar, and public email must remain isolated in Admin → Email inbox.
+The v6.4.16 customer-only support UI is deployed on the canonical domain. Next, complete the authenticated API flow verification: anonymous `POST /api/ticket-create` must return 401, eligible signed-in customers must be able to create and follow a ticket from My Namdar, and public email must remain isolated in Admin → Email inbox.
