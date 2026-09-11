@@ -19,6 +19,8 @@ The repository contains the current source. Use Vercel, Supabase and other provi
 
 The latest documented release is v6.4.16. Public visitors no longer create support tickets. They can request a quote, use general chat guidance or email Namdar; inbound email remains in Admin → Email inbox. Ticket creation is private to signed-in customers with an existing quote, booking, subscription or project, enforced in both My Namdar and `api/ticket-create.js`. The public support explanation is fixed product copy and is not overridden by the old admin-managed `ticket_intro` field. Authenticated customer tickets no longer use Turnstile; public sign-in, registration and guest chat still do.
 
+A post-release hotfix discovered on 2026-09-11 repairs a malformed newsletter event-handler expression in `app.js` that could prevent the public homepage JavaScript from parsing. It also sends public/chat customer-support links to the portal's actual `support` tab slug instead of the stale `tickets` slug. The repository workflow now runs `node --check` against the critical browser JavaScript files so a similar syntax failure is caught before later releases.
+
 ## Architecture at a glance
 
 - Public static pages: root HTML/JavaScript/CSS, service pages under `services/`, and location pages under `areas/`.
@@ -75,7 +77,7 @@ Verify required variables separately in Preview and Production. Do not assume th
 
 ## Deployment state
 
-GitHub `main` is connected to automatic Vercel production deployments. On 2026-09-11, the AI-continuity commit `50783b5` produced a Vercel deployment with both `READY` state and `production` target. Future developers must still compare the current `main` commit with the production deployment commit before saying later code is live.
+GitHub `main` is connected to automatic Vercel production deployments. On 2026-09-11, production commit `7a44dc4` was `READY` and matched GitHub `main` before the homepage hotfix work began. The hotfix was prepared first on branch `hotfix/support-route-js-20260911`; do not describe it as production-live until the final hotfix commit is merged to `main` and the matching Vercel production deployment is verified.
 
 Documentation-only commits also trigger this Vercel automation. A successful build alone is not evidence that database, email, payment, auth or cron workflows were exercised.
 
@@ -99,4 +101,4 @@ Documentation-only commits also trigger this Vercel automation. A successful bui
 
 ## Next recommended step
 
-The v6.4.16 customer-only support UI is deployed on the canonical domain. Next, complete the authenticated API flow verification: anonymous `POST /api/ticket-create` must return 401, eligible signed-in customers must be able to create and follow a ticket from My Namdar, and public email must remain isolated in Admin → Email inbox.
+After the homepage hotfix is verified and promoted to production, finish the authenticated customer-support verification: anonymous `POST /api/ticket-create` must return 401, an eligible signed-in customer must be able to create and follow a ticket from My Namdar, and public email must remain isolated in Admin → Email inbox. Do not use real customer credentials or data merely to manufacture this test; use a controlled test account when available.
