@@ -1,7 +1,7 @@
-const VERSION='namdar-staff-v6.4.16-security-mfa-2';
+const VERSION='namdar-staff-v6.4.16-privileged-captcha-1';
 const STATIC_CACHE=`${VERSION}-static`;
 const RUNTIME_CACHE=`${VERSION}-runtime`;
-const LOCAL_ASSETS=['/staff','/staff.html','/staff.js','/staff-original.js','/staff-mfa-guard.js','/styles.css','/staff.webmanifest','/staff-icon-180.png','/staff-icon-192.png','/staff-icon-512.png'];
+const LOCAL_ASSETS=['/staff','/staff.html','/staff.js','/staff-original.js','/privileged-login-captcha.js','/staff-mfa-guard.js','/styles.css','/staff.webmanifest','/staff-icon-180.png','/staff-icon-192.png','/staff-icon-512.png'];
 const REMOTE_ASSETS=['https://unpkg.com/leaflet@1.9.4/dist/leaflet.css','https://unpkg.com/leaflet@1.9.4/dist/leaflet.js','https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'];
 self.addEventListener('install',event=>{event.waitUntil((async()=>{const cache=await caches.open(STATIC_CACHE);await cache.addAll(LOCAL_ASSETS);await Promise.allSettled(REMOTE_ASSETS.map(async url=>{try{const r=await fetch(url,{mode:'cors'});if(r.ok)await cache.put(url,r.clone())}catch{}}));await self.skipWaiting()})())});
 self.addEventListener('activate',event=>{event.waitUntil((async()=>{const names=await caches.keys();await Promise.all(names.filter(n=>n.startsWith('namdar-staff-')&&!n.startsWith(VERSION)).map(n=>caches.delete(n)));await self.clients.claim()})())});

@@ -4,6 +4,20 @@ Last verified: 2026-09-12 UTC
 
 Read `docs/AI_START.md` first. This is the detailed technical continuity record. Never store secrets or private customer data here.
 
+## Privileged sign-in CAPTCHA repair — 2026-09-12
+
+During the GetAddress continuation, a fresh production Admin password sign-in was rejected with `captcha protection: request disallowed (no captcha_token found)`. Admin and Staff both called password Auth without a CAPTCHA token; only the customer account flow had been integrated.
+
+Prepared repair:
+- Shared `privileged-login-captcha.js` renders Turnstile on visible Admin/Staff login forms using the existing public configuration key, forwards `options.captchaToken`, blocks empty/expired tokens and resets after every Auth attempt.
+- Library load failures can retry; existing session restoration does not wait for CAPTCHA. MFA/AAL2 guards are preserved.
+- Staff public config retains the public site key; the PWA cache version is advanced and includes the new local helper. Provider scripts/tokens are not cached.
+- No database migration, new environment variable or provider-security setting change.
+- Five focused regression tests pass locally, covering missing tokens/config, expiry/error/timeout, token forwarding/reset, library retry and both page integrations. Live authenticated success remains unverified pending preview and production testing.
+- Current verified baseline before repair: GitHub `6f4bfcfb7ad3cf804a1eaad14695860e80c156cf` served by READY production deployment `dpl_28xFc3ZmneevxwWMvxJX3PdyWAhA`, aliased to `namdar.co.uk`.
+
+Immediate next step: finish preview/CI and production verification of this repair, then resume GetAddress key/status and controlled manual-run checks. Automatic harvesting has not been changed by this session.
+
 ## Source of truth
 
 - Product: Namdar UK property services platform.
