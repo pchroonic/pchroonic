@@ -8,7 +8,7 @@ For fast continuation, read `docs/AI_START.md` first. This file is the broader r
 
 - Release documented in `README.md`: v6.4.16.
 - Source: GitHub `main` in `pchroonic/pchroonic`.
-- Current live product commit: `285b7c3da8215dc24e543f9a6143e565d10e61a7`.
+- Current live product commit before the second iPhone overflow fix: `285b7c3da8215dc24e543f9a6143e565d10e61a7`.
 - Delivery: Vercel project `namdar-website-starter-1`, canonical domain `namdar.co.uk`.
 - Data/auth/storage: Supabase `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
 - Supabase organization plan: **Free**.
@@ -21,13 +21,13 @@ Namdar has a three-layer AI handoff system:
 - `docs/AI_HANDOFF.md` — detailed technical handoff.
 - `docs/PROJECT_STATUS.md` — this broader roadmap/status file.
 
-CI requires all three files to change whenever product-source files change, reducing the chance that ChatGPT/Claude finishes work without recording the next step.
+CI requires all three files to change whenever product-source files change.
 
 ## Main product areas
 
 | Area | Status |
 | --- | --- |
-| Public website | Live; mobile quote horizontal-overflow fix deployed, real iPhone confirmation pending |
+| Public website | Live; second iPhone horizontal-overflow fix in verification |
 | Customer portal | Session fix + optional customer MFA live |
 | Admin workspace | Inbox Security v2 + mandatory privileged MFA/AAL2 live and user smoke-tested |
 | Staff PWA | Mandatory privileged MFA/AAL2 live; AAL2 required for offline cached session |
@@ -51,40 +51,39 @@ Enforcement exists at browser, API and database levels:
 
 ### User smoke test
 
-Passed on 2026-09-12:
-- signed out of Admin completely;
-- signed back in normally;
-- authenticator challenge appeared and was completed;
-- Admin → Inbox loaded normally.
+Passed on 2026-09-12: signed out of Admin, signed back in, completed authenticator challenge, and Admin → Inbox loaded normally. Do not repeat unless a future auth change needs regression testing.
 
-This smoke test is complete and should not be repeated unless a future auth change needs regression testing.
+## Mobile homepage overflow — SECOND FIX IN VERIFICATION
 
-## Mobile homepage overflow fix — LIVE, IPHONE CONFIRMATION PENDING
+The initial production fix (PR #12) removed the visible right-side white strip, but the owner's follow-up iPhone screenshot still showed the entire homepage shifted sideways with left-side clipping of the logo, eyebrow, headline and paragraph. The mobile regression therefore remains open.
 
-The owner reported on 2026-09-12 that the homepage quote form on iPhone could slide horizontally and show a blank white gap on the right. The screenshot showed the left edge clipped by a similar amount, confirming document-level horizontal overflow/panning rather than ordinary right padding.
+Second branch: `fix/ios-root-overflow-20260912`.
 
-Implementation:
-- `mobile-overflow-fix.css` uses shrink-safe quote grid tracks (`minmax(0,1fr)`), `min-width:0` on quote containers/items, and max-width constraints on controls;
-- native/iOS file input is explicitly contained within the form;
-- homepage-only mobile `overflow-x:clip` / horizontal overscroll guard is applied with a hidden fallback for older engines;
-- `conversion.js` loads the isolated stylesheet on the homepage while preserving existing conversion interactions and intentionally scrollable components.
+Second-fix scope:
+- load `mobile-overflow-fix.css` directly in the homepage `<head>` instead of injecting it after page layout;
+- cache-bust the stylesheet and `conversion.js`;
+- use explicit `overflow-x:hidden` and width/min/max guards on the mobile root/body;
+- constrain mobile header, hero, quote and footer containers and shrinkable children to the viewport;
+- preserve intentionally local horizontal scrollers;
+- keep quote-grid/native-file-input containment;
+- reset any restored mobile horizontal scroll position to x=0 immediately, on `pageshow`, and after orientation changes.
 
-Verification:
-- `conversion.js` Node syntax check passed;
-- CSS structural checks passed;
-- 390px Chromium regression check passed: document `scrollWidth === innerWidth`, file input stayed within form, and the proof strip remained independently horizontally scrollable;
-- exact Safari/iPhone symptom was not reproduced in Chromium, so a real iPhone recheck remains required.
+No database, Auth, provider, environment-variable or customer-data change is involved.
 
-Promotion:
-- PR #12: `Fix mobile quote horizontal overflow`;
-- feature/PR head: `febd6bbaacee5c08273e4ba7b70d8749dc160313`;
-- GitHub CI run `34685321573`: success;
-- Vercel preview: `dpl_8vbLRZdTAUttgXjhfRw2LBtb8sXq`, READY on exact PR head;
-- main merge SHA: `285b7c3da8215dc24e543f9a6143e565d10e61a7`;
-- production deployment: `dpl_CkWNqBc8JkMuWh77BWYJXkXwP3oA`, READY on exact merge SHA, `namdar.co.uk` attached, `aliasError: null`;
-- canonical live `conversion.js` and `mobile-overflow-fix.css?v=20260912` both returned HTTP 200 and contained the expected fix.
+Verification status:
+- source implementation is present on the second-fix branch;
+- PR/CI/exact preview/production promotion are pending at this status update;
+- final closure requires same-iPhone owner confirmation after deployment.
 
-No database, Auth, provider, environment-variable or customer-data change was part of this fix.
+### First-fix history
+
+- PR #12: `Fix mobile quote horizontal overflow`.
+- Feature SHA: `febd6bbaacee5c08273e4ba7b70d8749dc160313`.
+- GitHub CI run `34685321573`: success.
+- Preview `dpl_8vbLRZdTAUttgXjhfRw2LBtb8sXq`: READY.
+- Main merge SHA: `285b7c3da8215dc24e543f9a6143e565d10e61a7`.
+- Production deployment `dpl_CkWNqBc8JkMuWh77BWYJXkXwP3oA`: READY.
+- Real iPhone follow-up showed the issue was only partially fixed, so do not mark PR #12 as final resolution.
 
 ## Deployment verification
 
@@ -92,11 +91,9 @@ MFA Stage 2:
 - Stage 2 feature SHA: `d203c64d9e5da3cca049bcb43e988f7432e2864c`.
 - PR #8.
 - GitHub CI run `34656209581`: success.
-- Preview deployment: `dpl_2bfBkHgR4k8SY4hL4AcUrn3NWzzT`, READY on exact feature SHA.
+- Preview deployment: `dpl_2bfBkHgR4k8SY4hL4AcUrn3NWzzT`, READY.
 - Main Stage 2 code SHA: `ece88931bd5e05b26173b25ff7fa75c46b6b4e63`.
 - Production deployment: `dpl_Jkb8ZavhqrBD6PLpqjAPnEdiGAsW`, READY with `namdar.co.uk` and no alias error.
-- Live `admin.js` serves `6.4.16-security-mfa-2`.
-- Live Admin MFA guard contains no `Continue for now` bypass.
 
 ## Database/Auth verification
 
@@ -104,20 +101,18 @@ Applied migration:
 - `20260911230055 require_aal2_for_staff_permissions`
 
 Verified after migration:
-- central `private.has_staff_permission()` definition includes AAL2 requirement;
+- central `private.has_staff_permission()` includes AAL2 requirement;
 - `Staff read own access` policy includes AAL2 requirement;
 - controlled database test: AAL1 denied, AAL2 allowed for the same active administrator identity;
-- post-migration Security Advisor reported no new Stage 2 security regression.
-
-Migration filename is aligned in source to the actual applied version `20260911230055_require_aal2_for_staff_permissions.sql`.
+- post-migration Security Advisor reported no new Stage 2 regression.
 
 ## Security advisor state
 
 Existing findings remain:
-- INFO: 8 operational/server-only tables have RLS enabled with no authenticated policies. These remain intentionally inaccessible through ordinary authenticated Data API access.
+- INFO: 8 operational/server-only tables have RLS enabled with no authenticated policies; intentional.
 - WARN: Supabase Auth **Leaked Password Protection is disabled**.
 
-Supabase documentation states leaked-password protection is available on **Pro plan and above**. The Namdar Supabase organization was verified on 2026-09-12 to be on the **Free plan**, so the warning cannot be cleared without an upgrade. This is now treated as an optional plan-blocked hardening item rather than an active launch blocker. Do not upgrade without explicit owner approval.
+Namdar is on Supabase Free and leaked-password protection requires Pro or above, so it remains optional/plan-blocked. Do not upgrade without explicit owner approval.
 
 ## Applied production migrations relevant to recent security work
 
@@ -129,7 +124,7 @@ Supabase documentation states leaked-password protection is available on **Pro p
 
 ## Outstanding work
 
-1. Obtain the owner's real-iPhone confirmation that the live quote page no longer slides horizontally or exposes the blank right-side gap; then mark the mobile regression closed.
+1. Complete the second iPhone overflow fix PR/CI/preview/production flow and obtain real-device confirmation.
 2. Confirm Supabase Auth Site URL is `https://namdar.co.uk` and review the redirect allowlist for stale/unintended URLs.
 3. Complete provider launch readiness for Stripe, Turnstile, OAuth, SMS, Resend and legal configuration.
 4. Verify production cron jobs and intended double-booking protections.

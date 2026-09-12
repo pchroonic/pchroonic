@@ -1,12 +1,16 @@
 (()=>{
-  /* Load the homepage-only mobile viewport guard before conversion interactions start. */
-  if(!document.querySelector('link[data-namdar-mobile-overflow-fix]')){
-    const link=document.createElement('link');
-    link.rel='stylesheet';
-    link.href='/mobile-overflow-fix.css?v=20260912';
-    link.dataset.namdarMobileOverflowFix='1';
-    document.head.appendChild(link);
-  }
+  const resetHorizontalViewport=()=>{
+    if(!document.body?.classList.contains('conversion-home')||!window.matchMedia('(max-width:700px)').matches)return;
+    const y=window.scrollY||document.documentElement.scrollTop||0;
+    document.documentElement.scrollLeft=0;
+    document.body.scrollLeft=0;
+    if(window.scrollX!==0)window.scrollTo(0,y);
+  };
+  resetHorizontalViewport();
+  requestAnimationFrame(resetHorizontalViewport);
+  window.addEventListener('pageshow',()=>requestAnimationFrame(resetHorizontalViewport));
+  window.addEventListener('orientationchange',()=>setTimeout(resetHorizontalViewport,120),{passive:true});
+
   const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
   const progress=$('#quoteProgress'), labels=$$('#quoteForm .step-label[data-quote-step]');
   if(progress&&labels.length){

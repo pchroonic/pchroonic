@@ -1,5 +1,5 @@
 /* Namdar mobile viewport containment — 2026-09-12 */
-/* Keep quote/grid children shrinkable on narrow mobile browsers, including iOS native controls. */
+/* Loaded in the document head so iOS/Safari cannot restore a sideways page position before containment applies. */
 .quote-shell,
 .quote-shell > *,
 .quote-form,
@@ -64,19 +64,59 @@
 @media (max-width: 700px) {
   html,
   body.conversion-home {
+    width: 100%;
+    min-width: 0;
     max-width: 100%;
-    overflow-x: clip;
+    overflow-x: hidden;
     overscroll-behavior-x: none;
+  }
+
+  body.conversion-home {
+    position: relative;
   }
 
   .conversion-home .site-header,
   .conversion-home main,
+  .conversion-home footer,
   .conversion-home .section-pad,
+  .conversion-home .hero,
+  .conversion-home .hero-copy,
+  .conversion-home .hero-panel,
+  .conversion-home .hero-visual,
   .conversion-home .quote-section,
   .conversion-home .quote-shell,
   .conversion-home .quote-form,
   .conversion-home .quote-result {
+    width: 100%;
     min-width: 0;
+    max-width: 100%;
+  }
+
+  .conversion-home .site-header > *,
+  .conversion-home .hero > *,
+  .conversion-home .hero-copy > *,
+  .conversion-home .hero-panel > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .conversion-home .site-header .brand {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  .conversion-home .site-header .mobile-menu {
+    flex: 0 0 42px;
+  }
+
+  .conversion-home .site-header .header-actions {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  .conversion-home .hero h1,
+  .conversion-home .hero-copy > p,
+  .conversion-home .eyebrow {
     max-width: 100%;
   }
 
@@ -97,17 +137,17 @@
     text-overflow: ellipsis;
   }
 
+  .conversion-proof-strip,
+  .logo-strip,
+  .seo-conversion-proof {
+    max-width: 100%;
+  }
+
+  .mobile-conversion-bar {
+    max-width: calc(100% - 20px);
+  }
+
   .chat-launcher {
     max-width: calc(100vw - 24px);
-  }
-}
-
-/* Fallback for older engines without overflow: clip. */
-@supports not (overflow: clip) {
-  @media (max-width: 700px) {
-    html,
-    body.conversion-home {
-      overflow-x: hidden;
-    }
   }
 }

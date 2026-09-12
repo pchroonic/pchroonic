@@ -11,54 +11,46 @@ This is the first file every AI/developer should read. It is intentionally short
 ## Current live baseline
 
 - Repository: `pchroonic/pchroonic`, branch `main`.
-- Current live product commit: `285b7c3da8215dc24e543f9a6143e565d10e61a7`.
+- Current live product commit before the second iPhone fix: `285b7c3da8215dc24e543f9a6143e565d10e61a7`.
 - Production: `https://namdar.co.uk` on Vercel project `namdar-website-starter-1`.
 - Backend/Auth: Supabase `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
 - Supabase organization plan: **Free**.
-- MFA Stage 2 is LIVE and user smoke-tested successfully on 2026-09-12: sign out → sign in → authenticator challenge → Admin/Inbox loaded normally.
+- MFA Stage 2 is LIVE and user smoke-tested successfully on 2026-09-12.
 - Admin/Staff privileged browser, API and direct-RLS access require AAL2.
 - Applied MFA migration: `20260911230055 require_aal2_for_staff_permissions`.
 - Customer support tickets remain customer-only; public inbound email remains Admin Email inbox.
 
-## Mobile quote overflow fix — LIVE, REAL-DEVICE CONFIRMATION PENDING
+## Mobile horizontal overflow — SECOND FIX IN VERIFICATION
 
-The owner reported an iPhone/mobile homepage regression on 2026-09-12: the quote form could be dragged horizontally, exposing a blank strip on the right.
+The first mobile containment patch (PR #12) removed the visible right-side white gap, but the owner supplied a second iPhone screenshot showing the whole homepage still shifted sideways: the logo, eyebrow, headline and paragraph were clipped on the left.
 
-The fix is now live on production:
-- PR #12: `Fix mobile quote horizontal overflow`;
-- feature/PR head: `febd6bbaacee5c08273e4ba7b70d8749dc160313`;
-- GitHub CI run `34685321573`: success;
-- exact Vercel preview: `dpl_8vbLRZdTAUttgXjhfRw2LBtb8sXq`, READY;
-- production merge SHA: `285b7c3da8215dc24e543f9a6143e565d10e61a7`;
-- production deployment: `dpl_CkWNqBc8JkMuWh77BWYJXkXwP3oA`, READY with `namdar.co.uk`, no alias error;
-- canonical `https://namdar.co.uk/conversion.js` and `/mobile-overflow-fix.css?v=20260912` both returned HTTP 200 after deployment.
+That proves the regression was **not fully fixed**. The likely remaining behavior is iOS Safari restoring a prior horizontal scroll position before the dynamically injected containment stylesheet takes effect.
 
-The patch:
-- makes quote/form CSS grid tracks shrink safely with `minmax(0,1fr)` and `min-width:0`;
-- constrains native form controls, especially the iOS file input, to the form width;
-- adds a homepage-only mobile horizontal viewport guard using `overflow-x:clip` with an older-browser fallback;
-- keeps intentionally horizontally scrollable components independent;
-- is loaded by the existing homepage-only `conversion.js` through `mobile-overflow-fix.css`.
+Second fix branch: `fix/ios-root-overflow-20260912`.
 
-Local 390px Chromium regression checks passed, but the exact Safari/iPhone symptom was not reproducible in Chromium. **Do not mark the regression fully closed until the owner confirms on the same iPhone that the page no longer slides sideways or reveals the right-side gap.**
+Changes on this branch:
+- `mobile-overflow-fix.css` is now linked directly from `index.html` in the document `<head>` with a cache-busting query so containment applies before Safari lays out/restores the page;
+- mobile root containment now uses `overflow-x:hidden` on both `html` and `body.conversion-home`, plus explicit width/min-width/max-width guards;
+- header, hero, quote and footer containers/items are constrained to the mobile viewport;
+- quote grid/file-input shrink rules remain in place;
+- `conversion.js` no longer injects the stylesheet late;
+- `conversion.js` now resets any restored horizontal scroll position to x=0 immediately, on `pageshow`, and after orientation changes;
+- `conversion.js` is cache-busted in `index.html`.
 
-No database, Auth, environment-variable, provider or customer-data change was involved.
+No database, Auth, environment-variable, provider or customer-data change is involved.
+
+**Status:** code is on the branch; PR/CI/Vercel preview/production verification and the owner's same-iPhone retest are still required before marking the regression closed.
 
 ## Plan-blocked security item
 
-Supabase Security Advisor reports **Leaked Password Protection is disabled**, but Supabase documentation states this feature is available on **Pro plan and above**. The Namdar Supabase organization is currently on the **Free plan**, so this warning cannot be cleared without a paid upgrade.
-
-Do not upgrade Supabase or incur a paid plan change without the owner's explicit approval. Treat Leaked Password Protection as an optional plan-blocked hardening item, not an active blocker for the current Free-plan launch checklist.
+Supabase Security Advisor reports **Leaked Password Protection is disabled**, but the Namdar Supabase organization is on the **Free plan** and the feature requires Pro or above. Treat this as optional/plan-blocked. Do not upgrade without explicit owner approval.
 
 ## Immediate next action
 
-1. Ask the owner to hard-refresh/reopen `namdar.co.uk` on the same iPhone and verify the quote page can no longer slide horizontally or expose a blank right-side gap.
-2. If confirmed, mark the mobile regression closed in all three continuity files.
-3. Then resume Supabase Auth production URL configuration:
-   - Site URL should be `https://namdar.co.uk`;
-   - review the redirect allowlist for stale or unintended test/preview URLs.
-
-Current connected Supabase tools do not expose hosted Auth configuration mutation/readback for the URL settings, so that step may require the Supabase Dashboard.
+1. Complete the second iPhone overflow fix workflow: PR → CI → exact Vercel preview → merge → production verification.
+2. Ask the owner to reopen/refresh `namdar.co.uk` on the same iPhone and confirm the page starts flush at the left edge and cannot slide sideways.
+3. Only if confirmed, mark the mobile regression closed in all three continuity files.
+4. Then resume Supabase Auth Site URL / redirect allowlist verification.
 
 ## After that
 
@@ -66,10 +58,10 @@ Continue launch-readiness checks for Stripe, Turnstile, OAuth, SMS, Resend, lega
 
 ## Do not repeat
 
-- Do not repeat the MFA Stage 2 smoke test unless a future auth change requires regression testing; it passed on 2026-09-12.
+- Do not claim the first PR #12 fully fixed the iPhone issue; the owner supplied a second screenshot showing left-side clipping remained.
+- Do not repeat the MFA Stage 2 smoke test unless a future auth change requires regression testing.
 - Do not rebuild MFA Stage 1/2; it is already live.
 - Do not reapply migration `20260911230055`.
-- Do not repeatedly ask to enable Leaked Password Protection while Supabase remains on Free; it requires Pro or above.
 - Do not upgrade Supabase without explicit owner approval.
 - Do not make support tickets public.
 - Do not move Namdar back to Netlify; production is Vercel.
@@ -79,7 +71,7 @@ Continue launch-readiness checks for Stripe, Turnstile, OAuth, SMS, Resend, lega
 
 For a simple continuation/status task:
 1. Read this file.
-2. Verify the current `main` HEAD and the relevant live provider state before acting.
+2. Verify current `main` HEAD and relevant live provider state before acting.
 3. Read only the relevant sections of `docs/AI_HANDOFF.md`, `docs/PROJECT_STATUS.md`, README and code.
 
 For any substantial production/code/database/security change:
@@ -91,8 +83,8 @@ For any substantial production/code/database/security change:
 ## Automatic continuity rule
 
 Every substantial change must update all three continuity files in the same change:
-- `docs/AI_START.md` — short current state + exact next action.
-- `docs/AI_HANDOFF.md` — detailed technical continuity.
-- `docs/PROJECT_STATUS.md` — broader roadmap/status.
+- `docs/AI_START.md`
+- `docs/AI_HANDOFF.md`
+- `docs/PROJECT_STATUS.md`
 
-CI is configured to fail product-source changes that do not update all three. The owner should not need to remind the AI to maintain them.
+CI is configured to enforce this for product-source changes.
