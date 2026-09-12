@@ -1,54 +1,14 @@
-const { json, parseBody, db, authUser, sendEmail, escapeHtml, env, createStaffNotification, safeError, requestOrigin, isManagedInboxAddress } = require('../lib/server');
-const ACCESS={easy:1,medium:1.12,difficult:1.3};
-const URGENCY={standard:1,soon:1.1,urgent:1.22};
-const PROPERTY={house:1,flat:1.05,commercial:1.18,other:1.08};
-const FREQUENCY={once:1,quarterly:.94,monthly:.86};
-const SERVICES=new Set(['windows','gutters','roof','jetwash','handyman','tour3d']);
-function num(v,min,max,fallback=null){const n=Number(v);if(!Number.isFinite(n))return fallback;return Math.min(max,Math.max(min,n))}
-function cleanPostcode(value=''){const raw=String(value).trim().toUpperCase().replace(/\s+/g,'');return raw.length>3?`${raw.slice(0,-3)} ${raw.slice(-3)}`:raw}
-async function verifyUkPostcode(value){const postcode=cleanPostcode(value);if(!postcode)return null;const cached=await db(`postcode_directory?postcode=eq.${encodeURIComponent(postcode)}&select=postcode&limit=1`).catch(()=>[]);if(cached?.length)return postcode;const r=await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(postcode.replace(/\s/g,''))}`);const d=await r.json().catch(()=>null);if(!r.ok||!d?.result)return null;const x=d.result,region=x.region||'',isLondon=region.toLowerCase()==='london',city=isLondon?'London':(x.admin_district||x.parliamentary_constituency||region||''),district=isLondon?(x.admin_district||x.admin_ward||''):(x.admin_district||x.admin_ward||x.parish||'');const row={postcode:cleanPostcode(x.postcode),country:'United Kingdom',country_code:'GB',region,city,district,district_code:x.codes?.admin_district||'',ward:x.admin_ward||'',longitude:x.longitude,latitude:x.latitude,source:'postcodes.io',verified_at:new Date().toISOString(),updated_at:new Date().toISOString()};await db('postcode_directory?on_conflict=postcode',{method:'POST',prefer:'resolution=merge-duplicates',body:row}).catch(()=>null);return row.postcode}
-
-async function coverageForQuote(req,postcode,service){try{const r=await fetch(`${requestOrigin(req)}/api/postcode?postcode=${encodeURIComponent(postcode)}&service=${encodeURIComponent(service)}`,{headers:{Accept:'application/json'},signal:AbortSignal.timeout(8000)}),d=await r.json().catch(()=>null);if(!r.ok||!d?.ok)return null;return{coverage:d.coverage||{configured:false,covered:false},area:d.area||null}}catch(e){console.warn('Coverage check unavailable',e.message);return null}}
-async function promoFor(code,service,subtotal,userId){
-  if(!code)return null; code=String(code).trim().toUpperCase().slice(0,40);
-  const p=(await db(`promo_codes?code=eq.${encodeURIComponent(code)}&active=eq.true&select=*&limit=1`))?.[0];
-  if(!p)throw Object.assign(new Error('Promotion code not found.'),{status:400});
-  const now=Date.now(); if((p.starts_at&&new Date(p.starts_at).getTime()>now)||(p.ends_at&&new Date(p.ends_at).getTime()<now))throw Object.assign(new Error('This promotion code is not currently active.'),{status:400});
-  if(p.service_key&&p.service_key!==service)throw Object.assign(new Error('This promotion code does not apply to this service.'),{status:400});
-  if(subtotal<Number(p.minimum_spend||0))throw Object.assign(new Error(`This promotion requires a minimum spend of £${Number(p.minimum_spend).toFixed(2)}.`),{status:400});
-  if(p.max_uses!=null&&Number(p.uses_count)>=Number(p.max_uses))throw Object.assign(new Error('This promotion has reached its usage limit.'),{status:400});
-  if(userId&&p.per_customer_limit){const uses=await db(`promo_redemptions?promo_id=eq.${encodeURIComponent(p.id)}&customer_id=eq.${encodeURIComponent(userId)}&select=id`);if((uses?.length||0)>=Number(p.per_customer_limit))throw Object.assign(new Error('You have already used this promotion the maximum number of times.'),{status:400})}
-  const discount=p.discount_type==='percent'?subtotal*Number(p.discount_value||0)/100:Math.min(subtotal,Number(p.discount_value||0));
-  return {id:p.id,code:p.code,discount:Number(Math.max(0,discount).toFixed(2))};
-}
-async function rewardFor(code,service,subtotal,userId){
-  if(!code)return null;if(!userId)throw Object.assign(new Error('Sign in to use a Namdar reward code.'),{status:401});
-  code=String(code).trim().toUpperCase().slice(0,40);
-  const r=(await db(`reward_redemptions?redemption_code=eq.${encodeURIComponent(code)}&customer_id=eq.${encodeURIComponent(userId)}&status=eq.issued&select=*&limit=1`))?.[0];
-  if(!r)throw Object.assign(new Error('Reward code not found or already used.'),{status:400});
-  const reward=(await db(`rewards?id=eq.${encodeURIComponent(r.reward_id)}&select=*&limit=1`))?.[0];
-  if(!reward||reward.active===false)throw Object.assign(new Error('This reward is no longer available.'),{status:400});
-  if(reward.service_key&&reward.service_key!==service)throw Object.assign(new Error('This reward does not apply to this service.'),{status:400});
-  const discount=reward.discount_type==='percent'?subtotal*Number(reward.discount_value||0)/100:Math.min(subtotal,Number(reward.discount_value||0));
-  return {id:r.id,code:r.redemption_code,discount:Number(Math.max(0,discount).toFixed(2))};
-}
-module.exports=async function handler(req,res){try{
-  if(req.method!=='POST')return json(res,405,{ok:false,error:'Method not allowed'});
-  const b=parseBody(req),service=String(b.serviceKey||'');if(!SERVICES.has(service))return json(res,400,{ok:false,error:'Choose a valid service.'});
-  const user=await authUser(req);let profile=null;if(user?.id){const rows=await db(`profiles?id=eq.${encodeURIComponent(user.id)}&select=full_name,phone,postcode,property_type,account_status&limit=1`);profile=rows?.[0]||null;if(profile?.account_status&&profile.account_status!=='active')return json(res,403,{ok:false,error:'This account is not active.'})}
-  const customerName=String(b.customerName||profile?.full_name||'').trim().slice(0,120);
-  const email=String(b.email||user?.email||'').trim().toLowerCase().slice(0,180);
-  const phone=String(b.phone||profile?.phone||'').trim().slice(0,40);
-  const postcodeInput=String(b.postcode||profile?.postcode||'').trim().toUpperCase().slice(0,20);
-  if(!customerName||!email.includes('@')||!postcodeInput)return json(res,400,{ok:false,error:'Your account needs a name, email and postcode before we can calculate a quote.'});
-  const postcode=await verifyUkPostcode(postcodeInput);if(!postcode)return json(res,400,{ok:false,error:'Enter a valid UK postcode before we calculate the quote.'});const coverageCheck=await coverageForQuote(req,postcode,service);if(coverageCheck?.coverage?.configured&&!coverageCheck.coverage.covered)return json(res,400,{ok:false,error:`${({windows:'Window cleaning',gutters:'Gutter cleaning',roof:'Roof cleaning',jetwash:'Jet washing',handyman:'Handyman',tour3d:'3D property tours'})[service]} is not currently available at ${postcode}. Try another service or contact Namdar for a manual review.`});
-  const i=b.inputs||{};const units=num(i.units,1,service==='handyman'?24:5000);const detail=num(i.detail,.5,2.5,1);const extra=num(i.extra,.8,2,1);const floors=Math.round(num(i.floors,1,4,1));const access=ACCESS[i.access]?i.access:'easy';const urgency=URGENCY[i.urgency]?i.urgency:'standard';const propertyType=PROPERTY[i.propertyType]?i.propertyType:(profile?.property_type&&PROPERTY[profile.property_type]?profile.property_type:'house');const frequency=FREQUENCY[i.frequency]?i.frequency:'once';if(!units)return json(res,400,{ok:false,error:'Enter a valid job size.'});
-  const rules=await db(`pricing_rules?service_key=eq.${encodeURIComponent(service)}&select=service_key,base_price,unit_price,configuration&limit=1`);const rule=rules?.[0];if(!rule)return json(res,503,{ok:false,error:'Pricing is not configured for this service yet.'});
-  const height=Number(rule.configuration?.height?.[String(floors)]||1);let gross=(Number(rule.base_price)+units*Number(rule.unit_price))*height*detail*extra*ACCESS[access]*URGENCY[urgency]*PROPERTY[propertyType];if(['windows','gutters','jetwash'].includes(service))gross*=FREQUENCY[frequency];gross=Math.max(Number(rule.base_price),Math.round(gross));
-  const promo=await promoFor(b.promoCode,service,gross,user?.id);let afterPromo=Math.max(0,gross-(promo?.discount||0));const reward=await rewardFor(b.rewardCode,service,afterPromo,user?.id);const estimate=Math.max(0,Math.round(afterPromo-(reward?.discount||0)));
-  const complexity=(detail-1)+(extra-1)+(ACCESS[access]-1)+(floors>=3?.15:0);const spread=complexity>.55?.16:complexity>.25?.12:.08;const min=Math.round(Math.max(0,estimate*(1-spread)));const max=Math.round(estimate*(1+spread+.04));const manualReview=floors>=4||access==='difficult'||detail>=1.35||extra>=1.45||(service==='handyman'&&units>=8);
-  const inputs={units,detail,extra,floors,access,urgency,propertyType,frequency,notes:String(i.notes||'').trim().slice(0,1500)};
-  const rows=await db('quotes',{method:'POST',prefer:'return=representation',body:{customer_id:user?.id||null,customer_name:customerName,email,phone:phone||null,postcode,service_key:service,inputs,automatic_estimate:estimate,gross_estimate:gross,net_estimate:estimate,promo_code:promo?.code||null,promo_discount:promo?.discount||0,reward_code:reward?.code||null,reward_discount:reward?.discount||0,status:manualReview?'reviewing':'new'}});const q=rows?.[0];
-  const serviceLabel=({windows:'Window cleaning',gutters:'Gutter cleaning',roof:'Roof cleaning',jetwash:'Jet washing',handyman:'Handyman',tour3d:'3D property tour'})[service];await createStaffNotification({type:'quote_new',title:`New quote request · ${serviceLabel}`,body:`${customerName} · ${postcode} · £${estimate}${manualReview?' · manual review':''}`,targetPath:`/admin?tab=quotes&quote=${encodeURIComponent(q?.id||'')}`,permissionKey:'quotes',entityType:'quote',entityId:q?.id||null,priority:manualReview?'high':'normal',dedupeKey:`quote-new:${q?.id||''}`});const notify=env('NAMDAR_NOTIFY_EMAIL',env('NAMDAR_SUPPORT_EMAIL','support@namdar.co.uk'));if(notify&&!isManagedInboxAddress(notify))await sendEmail({to:notify,subject:`New Namdar quote — ${serviceLabel} — £${estimate}`,html:`<h2>New quote request</h2><p><strong>${escapeHtml(customerName)}</strong> requested ${escapeHtml(serviceLabel)}.</p><p>Guide estimate: <strong>£${estimate}</strong> (${manualReview?'manual review recommended':'standard review'})</p>${promo?`<p>Promotion: ${escapeHtml(promo.code)} − £${promo.discount.toFixed(2)}</p>`:''}${reward?`<p>Reward: ${escapeHtml(reward.code)} − £${reward.discount.toFixed(2)}</p>`:''}<p>${escapeHtml(postcode)} · ${escapeHtml(email)}${phone?` · ${escapeHtml(phone)}`:''}</p><p>Quote ID: ${escapeHtml(q?.id||'')}</p>`});await sendEmail({to:email,subject:'Namdar received your quote request',html:`<h2>Thanks ${escapeHtml(customerName)}</h2><p>Your guide estimate for ${escapeHtml(serviceLabel)} is <strong>£${estimate}</strong>, with a guide range of £${min}–£${max}.</p>${promo?`<p>Promotion <strong>${escapeHtml(promo.code)}</strong> has been included in this estimate.</p>`:''}${reward?`<p>Your Namdar reward <strong>${escapeHtml(reward.code)}</strong> has been included and will be consumed when the booking is created.</p>`:''}<p>Namdar will review the property details, access and job condition before confirming the final price.</p><p>Reference: ${escapeHtml(q?.id||'')}</p><p><a href="https://namdar.co.uk/account?tab=quotes&quote=${encodeURIComponent(q?.id||'')}">Open this quote in My Namdar</a></p>`,archiveForCustomer:true,customerId:q?.customer_id||null,messageCategory:'quote',targetPath:`/account?tab=quotes&quote=${encodeURIComponent(q?.id||'')}`});
-  return json(res,201,{ok:true,quote:{id:q.id,serviceKey:service,grossEstimate:gross,estimate,min,max,status:q.status,manualReview,customerName,email,promo:promo?{code:promo.code,discount:promo.discount}:null,reward:reward?{code:reward.code,discount:reward.discount}:null}})
-}catch(e){return safeError(res,e)}};
+const core=require('./quote-core');
+const {json,parseBody,db,safeError}=require('../lib/server');
+const {serviceByKey,isLive,unavailableMessage}=require('../lib/service-catalog');
+module.exports=async function handler(req,res){
+  try{
+    if(req.method==='POST'){
+      const body=parseBody(req),key=String(body.service||'windows').trim();
+      const service=await serviceByKey(db,key);
+      if(!service)return json(res,400,{ok:false,error:'Choose a valid Namdar service.'});
+      if(!isLive(service))return json(res,409,{ok:false,error:unavailableMessage(service),service:{serviceKey:service.service_key,status:service.status,name:service.name}});
+    }
+    return core(req,res);
+  }catch(error){return safeError(res,error)}
+};
