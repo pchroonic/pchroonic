@@ -8,9 +8,11 @@ Read `docs/AI_START.md` first for fast continuation. This file is the broader ro
 
 - Release documented in `README.md`: v6.4.16.
 - Source: `pchroonic/pchroonic`, default branch `main`.
-- Current live product code SHA: `72d52d06a09852de8ee5c329adf57f5934e5dcc1`.
+- Current `main` before branded-email feature branch: `f9192284d2f2844d3b2940408fb3cda363758b9c`.
+- Current live runtime product code SHA: `72d52d06a09852de8ee5c329adf57f5934e5dcc1`.
 - Delivery: Vercel project `namdar-website-starter-1`, canonical `namdar.co.uk`.
 - Supabase: `namdar-production` (`qjigldxjcpnrlyxgmlqq`), Free plan.
+- Resend: `namdar.co.uk` verified, sending + receiving enabled.
 - App: static multi-page front end plus Vercel Node serverless APIs.
 
 ## Main product areas
@@ -18,14 +20,16 @@ Read `docs/AI_START.md` first for fast continuation. This file is the broader ro
 | Area | Status |
 | --- | --- |
 | Public website | Live; desktop overflow confirmed fixed, same-iPhone confirmation pending |
-| Customer portal | Session fix, Google + email auth, optional customer MFA live; hosted CAPTCHA enabled; first real login smoke test passed |
+| Customer portal | Session fix, Google + email auth, optional customer MFA live; hosted CAPTCHA enabled; login + password-reset request passed |
+| Auth email branding | Six branded Supabase Auth templates prepared in source; not yet applied to hosted templates |
+| Sender avatar / BIMI | Not configured; separate DMARC/BIMI identity task after sender audit |
 | Admin workspace | Inbox Security v2 + mandatory privileged MFA/AAL2 live and smoke-tested |
 | Staff PWA | Mandatory privileged MFA/AAL2 live; AAL2 required for offline cached session |
 | Server functions | Privileged APIs require AAL2 |
 | Production DB | Central privileged RLS requires AAL2 |
 | Supabase Auth URLs | Hardened to canonical Namdar production domain |
 | Supabase Auth providers | Reviewed; Email + Google intentionally enabled, unnecessary providers disabled |
-| Supabase CAPTCHA | Owner-confirmed ON with Cloudflare Turnstile; customer login passed; Magic Link/password-reset smoke tests remain |
+| Supabase CAPTCHA | Owner-confirmed ON with Cloudflare Turnstile |
 
 ## Phase 7 — Launch Security & Readiness
 
@@ -43,34 +47,47 @@ Owner saved Site URL `https://namdar.co.uk` and redirect allowlist `https://namd
 
 ## Sign In / Providers — REVIEW COMPLETE
 
-Owner screenshots plus source/database checks confirm:
-- Email enabled;
-- Google enabled and required by live portal/customer access;
-- Confirm email + signup enabled;
-- phone, anonymous sign-in, manual linking, other shown social/custom providers and custom providers disabled.
+Email + Google intentionally enabled; confirm email/signup enabled; phone, anonymous sign-in, manual linking and other shown providers disabled. Do not disable Google without a safe recovery/migration plan.
 
-Do not disable Google without a safe recovery/migration plan.
+## Attack Protection / CAPTCHA — ENABLED, PARTIAL SMOKE TESTS PASSED
 
-## Attack Protection / CAPTCHA — ENABLED, FIRST LOGIN TEST PASSED
+Hosted Supabase CAPTCHA is owner-confirmed ON using Cloudflare Turnstile. PR #19 readiness code is live and applies Turnstile tokens to password, Magic Link, Google, signup, password reset and resend flows.
 
-On 2026-09-12 the owner confirmed Supabase Attack Protection was saved with CAPTCHA enabled using **Cloudflare Turnstile** and the existing Namdar Turnstile Secret Key entered directly from Cloudflare into Supabase. The secret was not shared in chat or stored in source/docs.
+Passed production tests:
+- fresh/private-session customer login → My Namdar opened normally;
+- password-reset request → reset email delivered successfully through Resend.
 
-PR #19 prepared the customer Auth flows and is live:
-- feature head `cecab9d0236a8ef804c7b52f6f78741f46a93001`;
-- CI `34688813723`: success;
-- exact preview `dpl_2rb4eyRExRTMiG1dxgdrf6xv4XHv`: READY;
-- production code SHA `72d52d06a09852de8ee5c329adf57f5934e5dcc1`;
-- production deployment `dpl_DSmsBZ9DTxg9Dtw9tbyYHWWtpxYw`: READY with `namdar.co.uk`, no alias error.
+Still pending:
+- Magic Link request/delivery;
+- alternate login method if practical;
+- confirmation resend/safe signup only with disposable account if needed.
 
-Live code applies Turnstile tokens to password sign-in, Magic Link, Google ID-token sign-in, signup, password reset and confirmation resend, then resets the relevant one-time challenge after each Auth request.
+## Auth email branding — SOURCE READY, HOSTED APPLY PENDING
 
-**Owner smoke test passed:** fresh/private My Namdar session → Cloudflare anti-bot check → normal existing customer sign-in → customer portal opened normally.
+A delivered reset-password message showed the existing Supabase Auth email is still the plain default template. Resend inspection showed sender display as lowercase `namdar <accounts@namdar.co.uk>`.
 
-Remaining CAPTCHA Auth smoke tests:
-1. Magic Link request;
-2. password-reset request;
-3. alternate live login method if practical;
-4. confirmation resend/safe signup only with a suitable disposable account and cleanup.
+Feature branch: `feature/branded-auth-emails-20260912`.
+
+Prepared under `supabase/email-templates/`:
+- branded Reset password;
+- Magic Link;
+- Confirm signup;
+- Change email address;
+- Reauthentication code;
+- Invite user;
+- README containing recommended subjects, sender presentation and apply/test workflow.
+
+Design follows Namdar brand colours, uses table-based inline HTML for email compatibility and an HTML-built Namdar lockup so branding does not depend on remote images. It adds clear CTA buttons, security guidance and support/footer details.
+
+Recommended hosted sender presentation: `Namdar <accounts@namdar.co.uk>`.
+
+Current status: source is prepared only. These files are not live until manually saved in Supabase Dashboard → Authentication → Emails / Email Templates and verified with delivered messages. No database migration, runtime code or environment-variable change is required for the source templates.
+
+Resend open/click tracking is disabled, which should remain so for one-time Supabase Auth links.
+
+## Sender profile avatar — SEPARATE EMAIL-IDENTITY WORK
+
+The Gmail sender avatar is not controlled by email HTML. Durable logo display is a separate DMARC/BIMI task; Gmail may require an eligible CMC/VMC certificate path. Audit all legitimate Namdar senders/SPF/DKIM alignment before changing DMARC enforcement to quarantine/reject.
 
 ## Security advisor / plan-blocked item
 
@@ -86,14 +103,16 @@ Leaked Password Protection remains disabled. Namdar is on Supabase Free and this
 
 ## Outstanding work
 
-1. Complete remaining hosted Supabase CAPTCHA production Auth smoke tests.
-2. Recheck iPhone overflow and close cross-device regression if passed.
-3. Complete Stripe, SMS, Resend and legal launch readiness.
-4. Verify production cron jobs and double-booking protections.
-5. Run safe recognized-mailbox/unknown-alias inbound test.
-6. Complete controlled customer-support journey with safe eligible test customer.
-7. Optional/plan-blocked: leaked-password protection only if Supabase plan later upgrades.
+1. Finish branded Auth-email branch CI/merge; apply and verify Reset password first, then remaining templates.
+2. Complete Magic Link/remaining CAPTCHA Auth smoke tests.
+3. Audit DMARC + legitimate senders and decide on BIMI/Gmail sender-avatar path.
+4. Recheck iPhone overflow and close cross-device regression if passed.
+5. Complete Stripe, SMS, Resend and legal launch readiness.
+6. Verify production cron jobs and double-booking protections.
+7. Run safe recognized-mailbox/unknown-alias inbound test.
+8. Complete controlled customer-support journey with safe eligible test customer.
+9. Optional/plan-blocked: leaked-password protection only if Supabase plan later upgrades.
 
 ## Handoff maintenance rule
 
-Every substantial product/provider change must update all three continuity files in the same change. Never include credentials, private customer data, passwords, TOTP codes or CAPTCHA secrets.
+Every substantial product/provider change must update all three continuity files in the same change. Never include credentials, private customer data, passwords, TOTP codes, SMTP/CAPTCHA secrets or one-time Auth links.
