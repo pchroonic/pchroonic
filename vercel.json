@@ -36,7 +36,6 @@
     }
   ],
   "crons": [
-    { "path": "/api/address-harvest-cron", "schedule": "30 3 * * *" },
     { "path": "/api/account-purge", "schedule": "15 4 * * *" },
     { "path": "/api/booking-notifications", "schedule": "0 * * * *" }
   ],
