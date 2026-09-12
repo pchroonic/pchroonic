@@ -346,7 +346,11 @@ select public.refresh_address_dataset_registry_count(source_dataset)
 from public.address_dataset_registry
 where record_store in ('master_addresses','postcode_points','property_entities');
 
-create or replace view public.address_dataset_health
+-- The previous health view was created before record_store/version columns existed. Drop it
+-- rather than CREATE OR REPLACE, because PostgreSQL cannot insert new r.* columns before
+-- existing view columns while preserving the old column order.
+drop view if exists public.address_dataset_health;
+create view public.address_dataset_health
 with (security_invoker = true)
 as
 select
