@@ -10,12 +10,28 @@ function safePhotoPath(value,customerId,bookingId,kind){
   const prefix=`${customerId}/${bookingId}/${kind}/`;
   return p.startsWith(prefix)&&!p.includes('..')?p:'';
 }
+function money(v,max=100000){const n=Number(v);return Number.isFinite(n)?Math.min(max,Math.max(0,Number(n.toFixed(2)))):0}
+function integer(v,min=0,max=1440){const n=Math.round(Number(v));return Number.isFinite(n)?Math.min(max,Math.max(min,n)):min}
+
 module.exports=async function handler(req,res){
   try{
     if(!['POST','PATCH'].includes(req.method))return json(res,405,{ok:false,error:'Method not allowed'});
     const staff=await requireStaff(req,'bookings'),{user}=staff;const b=parseBody(req),id=String(b.id||'').trim(),action=String(b.action||'').trim();
     if(!id)return json(res,400,{ok:false,error:'Job ID is required.'});
     const current=await assignedBooking(user.id,id);if(!current)return json(res,404,{ok:false,error:'This job is not assigned to you.'});
+
+    if(action==='economics'){
+      if((current.work_status||'scheduled')!=='completed'&&current.status!=='completed')return json(res,409,{ok:false,error:'Complete the job before saving its direct-cost review.'});
+      const quote=await quoteFor(current.quote_id);
+      if(!quote||quote.service_key!=='windows')return json(res,409,{ok:false,error:'Stage 1 job economics are currently available for Window Cleaning only.'});
+      const before=(await db(`booking_job_costs?booking_id=eq.${encodeURIComponent(id)}&select=*&limit=1`))?.[0]||null;
+      const row={booking_id:id,consumables_cost:money(b.consumablesCost),parking_cost:money(b.parkingCost),travel_cost:money(b.travelCost),other_cost:money(b.otherCost),travel_minutes:integer(b.travelMinutes),travel_miles:money(b.travelMiles,10000),notes:String(b.notes||'').trim().slice(0,1500)||null,updated_by:user.id,updated_at:new Date().toISOString()};
+      await db('booking_job_costs?on_conflict=booking_id',{method:'POST',prefer:'resolution=merge-duplicates,return=minimal',body:row});
+      const after=(await db(`booking_job_costs?booking_id=eq.${encodeURIComponent(id)}&select=*&limit=1`))?.[0]||row;
+      await auditLog(req,staff,{action:'booking.economics',entityType:'booking',entityId:id,summary:'Updated Window Cleaning direct job costs and travel from Staff',before,after,metadata:{quoteId:current.quote_id||null,serviceKey:'windows',assignedStaffId:user.id}});
+      return json(res,200,{ok:true,message:'Direct-cost review saved.',costs:after});
+    }
+
     const now=new Date().toISOString();let patch={},message='Job updated.';
     if(action==='on_my_way'){
       if(!['scheduled','on_my_way'].includes(current.work_status||'scheduled'))return json(res,409,{ok:false,error:'This job has already been started or completed.'});
