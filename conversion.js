@@ -13,6 +13,28 @@
   window.addEventListener('orientationchange',()=>setTimeout(resetHorizontalViewport,120),{passive:true});
 
   const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+  function funnelVisitorId(){
+    try{
+      if(localStorage.getItem('namdar_cookie_choice')!=='marketing')return'';
+      const key='namdar_stage1_funnel_visitor';let id=sessionStorage.getItem(key)||'';
+      if(!id){id=crypto.randomUUID?crypto.randomUUID():Array.from(crypto.getRandomValues(new Uint8Array(16)),x=>x.toString(16).padStart(2,'0')).join('');sessionStorage.setItem(key,id)}
+      return id;
+    }catch{return''}
+  }
+  const baseApi=window.api;
+  if(typeof baseApi==='function')window.api=async function(path,options={}){
+    const visitorId=funnelVisitorId(),method=String(options?.method||'GET').toUpperCase();let next=options;
+    if(visitorId&&path==='/api/quote'&&method==='POST'){
+      try{const body=typeof options.body==='string'?JSON.parse(options.body):(options.body||{});next={...options,body:JSON.stringify({...body,visitorId})}}catch{}
+    }
+    const data=await baseApi(path,next);
+    if(visitorId&&String(path).startsWith('/api/postcode?')&&data?.ok){
+      const serviceKey=document.querySelector('input[name="service"]:checked')?.value||'windows';
+      fetch('/api/funnel-event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({eventType:'postcode_checked',visitorId,serviceKey,postcode:data.postcode||'',covered:data.coverage?.covered===true})}).catch(()=>{});
+    }
+    return data;
+  };
+
   const progress=$('#quoteProgress'), labels=$$('#quoteForm .step-label[data-quote-step]');
   if(progress&&labels.length){
     const links=$$('#quoteProgress a');
