@@ -11,8 +11,8 @@ Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PR
 ## Production baseline
 
 - Repository: `pchroonic/pchroonic`, default branch `main`.
-- Main before the GetAddress harvest feature: `bd2b9e56d5f50a7eac2d19c3e98cb8976374449e`.
-- Production: `https://namdar.co.uk` on Vercel project `namdar-website-starter-1`.
+- Current production code commit: `35e81842c0104587423397c41414d4610c20053e` (PR #24 GetAddress daily harvest).
+- Production deployment: Vercel `dpl_8Ne2Vxse5RWyK2h1JvvZia9upc2m`, READY and aliased to `https://namdar.co.uk`.
 - Supabase: `namdar-production` (`qjigldxjcpnrlyxgmlqq`), Free plan.
 - Resend: `namdar.co.uk` verified for sending/receiving.
 - MFA Stage 2 is live; privileged Admin/Staff browser, API and RLS access require AAL2.
@@ -21,54 +21,60 @@ Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PR
 ## Auth/security state
 
 - Supabase Site URL: `https://namdar.co.uk`; redirect allowlist: `https://namdar.co.uk/**`.
-- Email + Google sign-in intentionally enabled. Do not disable Google: at least one customer identity depends on it.
+- Email + Google sign-in intentionally enabled. Do not disable Google without identity migration/recovery.
 - Supabase CAPTCHA is ON using Cloudflare Turnstile. Customer login and password-reset request passed production smoke tests.
-- Leaked Password Protection remains plan-blocked on Supabase Free.
+- Leaked Password Protection remains unavailable/disabled on the current Supabase plan.
 
 ## Auth email branding
 
-- Six branded Auth templates are source-controlled under `supabase/email-templates/` from merged commit `bd2b9e56d5f50a7eac2d19c3e98cb8976374449e`.
+- Six branded Auth templates are source-controlled under `supabase/email-templates/`.
 - **Reset password is LIVE and verified in Gmail** with subject `Reset your Namdar password` and branded Namdar HTML.
 - Supabase SMTP sender remains `accounts@namdar.co.uk`; owner changed display name from `namdar` to `Namdar`. A post-change delivery has not yet independently verified the casing.
 - Magic Link and the other prepared Auth templates are not yet confirmed live.
-- Gmail sender avatar is separate BIMI/DMARC work. No `_dmarc` DNS record has been added yet; DMARC work is paused while the address-harvest feature is implemented.
+- Gmail sender avatar is separate BIMI/DMARC work. No `_dmarc` DNS record has been added yet; DMARC work remains paused.
 
-## GetAddress daily database growth — IN PROGRESS
+## GetAddress daily database growth — CODE LIVE, AUTOMATION OFF
 
-User requested an automatic system that spends up to 20 GetAddress lookups/day to grow Namdar's address database, preserves backups, can be switched on/off, monitored, manually run, and exported.
+PR #24 is merged and deployed. The production database is intentionally still configured as:
+- `enabled = false`
+- `prioritize_service_areas = true`
+- `daily_lookup_cap = 20`
+- zero harvest runs and zero queued postcodes at post-deploy verification.
 
-Design:
-- GetAddress Typeahead is used only to discover postcode candidates; official docs say these search queries do not consume lookup usage.
-- Each paid lookup is a postcode-only Autocomplete query with `all=true`; official docs say that counts as one lookup and can return all suggestions for that postcode.
-- **Active Namdar Service Areas are prioritised first.** The worker reads live `service_areas` at runtime rather than hard-coding boroughs. Current production coverage is administrative coverage for Lewisham, Southwark, Lambeth, Wandsworth and Greenwich.
-- Service-area Typeahead uses provider district filters to build a deep covered-postcode queue before paid lookups. Nearby/London & South-East candidates are fallback, with wider UK only after local priority is unavailable.
-- `prioritize_service_areas` is an Admin-controlled switch, default ON. Automatic harvesting itself remains default OFF.
+Design/live behavior:
+- GetAddress Typeahead is used to discover postcode candidates before paid address retrieval.
+- Each paid retrieval is postcode-only Autocomplete with `all=true`, allowing one paid postcode lookup to save many returned addresses.
+- **Active Namdar Service Areas are prioritised first.** The worker reads live `service_areas` at runtime rather than hard-coding boroughs. Current production coverage is Lewisham, Southwark, Lambeth, Wandsworth and Greenwich.
+- Service-area discovery builds a deep covered-postcode queue before paid lookups. Duplicate Typeahead discoveries count only when a genuinely new queue row is inserted, preventing false queue-depth inflation.
+- Nearby/London & South-East candidates are fallback, with wider UK only after local priority is unavailable.
+- `prioritize_service_areas` is an Admin-controlled switch, default ON.
 - Queue metadata includes coverage label, priority score, outward code and learned expected yield. Previously harvested address counts teach the worker which outward codes tend to return more addresses per paid lookup.
 - Normalized results are stored in existing `master_addresses` as source `getaddress-daily-cache`.
 - Raw provider snapshots and run history are stored server-side.
-- Every successful run writes JSON + CSV copies to private Supabase Storage bucket `address-harvest-backups`.
-- Admin Service Areas gets ON/OFF, service-area priority ON/OFF, daily cap (max 20), usage/status, covered-area queue/counters, Run once now, recent runs, per-run backups, and full CSV/JSON export.
+- Successful runs write JSON + CSV copies to private Supabase Storage bucket `address-harvest-backups`.
+- Admin Service Areas has automatic ON/OFF, service-area priority ON/OFF, daily cap (max 20), usage/status, covered-area queue/counters, Run once now, recent runs, per-run backups and full CSV/JSON export.
 - Vercel daily cron target: `/api/address-harvest-cron` at `03:30 UTC`, protected by existing `CRON_SECRET`.
 - Required secret: `GETADDRESS_API_KEY`. Optional `GETADDRESS_ADMIN_KEY` improves authoritative usage/remaining display. Never paste either into chat or commit them.
-- Automation defaults **OFF** so migrations/deployment cannot spend credits by themselves.
 
-Production DB migrations already applied safely:
+Production DB migrations applied safely:
 - `20260912121339 address_harvest_automation`
 - `20260912121442 address_harvest_run_guard`
 - `20260912123809 address_harvest_service_area_priority`
 
-They created/extended server-only RLS operational state and a private backup bucket; no GetAddress lookup is made by the migrations.
-
-Feature branch: `feature/getaddress-daily-harvest-20260912`, PR #24.
+Post-deploy safe checks passed:
+- `admin-address-harvest.js` returns HTTP 200 on production.
+- unauthenticated `/api/address-harvest-cron` returns 401.
+- unauthenticated `/api/admin-address-harvest` returns 401.
+- automatic mode is OFF; no provider lookup was triggered by deployment/testing.
 
 ## Immediate next action
 
-Finish priority code + docs on PR #24 → CI/Vercel preview → verify disabled/no-key behavior → merge/deploy. Then have the owner add `GETADDRESS_API_KEY` directly in Vercel Environment Variables, optionally `GETADDRESS_ADMIN_KEY`, test one manual run, inspect covered-area queue, addresses and backups, and only then turn automatic daily harvesting ON.
+Owner adds `GETADDRESS_API_KEY` directly in Vercel Production Environment Variables, optionally `GETADDRESS_ADMIN_KEY`. Do **not** paste keys into chat. Then perform one controlled manual run with Automatic still OFF, verify service-area candidates are selected first, inspect saved addresses/backups/provider usage, and only then switch automatic daily harvesting ON.
 
 ## Other open items
 
 - Apply/test remaining branded Auth emails; Magic Link CAPTCHA test remains pending.
-- Continue DMARC/BIMI only after address-harvest work; no DMARC record added yet.
+- Continue DMARC/BIMI only after address-harvest activation/testing; no DMARC record added yet.
 - Same-iPhone homepage overflow confirmation pending; Windows/Edge desktop is fixed.
 - Stripe, SMS, remaining Resend/legal readiness, cron verification and controlled customer-support journey remain open.
 
