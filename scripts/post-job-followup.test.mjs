@@ -51,12 +51,14 @@ test('review settings are staff protected, Google-only and auditable',()=>{
   assert.match(admin,/official review-request link from your Google Business Profile/);
 });
 
-test('notification cron processes post-job follow-ups first with bounded batches',()=>{
+test('notification cron keeps post-job first while isolating bounded delivery and business scan stages',()=>{
   const api=read('api/booking-notifications.js');
   const post=api.indexOf('processPostJobFollowUps(10)');
   const generic=api.indexOf('processDueBookingNotifications(10)');
-  assert.ok(post>=0&&generic>post);
-  assert.match(api,/processBusinessFollowUps\(10\)/);
+  const scan=api.indexOf('scanBusinessFollowUpsBatched');
+  const business=api.indexOf('processDueBusinessNotifications(10)');
+  assert.ok(post>=0&&generic>post&&scan>generic&&business>scan);
+  assert.doesNotMatch(api,/processBusinessFollowUps\(10\)/);
 });
 
 test('new modules are loaded by staff and admin entrypoints',()=>{
