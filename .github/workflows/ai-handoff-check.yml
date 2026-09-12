@@ -40,6 +40,7 @@ jobs:
           node --check api/resend-inbound.js
           node --check lib/address-harvest.js
           node --check lib/address-harvest-priority.js
+          node --test scripts/address-harvest-priority.test.mjs
           node --check lib/server.js
           node --check lib/server-original.js
           node --check staff.js
