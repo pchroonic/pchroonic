@@ -2,25 +2,24 @@
 
 Last verified: 2026-09-12 UTC
 
-Read this file first. It is the compact current-state/next-action record; use `docs/AI_HANDOFF.md` for technical detail.
+Read this first. It is the compact current-state/next-action record; use `docs/AI_HANDOFF.md` for technical detail.
 
 ## Current phase
 
 **Phase 7 — Launch Security & Readiness**
 
-## Current baseline
+## Current live baseline
 
 - Repository: `pchroonic/pchroonic`, default branch `main`.
-- Current main continuity commit before this feature branch: `5a5c4f5e8578290ecda6ac16cafdb697f7ad4910`.
-- Current live runtime product behavior before this feature branch: all-width homepage fix from `46a635396ae364fe9b5783bc18c3de2b72025efc`.
+- Current live product commit: `72d52d06a09852de8ee5c329adf57f5934e5dcc1`.
 - Production: `https://namdar.co.uk` on Vercel project `namdar-website-starter-1`.
 - Supabase: `namdar-production` (`qjigldxjcpnrlyxgmlqq`), Free plan.
-- MFA Stage 2 is live and user-verified; privileged Admin/Staff browser, API and RLS access require AAL2.
+- MFA Stage 2 is live and owner-verified; privileged Admin/Staff browser, API and RLS access require AAL2.
 - Customer support tickets remain customer-only; public inbound email remains Admin Email inbox.
 
 ## Auth URLs — COMPLETE
 
-Owner-verified Supabase Auth URL state:
+Owner-verified production Auth URL state:
 - Site URL: `https://namdar.co.uk`
 - Redirect allowlist: `https://namdar.co.uk/**`
 
@@ -28,63 +27,64 @@ Four old/broad Vercel redirect entries were removed and saved on 2026-09-12.
 
 ## Sign-in providers — REVIEWED
 
-Owner screenshots plus code/database checks confirm the intended provider state:
+Intended production state:
 - Email: enabled.
 - Google: enabled and intentional.
-- Phone, anonymous sign-in, manual linking and other social/custom providers: disabled.
-- Confirm email: enabled.
+- Confirm email + new user signup: enabled.
+- Phone, anonymous sign-in, manual linking and other shown social/custom providers: disabled.
 
-Important correction to older notes: Namdar **does use Google sign-in**. The customer portal uses Google Identity Services with `signInWithIdToken`, and production contains at least one customer identity that relies on Google without a separate email/password identity. Do not disable Google without a migration/recovery plan.
+Important: Namdar **does use Google sign-in**. The portal uses Google Identity Services + Supabase `signInWithIdToken`, and at least one current customer identity relies on Google without a separate email/password identity. Do not disable Google without a recovery/migration plan.
 
-## Supabase CAPTCHA / Turnstile — READINESS PATCH IN PROGRESS
+## Supabase CAPTCHA / Turnstile — CODE READY/LIVE, DASHBOARD TOGGLE STILL OFF
 
-Supabase → Authentication → Attack Protection currently shows **Enable CAPTCHA protection OFF**. Do not switch it on until the readiness patch is live.
+The code needed before enabling hosted Supabase CAPTCHA is now live.
 
-Namdar already has Cloudflare Turnstile configured in the customer portal. Existing login, magic-link and signup flows pass CAPTCHA tokens, but password-reset and confirmation-resend did not, and used Turnstile tokens were not explicitly refreshed.
+Promotion:
+- PR #19: `Prepare customer Auth for Supabase CAPTCHA`.
+- PR head: `cecab9d0236a8ef804c7b52f6f78741f46a93001`.
+- GitHub CI `34688813723`: success.
+- Exact Vercel preview `dpl_2rb4eyRExRTMiG1dxgdrf6xv4XHv`: READY on exact head SHA.
+- Main merge SHA: `72d52d06a09852de8ee5c329adf57f5934e5dcc1`.
+- Production deployment: `dpl_DSmsBZ9DTxg9Dtw9tbyYHWWtpxYw`, READY on exact merge SHA with `namdar.co.uk`, `aliasError: null`.
+- Canonical `/account.js` and `/account-captcha-guard.js?v=6.4.16-auth-captcha-1` both returned HTTP 200 with the expected live code.
 
-Feature branch: `security/auth-captcha-readiness-20260912`.
+Live readiness behavior:
+- existing login/register Cloudflare Turnstile challenges are retained;
+- CAPTCHA tokens are supplied for password login, Magic Link, Google ID-token login, signup, password reset and confirmation resend;
+- the relevant Turnstile challenge/token is reset after each Auth request;
+- `account-original.js` remains byte-for-byte preserved;
+- no database migration or environment-variable change was required.
 
-Patch scope:
-- new `account-captcha-guard.js`;
-- account loader version `6.4.16-auth-captcha-1`;
-- supplies CAPTCHA tokens to email/password login, magic link, Google ID-token login, signup, password reset and confirmation resend;
-- records Turnstile widget IDs and resets the appropriate challenge/token after each auth request;
-- preserves `account-original.js` byte-for-byte;
-- adds CI syntax coverage for the new guard.
+**Supabase → Authentication → Attack Protection still showed `Enable Captcha protection` OFF at the last owner screenshot. Do not claim hosted CAPTCHA is enabled until the owner saves that setting.**
 
-No database migration and no environment-variable change are required for the code patch.
+## Immediate next action
 
-**Status:** branch implementation exists; PR, CI, exact Vercel preview, merge and production verification are still required before asking the owner to enable Supabase CAPTCHA.
+Owner should now, in the already-open **Supabase → Authentication → Attack Protection** page:
+1. turn **Enable Captcha protection** ON;
+2. choose **Cloudflare Turnstile**;
+3. copy the existing Namdar Turnstile **Secret Key** from Cloudflare and paste it directly into Supabase;
+4. click **Save changes**.
 
-## After the code patch is live
+Never ask the owner to paste or show the Turnstile secret in chat/GitHub.
 
-Owner action in Supabase Attack Protection:
-1. Turn **Enable CAPTCHA protection** ON.
-2. Select **Cloudflare Turnstile**.
-3. Retrieve the existing Namdar Turnstile **Secret Key** from Cloudflare and paste it directly into the Supabase secret field.
-4. Save changes.
-
-Never ask the owner to paste the Turnstile secret into chat or commit it to GitHub.
-
-Then run controlled production auth smoke tests: password sign-in, magic-link request, password-reset request, Google sign-in, and a safe signup/confirmation path if practical.
+After the owner confirms it is saved, run/coordinate controlled production Auth checks: password sign-in, Google sign-in, Magic Link request, password-reset request, and safe signup/confirmation where practical.
 
 ## Other open items
 
-- Same-iPhone final confirmation for the all-width homepage overflow fix remains pending; Windows/Edge desktop is confirmed fixed.
-- Leaked Password Protection remains optional/plan-blocked because the Supabase organization is on Free and the feature requires Pro or above.
+- Windows/Edge homepage overflow: confirmed fixed. Same-iPhone final confirmation remains pending.
+- Leaked Password Protection: optional/plan-blocked because Supabase is on Free and the feature requires Pro or above.
 - After CAPTCHA: Stripe, SMS, Resend/legal configuration, cron jobs, double-booking protection, inbound alias behavior and remaining controlled customer-support journey.
 
 ## Do not repeat / do not break
 
-- Do not disable Google sign-in; it is used by the live portal and at least one current customer identity relies on it.
-- Do not enable Supabase CAPTCHA before the readiness patch is deployed and verified.
+- Do not disable Google sign-in.
 - Do not ask for or store the Turnstile secret in chat/GitHub.
 - Do not redo Auth URL cleanup unless a redirect issue appears.
-- Do not repeat MFA Stage 2 work or migration `20260911230055`.
+- Do not repeat MFA Stage 2 work or migration `20260911230055` unless a later change requires it.
 - Do not upgrade Supabase without explicit owner approval.
 - Do not make support tickets public.
 - Do not move production back to Netlify.
-- Never expose credentials, tokens, customer data, passwords or TOTP codes.
+- Never expose credentials, access tokens, customer data, passwords or TOTP codes.
 
 ## Resume protocol
 
