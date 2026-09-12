@@ -79,19 +79,43 @@ PR #45 required no schema migration and reused:
 - service catalog: Window live, five planned;
 - no review URL invented and no synthetic job-cost records created.
 
-## Notification 504 status
-PR #45 reduces cron batch sizes to 10 + 10 + 10 and prioritizes post-job follow-ups. Treat this as a mitigation, not a confirmed resolution of the historical `/api/booking-notifications` 504. Close that issue only after observing healthy real cron executions.
+## Notification 504 — active issue / fix candidate
+Production Vercel runtime evidence now shows 21 `/api/booking-notifications` `Gateway Timeout` errors from 9–12 September 2026, including on the latest PR #45 production deployment. The stack points to Supabase REST calls inside business reminder scanning/queueing and due business delivery.
+
+This is not caused by current business volume. Investigation-time production counts were:
+- 1 pending final quote;
+- 0 overdue invoices;
+- 0 upcoming unassigned bookings in 24h;
+- 1 stale scheduled booking;
+- 4 sent `business_notifications` rows and no pending backlog.
+
+Existing database indexes already cover pending due rows, entity lookup and unique business event identity. No new index or schema change is proposed.
+
+Candidate branch: `fix/booking-notification-504-20260912`.
+
+Candidate changes:
+- new `lib/business-followup-batched.js` batches reminder candidate inserts instead of calling the old per-candidate queue lookup path;
+- invoice quote context is bulk-loaded once;
+- duplicate event candidates are de-duplicated in memory and inserted with conflict-ignore semantics against the existing unique constraint;
+- idempotent batch insert retries once on transient 502/503/504;
+- source/queue failures are reported as degraded while healthy scan sources continue;
+- `/api/booking-notifications` isolates post-job, booking delivery, business scan and business delivery stages so one transient stage failure does not block the others;
+- HTTP 503 is reserved for all four stages failing.
+
+Local regression checks for the candidate: 5/5 passed; changed/new JS syntax checks passed.
+
+Do not mark the 504 resolved until candidate CI/preview pass, it is merged/deployed, and real authenticated hourly cron executions remain healthy.
 
 ## Immediate next work
-1. Add the official Google Business Profile review-request URL in Admin → Bookings when available.
-2. Use the complete Staff lifecycle and direct-cost close-out on every real Window job.
-3. Collect genuine before/after photos and customer feedback/reviews.
-4. Calibrate Window pricing/capacity/route rules from real conversion, work time, travel and direct contribution.
-5. Assess Stage 2 only after enough evidence exists and the user deliberately chooses to proceed.
+1. Complete and release the `/api/booking-notifications` resilience candidate; observe real cron health.
+2. Add the official Google Business Profile review-request URL in Admin → Bookings when available.
+3. Use the complete Staff lifecycle and direct-cost close-out on every real Window job.
+4. Collect genuine before/after photos and customer feedback/reviews.
+5. Calibrate Window pricing/capacity/route rules from real conversion, work time, travel and direct contribution.
+6. Assess Stage 2 only after enough evidence exists and the user deliberately chooses to proceed.
 
 ## Other open work
 - fresh privileged password/CAPTCHA/MFA interactive completion;
-- observe real `/api/booking-notifications` cron health after batching change;
 - Stripe, SMS, legal and remaining launch checks;
 - address-data pilot remains parked.
 
