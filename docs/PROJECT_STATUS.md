@@ -8,6 +8,7 @@ For fast continuation, read `docs/AI_START.md` first. This file is the broader r
 
 - Release documented in `README.md`: v6.4.16.
 - Source: GitHub `main` in `pchroonic/pchroonic`.
+- Current live product commit: `285b7c3da8215dc24e543f9a6143e565d10e61a7`.
 - Delivery: Vercel project `namdar-website-starter-1`, canonical domain `namdar.co.uk`.
 - Data/auth/storage: Supabase `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
 - Supabase organization plan: **Free**.
@@ -26,7 +27,7 @@ CI requires all three files to change whenever product-source files change, redu
 
 | Area | Status |
 | --- | --- |
-| Public website | Live; mobile quote horizontal-overflow hotfix in verification |
+| Public website | Live; mobile quote horizontal-overflow fix deployed, real iPhone confirmation pending |
 | Customer portal | Session fix + optional customer MFA live |
 | Admin workspace | Inbox Security v2 + mandatory privileged MFA/AAL2 live and user smoke-tested |
 | Staff PWA | Mandatory privileged MFA/AAL2 live; AAL2 required for offline cached session |
@@ -58,19 +59,32 @@ Passed on 2026-09-12:
 
 This smoke test is complete and should not be repeated unless a future auth change needs regression testing.
 
-## Mobile homepage overflow hotfix — IN VERIFICATION
+## Mobile homepage overflow fix — LIVE, IPHONE CONFIRMATION PENDING
 
 The owner reported on 2026-09-12 that the homepage quote form on iPhone could slide horizontally and show a blank white gap on the right. The screenshot showed the left edge clipped by a similar amount, confirming document-level horizontal overflow/panning rather than ordinary right padding.
 
-Branch: `fix/mobile-quote-overflow-20260912`.
+Implementation:
+- `mobile-overflow-fix.css` uses shrink-safe quote grid tracks (`minmax(0,1fr)`), `min-width:0` on quote containers/items, and max-width constraints on controls;
+- native/iOS file input is explicitly contained within the form;
+- homepage-only mobile `overflow-x:clip` / horizontal overscroll guard is applied with a hidden fallback for older engines;
+- `conversion.js` loads the isolated stylesheet on the homepage while preserving existing conversion interactions and intentionally scrollable components.
 
-Current patch:
-- new `mobile-overflow-fix.css` with shrink-safe quote grid tracks (`minmax(0,1fr)`), `min-width:0` on quote containers/items, and max-width constraints on controls;
-- explicit iOS/native file-input containment;
-- homepage-only mobile `overflow-x:clip` / horizontal overscroll guard with a hidden fallback for older engines;
-- `conversion.js` loads the isolated CSS on the homepage, preserving existing conversion interactions and intentionally scrollable components.
+Verification:
+- `conversion.js` Node syntax check passed;
+- CSS structural checks passed;
+- 390px Chromium regression check passed: document `scrollWidth === innerWidth`, file input stayed within form, and the proof strip remained independently horizontally scrollable;
+- exact Safari/iPhone symptom was not reproduced in Chromium, so a real iPhone recheck remains required.
 
-The exact Safari/iPhone issue was not reproduced in Chromium, so final verification requires PR/CI/Vercel preview plus the owner's real-device recheck after production deployment. No database, Auth, provider, environment or customer-data change is part of this patch.
+Promotion:
+- PR #12: `Fix mobile quote horizontal overflow`;
+- feature/PR head: `febd6bbaacee5c08273e4ba7b70d8749dc160313`;
+- GitHub CI run `34685321573`: success;
+- Vercel preview: `dpl_8vbLRZdTAUttgXjhfRw2LBtb8sXq`, READY on exact PR head;
+- main merge SHA: `285b7c3da8215dc24e543f9a6143e565d10e61a7`;
+- production deployment: `dpl_CkWNqBc8JkMuWh77BWYJXkXwP3oA`, READY on exact merge SHA, `namdar.co.uk` attached, `aliasError: null`;
+- canonical live `conversion.js` and `mobile-overflow-fix.css?v=20260912` both returned HTTP 200 and contained the expected fix.
+
+No database, Auth, provider, environment-variable or customer-data change was part of this fix.
 
 ## Deployment verification
 
@@ -83,9 +97,6 @@ MFA Stage 2:
 - Production deployment: `dpl_Jkb8ZavhqrBD6PLpqjAPnEdiGAsW`, READY with `namdar.co.uk` and no alias error.
 - Live `admin.js` serves `6.4.16-security-mfa-2`.
 - Live Admin MFA guard contains no `Continue for now` bypass.
-
-Mobile overflow hotfix:
-- branch implementation exists; PR/CI/Vercel preview/production IDs are still pending at this point in the workflow.
 
 ## Database/Auth verification
 
@@ -118,7 +129,7 @@ Supabase documentation states leaked-password protection is available on **Pro p
 
 ## Outstanding work
 
-1. Finish mobile quote overflow hotfix PR/preview/production verification and obtain the owner's iPhone confirmation.
+1. Obtain the owner's real-iPhone confirmation that the live quote page no longer slides horizontally or exposes the blank right-side gap; then mark the mobile regression closed.
 2. Confirm Supabase Auth Site URL is `https://namdar.co.uk` and review the redirect allowlist for stale/unintended URLs.
 3. Complete provider launch readiness for Stripe, Turnstile, OAuth, SMS, Resend and legal configuration.
 4. Verify production cron jobs and intended double-booking protections.

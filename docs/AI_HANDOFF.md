@@ -67,28 +67,39 @@ Stage 2 is enforced in three layers:
 - Controlled database test using the same active admin identity internally: `aal1` denied, `aal2` allowed.
 - **User production smoke test passed on 2026-09-12:** full Admin sign-out, fresh sign-in, authenticator challenge completed, and Admin → Inbox loaded normally. Do not repeat unless a future auth change needs regression testing.
 
-## Mobile homepage horizontal-overflow regression — ACTIVE HOTFIX
+## Mobile homepage horizontal-overflow regression — FIX LIVE, IPHONE CONFIRMATION PENDING
 
 On 2026-09-12 the owner supplied an iPhone screenshot of the homepage quote form showing a blank strip on the right. The screenshot also showed the left edge of the page clipped by a similar amount, indicating the whole document had been horizontally panned rather than the quote section simply having extra right padding.
 
-Likely cause is an intrinsic-width mobile form/grid child on iOS Safari. The quote UI used plain `1fr` CSS grid tracks and includes a native multi-file input; native file controls can retain a min-content width that pushes the document beyond the visual viewport on Safari even when the control has `width:100%`.
-
-Fix branch: `fix/mobile-quote-overflow-20260912`.
+Likely cause was an intrinsic-width mobile form/grid child on iOS Safari. The quote UI used plain `1fr` CSS grid tracks and includes a native multi-file input; native file controls can retain a min-content width that pushes the document beyond the visual viewport on Safari even when the control has `width:100%`.
 
 Implementation:
-- new `mobile-overflow-fix.css` contains the isolated homepage/quote containment rules;
+- `mobile-overflow-fix.css` contains isolated homepage/quote containment rules;
 - quote shell, field rows, service choices and progress grid use shrink-safe `minmax(0,1fr)` tracks;
 - grid items and quote controls get `min-width:0`, and controls are capped at `max-width:100%`;
 - the native file input is explicitly constrained and clipped inside the form;
 - on mobile, `html` and `body.conversion-home` use `overflow-x:clip` plus `overscroll-behavior-x:none`, with `overflow-x:hidden` fallback for engines without `clip`;
 - the viewport guard is scoped to the public homepage so internal Admin/Staff table scrolling is not affected;
 - existing intentionally horizontally scrollable strips remain locally scrollable;
-- existing homepage-only `conversion.js` loads `/mobile-overflow-fix.css?v=20260912` before conversion interactions start.
+- homepage-only `conversion.js` loads `/mobile-overflow-fix.css?v=20260912` before conversion interactions start.
 
-Verification status at time of this handoff update:
-- the exact Safari symptom was not reproducible in container Chromium; a 390px synthetic Chromium check stayed at `scrollWidth === innerWidth`, so do not claim Safari-specific reproduction;
-- implementation/PR/CI/Vercel preview and real iPhone regression recheck are still required before calling the fix live/complete;
-- no database migration, Auth change, environment variable or customer-data change is involved.
+Verification and deployment:
+- local `node --check` on updated `conversion.js`: passed;
+- CSS structural sanity checks: passed;
+- 390px Chromium regression test: document `scrollWidth === innerWidth`, native file input remained inside the quote form, and a local horizontally scrollable proof strip retained `scrollWidth > clientWidth`;
+- the exact Safari/iPhone symptom was not reproducible in Chromium, so this is not a Safari reproduction claim;
+- PR #12: `Fix mobile quote horizontal overflow`;
+- feature/PR head: `febd6bbaacee5c08273e4ba7b70d8749dc160313`;
+- GitHub CI run `34685321573`: success;
+- exact Vercel preview: `dpl_8vbLRZdTAUttgXjhfRw2LBtb8sXq`, READY; build log confirms branch `fix/mobile-quote-overflow-20260912`, commit `febd6bb`;
+- main/production merge SHA: `285b7c3da8215dc24e543f9a6143e565d10e61a7`;
+- production deployment: `dpl_CkWNqBc8JkMuWh77BWYJXkXwP3oA`, READY on exact merge SHA, target production, aliases include `namdar.co.uk`, `aliasError: null`;
+- canonical `https://namdar.co.uk/conversion.js` returned HTTP 200 and contains the stylesheet loader;
+- canonical `https://namdar.co.uk/mobile-overflow-fix.css?v=20260912` returned HTTP 200 and contains the expected shrink/viewport rules.
+
+No database migration, Auth change, environment variable, provider configuration or customer-data change was involved.
+
+**Remaining verification:** ask the owner to refresh/reopen the production homepage on the same iPhone and confirm the page no longer slides sideways or exposes the blank right-side gap. Only after that confirmation should this regression be marked fully closed.
 
 ## Migration history note
 
@@ -118,7 +129,7 @@ The currently connected Supabase tools also do not expose hosted Auth configurat
 
 ## Remaining launch work
 
-1. Finish and verify the mobile homepage horizontal-overflow hotfix, then obtain the owner's real iPhone confirmation.
+1. Obtain the owner's real-iPhone confirmation that the live mobile quote overflow/right-gap issue is fixed; then mark the regression closed.
 2. Verify Supabase Auth Site URL is `https://namdar.co.uk` and review the redirect allowlist for stale/unintended URLs.
 3. Finish launch checks for Stripe, Turnstile, OAuth providers, SMS provider, Resend and legal configuration.
 4. Verify booking-notification/account-purge cron jobs and intended double-booking protection.
@@ -138,4 +149,4 @@ The currently connected Supabase tools also do not expose hosted Auth configurat
 
 ## Next recommended step
 
-Complete the mobile overflow hotfix promotion and real iPhone recheck. Then resume Supabase Auth Site URL / redirect allowlist verification and the remaining provider launch-readiness checklist. Leaked Password Protection remains optional and plan-blocked while Supabase is on Free.
+Get the owner's real-iPhone confirmation for the production mobile overflow fix. If confirmed, close that regression in continuity, then resume Supabase Auth Site URL / redirect allowlist verification and the remaining provider launch-readiness checklist. Leaked Password Protection remains optional and plan-blocked while Supabase is on Free.

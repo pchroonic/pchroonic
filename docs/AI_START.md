@@ -11,7 +11,7 @@ This is the first file every AI/developer should read. It is intentionally short
 ## Current live baseline
 
 - Repository: `pchroonic/pchroonic`, branch `main`.
-- Latest verified product/security code baseline: `ece88931bd5e05b26173b25ff7fa75c46b6b4e63`.
+- Current live product commit: `285b7c3da8215dc24e543f9a6143e565d10e61a7`.
 - Production: `https://namdar.co.uk` on Vercel project `namdar-website-starter-1`.
 - Backend/Auth: Supabase `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
 - Supabase organization plan: **Free**.
@@ -20,11 +20,18 @@ This is the first file every AI/developer should read. It is intentionally short
 - Applied MFA migration: `20260911230055 require_aal2_for_staff_permissions`.
 - Customer support tickets remain customer-only; public inbound email remains Admin Email inbox.
 
-## Active UI hotfix
+## Mobile quote overflow fix — LIVE, REAL-DEVICE CONFIRMATION PENDING
 
 The owner reported an iPhone/mobile homepage regression on 2026-09-12: the quote form could be dragged horizontally, exposing a blank strip on the right.
 
-Fix branch: `fix/mobile-quote-overflow-20260912`.
+The fix is now live on production:
+- PR #12: `Fix mobile quote horizontal overflow`;
+- feature/PR head: `febd6bbaacee5c08273e4ba7b70d8749dc160313`;
+- GitHub CI run `34685321573`: success;
+- exact Vercel preview: `dpl_8vbLRZdTAUttgXjhfRw2LBtb8sXq`, READY;
+- production merge SHA: `285b7c3da8215dc24e543f9a6143e565d10e61a7`;
+- production deployment: `dpl_CkWNqBc8JkMuWh77BWYJXkXwP3oA`, READY with `namdar.co.uk`, no alias error;
+- canonical `https://namdar.co.uk/conversion.js` and `/mobile-overflow-fix.css?v=20260912` both returned HTTP 200 after deployment.
 
 The patch:
 - makes quote/form CSS grid tracks shrink safely with `minmax(0,1fr)` and `min-width:0`;
@@ -33,9 +40,9 @@ The patch:
 - keeps intentionally horizontally scrollable components independent;
 - is loaded by the existing homepage-only `conversion.js` through `mobile-overflow-fix.css`.
 
-No database, Auth, environment-variable, provider or customer-data change is involved.
+Local 390px Chromium regression checks passed, but the exact Safari/iPhone symptom was not reproducible in Chromium. **Do not mark the regression fully closed until the owner confirms on the same iPhone that the page no longer slides sideways or reveals the right-side gap.**
 
-**Status:** branch implementation exists; PR/CI/Vercel preview and real iPhone regression confirmation are still required before calling the fix complete/live.
+No database, Auth, environment-variable, provider or customer-data change was involved.
 
 ## Plan-blocked security item
 
@@ -45,8 +52,8 @@ Do not upgrade Supabase or incur a paid plan change without the owner's explicit
 
 ## Immediate next action
 
-1. Complete the mobile overflow hotfix workflow: PR → CI → exact Vercel preview → merge → production verification.
-2. Ask the owner to reopen/refresh `namdar.co.uk` on the same iPhone and verify the page can no longer slide sideways or reveal the right-side gap.
+1. Ask the owner to hard-refresh/reopen `namdar.co.uk` on the same iPhone and verify the quote page can no longer slide horizontally or expose a blank right-side gap.
+2. If confirmed, mark the mobile regression closed in all three continuity files.
 3. Then resume Supabase Auth production URL configuration:
    - Site URL should be `https://namdar.co.uk`;
    - review the redirect allowlist for stale or unintended test/preview URLs.
