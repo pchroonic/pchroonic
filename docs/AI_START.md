@@ -11,80 +11,95 @@ Read this first. It is the compact current-state/next-action record; use `docs/A
 ## Current live baseline
 
 - Repository: `pchroonic/pchroonic`, default branch `main`.
+- Current `main` before the branded-email branch: `f9192284d2f2844d3b2940408fb3cda363758b9c`.
 - Current live product code baseline: `72d52d06a09852de8ee5c329adf57f5934e5dcc1`.
 - Production: `https://namdar.co.uk` on Vercel project `namdar-website-starter-1`.
 - Supabase: `namdar-production` (`qjigldxjcpnrlyxgmlqq`), Free plan.
+- Resend domain `namdar.co.uk`: verified, sending and receiving enabled.
 - MFA Stage 2 is live and owner-verified; privileged Admin/Staff browser, API and RLS access require AAL2.
 - Customer support tickets remain customer-only; public inbound email remains Admin Email inbox.
 
-## Auth URLs — COMPLETE
+## Auth URLs / providers — COMPLETE
 
-Owner-verified production Auth URL state:
 - Site URL: `https://namdar.co.uk`
 - Redirect allowlist: `https://namdar.co.uk/**`
+- Email and Google are intentionally enabled.
+- Confirm email + signup enabled.
+- Phone, anonymous sign-in, manual linking and other shown providers disabled.
 
-Four old/broad Vercel redirect entries were removed and saved on 2026-09-12.
+Do not disable Google: at least one current customer identity relies on Google without a separate password identity.
 
-## Sign-in providers — REVIEWED
+## Supabase CAPTCHA / Turnstile — ENABLED, TESTING IN PROGRESS
 
-Intended production state:
-- Email: enabled.
-- Google: enabled and intentional.
-- Confirm email + new user signup: enabled.
-- Phone, anonymous sign-in, manual linking and other shown social/custom providers: disabled.
+Hosted Supabase CAPTCHA is owner-confirmed ON using the existing Cloudflare Turnstile widget/secret entered directly in Supabase. No secret was shared or stored.
 
-Important: Namdar uses Google Identity Services + Supabase `signInWithIdToken`, and at least one current customer identity relies on Google without a separate email/password identity. Do not disable Google without a recovery/migration plan.
+Readiness code is live from PR #19 and passes Turnstile tokens for password login, Magic Link, Google login, signup, password reset and confirmation resend.
 
-## Supabase CAPTCHA / Turnstile — ENABLED, FIRST LOGIN SMOKE TEST PASSED
+### Production smoke tests
 
-The owner confirmed on 2026-09-12 that Supabase → Authentication → Attack Protection was saved with CAPTCHA ON using Cloudflare Turnstile and the existing Namdar Turnstile Secret Key entered directly from Cloudflare into Supabase. No secret value was shared in chat or stored in GitHub.
+Passed on 2026-09-12:
+- fresh/private-session real customer login after CAPTCHA enablement → portal opened normally;
+- password-reset request after CAPTCHA enablement → Resend delivered the reset email to the owner successfully.
 
-Readback limitation: the connected Supabase tool does not expose hosted Auth CAPTCHA-setting readback, so the provider configuration remains owner-confirmed dashboard state.
+The reset email delivery also exposed an email-branding issue: the hosted Supabase Auth template is still the plain default HTML and the SMTP sender display appears as lowercase `namdar` from `accounts@namdar.co.uk`.
 
-Readiness code already live:
-- PR #19 `Prepare customer Auth for Supabase CAPTCHA`;
-- feature head `cecab9d0236a8ef804c7b52f6f78741f46a93001`;
-- CI `34688813723`: success;
-- exact preview `dpl_2rb4eyRExRTMiG1dxgdrf6xv4XHv`: READY;
-- production code SHA `72d52d06a09852de8ee5c329adf57f5934e5dcc1`;
-- production deployment `dpl_DSmsBZ9DTxg9Dtw9tbyYHWWtpxYw`: READY with `namdar.co.uk` and no alias error.
+Magic Link delivery is still a separate pending test; do not mark it passed based on the password-reset screenshot.
 
-Live code supplies Turnstile tokens for password login, Magic Link, Google ID-token login, signup, password reset and confirmation resend, and resets the relevant one-time challenge after each Auth request.
+## Auth email branding — SOURCE PREPARED, NOT LIVE YET
 
-### Owner smoke-test result
+Feature branch: `feature/branded-auth-emails-20260912`.
 
-On 2026-09-12 the owner opened My Namdar in a fresh/private session after hosted CAPTCHA was enabled, completed the anti-bot check and successfully signed in to the customer portal using their normal customer login method. This confirms the first real production customer-login path still works with hosted CAPTCHA enabled.
+Source-controlled hosted-Supabase templates prepared under `supabase/email-templates/`:
+- `reset-password.html`
+- `magic-link.html`
+- `confirm-signup.html`
+- `change-email.html`
+- `reauthentication.html`
+- `invite.html`
+- `README.md` with subjects/apply workflow.
 
-Do not repeat this exact login smoke test unless a later Auth/CAPTCHA change requires regression testing.
+Design uses Namdar dark green/lime/paper branding and an HTML-built `N / NAMDAR` lockup, so the brand remains visible even when remote images are blocked. It adds clearer security wording, consistent CTA buttons and `support@namdar.co.uk` / `namdar.co.uk` footer details.
+
+Recommended sender presentation when applying hosted SMTP settings:
+- display name: `Namdar`
+- sender: `accounts@namdar.co.uk`
+
+These source files do **not** automatically change hosted Supabase templates. Do not call them live until they are copied into Supabase → Authentication → Emails / Email Templates and a controlled delivered email is verified.
+
+## Gmail sender avatar / profile image — SEPARATE EMAIL-IDENTITY TASK
+
+The blank/generic Gmail sender avatar is not controlled by the HTML email body. A durable cross-client Namdar sender logo is a separate DMARC + BIMI/email-identity task; Gmail logo display may require an eligible brand certificate path such as CMC/VMC.
+
+Do not tighten DMARC to `quarantine` or `reject` until all legitimate Namdar senders are audited for SPF/DKIM alignment. Resend currently reports the Namdar sending domain verified with DKIM/SPF.
 
 ## Immediate next action
 
-Continue non-destructive CAPTCHA Auth smoke tests, one at a time:
-1. request a **Magic Link** from My Namdar and confirm the request is accepted/email arrives;
-2. request **Forgot password** and confirm the reset email is accepted/arrives;
-3. test the alternate login method (Google or password) if practical;
-4. confirmation resend/safe signup only if a suitable disposable account exists, with cleanup afterward.
+1. Finish branded-email branch review/CI/merge; this is source backup only and does not change hosted email yet.
+2. In Supabase hosted Email Templates, apply the branded **Reset password** subject + HTML first and change SMTP sender display name from `namdar` to `Namdar` if the dashboard still shows lowercase.
+3. Send one controlled password-reset test and verify the delivered rendering/sender in Gmail and Resend.
+4. If good, apply the same branded set to Magic Link, Confirm signup, Change email, Reauthentication and Invite.
+5. Then audit DMARC/current sender alignment before planning BIMI/Gmail brand-avatar setup.
 
-Do not ask the owner for passwords, Google tokens, CAPTCHA secrets or private customer data.
+Never ask the owner for a Supabase access token, SMTP password or any one-time Auth link just to apply these templates; use the Dashboard manually if connected tooling cannot edit hosted Auth templates.
 
 ## Other open items
 
+- Magic Link CAPTCHA delivery test remains pending.
 - Windows/Edge homepage overflow: confirmed fixed. Same-iPhone final confirmation remains pending.
-- Leaked Password Protection: optional/plan-blocked because Supabase is on Free and the feature requires Pro or above.
-- After CAPTCHA smoke tests: Stripe, SMS, Resend/legal configuration, cron jobs, double-booking protection, inbound alias behavior and remaining controlled customer-support journey.
+- Leaked Password Protection: optional/plan-blocked because Supabase is Free and the feature requires Pro or above.
+- After email/CAPTCHA work: Stripe, SMS, Resend/legal configuration, cron jobs, double-booking protection, inbound alias behavior and remaining controlled customer-support journey.
 
 ## Do not repeat / do not break
 
 - Do not disable Google sign-in.
-- Do not ask for or store the Turnstile secret in chat/GitHub.
-- Do not tell the owner to enable CAPTCHA again; it is owner-confirmed enabled as of 2026-09-12.
-- Do not repeat the first fresh-session customer login CAPTCHA smoke test unless later Auth changes require it; it passed on 2026-09-12.
-- Do not redo Auth URL cleanup unless a redirect issue appears.
-- Do not repeat MFA Stage 2 work or migration `20260911230055` unless a later change requires it.
+- Do not ask for or store Turnstile/SMTP/Supabase secrets in chat/GitHub.
+- Do not store or quote live password-reset links/tokens from delivered emails.
+- Do not tell the owner to enable CAPTCHA again; it is owner-confirmed enabled.
+- Do not mark Magic Link passed from a reset-password delivery.
+- Do not redo MFA Stage 2 or migration `20260911230055` unless a later change requires regression work.
 - Do not upgrade Supabase without explicit owner approval.
 - Do not make support tickets public.
 - Do not move production back to Netlify.
-- Never expose credentials, access tokens, customer data, passwords or TOTP codes.
 
 ## Resume protocol
 
