@@ -23,7 +23,9 @@ test('public funnel endpoint records only postcode checks with privacy-safe area
 test('funnel tracking is consent-aware and session-only',async()=>{
   const src=await read('conversion.js');
   assert.match(src,/namdar_cookie_choice['"]\)!==['"]marketing['"]/);
-  assert.match(src,/sessionStorage\.getItem\(['"]namdar_stage1_funnel_visitor/);
+  assert.match(src,/['"]namdar_stage1_funnel_visitor['"]/);
+  assert.match(src,/sessionStorage\.getItem\(key\)/);
+  assert.match(src,/sessionStorage\.setItem\(key,id\)/);
   assert.match(src,/eventType:['"]postcode_checked['"]/);
   assert.match(src,/visitorId/);
 });
@@ -45,9 +47,11 @@ test('performance API reports full Stage 1 funnel and direct contribution',async
   assert.match(src,/requireStaff\(req,['"]analytics['"]\)/);
 });
 
-test('job economics edits require bookings permission and are audited',async()=>{
+test('job economics edits require bookings permission, Window scope and audit logging',async()=>{
   const src=await read('api/admin-job-economics.js');
   assert.match(src,/requireStaff\(req,['"]bookings['"]\)/);
+  assert.match(src,/service_key/);
+  assert.match(src,/windows/);
   assert.match(src,/booking_job_costs\?on_conflict=booking_id/);
   assert.match(src,/auditLog/);
 });
