@@ -8,7 +8,7 @@ For fast continuation, read `docs/AI_START.md` first. This file is the broader r
 
 - Release documented in `README.md`: v6.4.16.
 - Source: GitHub `main` in `pchroonic/pchroonic`.
-- Current live product commit before the all-width overflow fix: `b1c1eb4e29cd03056799e5fbb1af47cf04fec2b1`.
+- Current live product commit: `46a635396ae364fe9b5783bc18c3de2b72025efc`.
 - Delivery: Vercel project `namdar-website-starter-1`, canonical domain `namdar.co.uk`.
 - Data/auth/storage: Supabase `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
 - Supabase organization plan: **Free**.
@@ -27,7 +27,7 @@ CI requires all three files to change whenever product-source files change.
 
 | Area | Status |
 | --- | --- |
-| Public website | Live; cross-device homepage horizontal-overflow fix in verification |
+| Public website | Live; all-width homepage horizontal-overflow fix deployed, desktop + iPhone confirmation pending |
 | Customer portal | Session fix + optional customer MFA live |
 | Admin workspace | Inbox Security v2 + mandatory privileged MFA/AAL2 live and user smoke-tested |
 | Staff PWA | Mandatory privileged MFA/AAL2 live; AAL2 required for offline cached session |
@@ -47,36 +47,36 @@ References:
 - main Stage 2 code SHA `ece88931bd5e05b26173b25ff7fa75c46b6b4e63`;
 - production `dpl_Jkb8ZavhqrBD6PLpqjAPnEdiGAsW`: READY.
 
-## Homepage horizontal overflow — CROSS-DEVICE FIX IN VERIFICATION
+## Homepage horizontal overflow — ALL-WIDTH FIX LIVE, OWNER CONFIRMATION PENDING
 
-The regression was initially treated as mobile/iPhone-specific. PR #12 improved quote/grid containment and PR #14 moved containment into the `<head>` plus added mobile scroll-position reset. However, the owner then reproduced the same document-level failure on Windows/Edge desktop on 2026-09-12.
+The regression was initially treated as mobile/iPhone-specific. PR #12 improved quote/grid containment and PR #14 moved containment into the `<head>` plus added mobile scroll-position reset. The owner later reproduced the same document-level failure on Windows/Edge desktop: a full-page horizontal scrollbar, left-side header/hero content off-screen, and a large blank area on the right.
 
-The desktop screenshot showed:
-- a full-page horizontal scrollbar;
-- the scrollbar already shifted to the right;
-- left-side header/hero content missing off-screen;
-- a large blank area on the right.
+The issue is therefore a cross-device homepage document-width / horizontal scroll-restoration problem.
 
-The issue is therefore a cross-device homepage document-width / horizontal scroll-restoration problem, not just an iPhone bug.
+All-width fix now live:
+- PR #16: `Fix homepage horizontal overflow across all widths`;
+- feature SHA `5e05d6d3da1df0ea2049b3c2ca440e2ce304d2c2`;
+- GitHub CI run `34686741515`: success;
+- exact preview `dpl_9AEFL9yKDgSvZGkAqGuKQnQws88a`: READY on exact feature SHA with no alias error;
+- main merge SHA `46a635396ae364fe9b5783bc18c3de2b72025efc`;
+- production deployment `dpl_Bh1kfnpaShf6JwNnzG6N6YvYP1Qh`: READY on exact merge SHA with `namdar.co.uk` and no alias error.
 
-Current branch: `fix/homepage-horizontal-overflow-all-widths-20260912`.
+Live implementation:
+- homepage root/body use `width:100%`, `min-width:0`, `max-width:100%`, `overflow-x:hidden`, and horizontal overscroll containment at all viewport widths;
+- header/main/footer/hero/quote containers are bounded to the viewport;
+- desktop hero tracks are shrink-safe `minmax(0,...)` columns;
+- key flex/grid children use `min-width:0`;
+- quote-grid/native-file-input containment remains;
+- intentional nested horizontal scrollers remain local;
+- homepage horizontal position is reset to x=0 on load, `pageshow`, resize and orientation change.
 
-Current fix scope:
-- homepage root/body width containment and `overflow-x:hidden` at all viewport widths;
-- explicit viewport bounds for header/main/footer/hero/quote containers;
-- shrink-safe desktop hero columns using `minmax(0,...)`;
-- `min-width:0` on key flex/grid children;
-- quote-grid and native-file-input containment retained;
-- intentional nested horizontal scrollers preserved locally;
-- homepage horizontal position reset to x=0 at all widths on initial load, `pageshow`, resize and orientation change.
+Canonical production verification:
+- `/mobile-overflow-fix.css?v=20260912b` returned HTTP 200 and contains the all-width root/desktop-grid containment;
+- `/conversion.js?v=20260912b` returned HTTP 200 and contains the all-width x=0 reset plus resize handling.
 
-No database, Auth, provider, environment-variable or customer-data change is involved.
+No database, Auth, provider, environment-variable or customer-data change was part of this fix.
 
-Verification status:
-- runtime code changes exist on the branch;
-- all three continuity files are updated on the same branch;
-- PR/CI/exact Vercel preview/production promotion remain pending;
-- final closure requires owner confirmation on both Windows desktop and the same iPhone after deployment.
+**Remaining:** owner confirmation is required on both Windows desktop and the same iPhone before closing the regression.
 
 ### Prior overflow-fix history
 
@@ -125,7 +125,7 @@ Namdar is on Supabase Free and leaked-password protection requires Pro or above,
 
 ## Outstanding work
 
-1. Complete the all-width homepage overflow PR/CI/preview/production flow and obtain desktop + iPhone confirmation.
+1. Obtain desktop + iPhone confirmation for the live all-width homepage overflow fix; if both pass, mark the regression closed.
 2. Confirm Supabase Auth Site URL is `https://namdar.co.uk` and review redirect allowlist for stale/unintended URLs.
 3. Complete provider launch readiness for Stripe, Turnstile, OAuth, SMS, Resend and legal configuration.
 4. Verify production cron jobs and intended double-booking protections.
