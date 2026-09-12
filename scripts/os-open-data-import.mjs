@@ -114,8 +114,8 @@ async function main(){
   if(!fs.existsSync(opt.input))fail(`Input not found: ${opt.input}`);
   if(opt.completeScope&&opt.maxRows>0)fail('--complete-scope cannot be used with --max-rows.');
   if(opt.activateSource&&!opt.completeScope)fail('--activate-source requires --complete-scope so a partial sample cannot be presented as a complete source.');
-  if(dataset==='uprn'&&String(opt.scope).toUpperCase()==='GB'&&opt.write&&!opt.allowLargeImport){
-    fail('National OS Open UPRN writes are blocked by default. Add --allow-large-import only after database capacity has been deliberately upgraded.');
+  if(String(opt.scope).toUpperCase()==='GB'&&opt.write&&!opt.allowLargeImport){
+    fail('National OS OpenData writes are blocked by default. Add --allow-large-import only after database capacity has been deliberately upgraded or moved to a dedicated data store.');
   }
 
   const product=OS_PRODUCTS[dataset];
@@ -126,7 +126,7 @@ async function main(){
   if(!version){const discovered=await discoverVersion(product);version=discovered.version;metadata={osProduct:discovered.metadata};}
 
   let areas=[],districtCodes=explicitDistrictCodes(opt.districtCodes);
-  if(String(opt.scope)!=='GB'){
+  if(String(opt.scope).toUpperCase()!=='GB'){
     if(opt.write){
       areas=await activeServiceAreas();
       for(const area of areas||[])for(const code of area.admin_area_codes||[])districtCodes.add(String(code).toUpperCase());
@@ -166,11 +166,11 @@ async function main(){
         if(dataset==='codepoint'){
           row=codePointRecord(parseCsvLine(line),{datasetVersion:version,coverageScope:scope,importRunId:run?.id||null});
           if(!row)return false;
-          if(scope!=='GB'&&!districtCodes.has(String(row.admin_district_code||'').toUpperCase()))return false;
+          if(scope.toUpperCase()!=='GB'&&!districtCodes.has(String(row.admin_district_code||'').toUpperCase()))return false;
         }else{
           row=openUprnRecord(parseCsvLine(line),headers,{datasetVersion:version,coverageScope:scope,importRunId:run?.id||null});
           if(!row)return false;
-          if(scope!=='GB'&&!inServiceArea(row.latitude,row.longitude,areas))return false;
+          if(scope.toUpperCase()!=='GB'&&!inServiceArea(row.latitude,row.longitude,areas))return false;
         }
         rowsSelected++;
         batch.push(row);
