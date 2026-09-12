@@ -4,54 +4,85 @@ Last updated: 2026-09-12 UTC
 
 ## Baseline
 - Source: `pchroonic/pchroonic`, default `main`.
-- Current product merge: `f026803056f07d17ed1c257f1bd1094268a1cb08` from PR #38.
-- Production deployment: `dpl_EMqepbY1Aw8yqL6hBn2V6RtzJ2MG`, READY on `https://namdar.co.uk`, no alias error.
+- Main before current candidate: `77ed741f758d037a953ddc1a14f68a65996464e6`.
+- Current live product merge: PR #38 `f026803056f07d17ed1c257f1bd1094268a1cb08`.
+- Production: `https://namdar.co.uk` on Vercel.
 - Supabase: `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
 - Window Cleaning is the only live/quotable service.
-- Future services are prepared but planned.
+- Future services remain planned.
 - Address-data imports remain parked.
 
-## Window Cleaning Stage 1 optimisation — LIVE
+## Window Cleaning Stage 1 — LIVE
+The Window-specific quote journey, recurring 4/8/12-week choices, hardened service gate and improved service page are live from PR #38.
 
-PR #38 is released. No database migration was required.
+## Active candidate — booking operations
+Branch: `feat/window-booking-operations-20260912`.
+No schema migration required.
 
-### Customer journey
-- Homepage is specifically Window Cleaning focused while it is the sole live service.
-- Quote asks for window count/style, current condition, access detail and extra glass.
-- Recurrence choices: one-off / 4 weeks / 8 weeks / 12 weeks.
-- Quote notes include a structured Window-details summary for Admin review.
-- Service page explains inclusions, recurrence, quote factors, access/photos and estimate-vs-final-quote flow.
+### Customer availability rules
+Default Stage 1 rules:
+- 21-day booking horizon;
+- at least 24 hours' notice;
+- Monday–Saturday operating days;
+- customer windows 08:00–11:00 / 11:00–14:00 / 14:00–17:00;
+- maximum 3 customer jobs/day;
+- route-density enabled.
 
-### Pricing / recurring model
-Current guide-price frequency multipliers:
-- one-off 1.00
-- 4-weekly .86
-- 8-weekly .90
-- 12-weekly .94
+The values are configurable in Admin and bounded server-side.
 
-The final price still requires Namdar review before booking.
+### Route efficiency
+Customer self-booking now groups a day by postcode-area route zone. An empty day can start in any qualifying zone; once the day has a pending/confirmed booking, customers in another postcode-area zone are not offered that day. Existing occupied windows and daily capacity are also enforced.
 
-### Security hardening
-The quote availability wrapper bug is fixed: it now evaluates the actual submitted `serviceKey` rather than incorrectly defaulting a missing `body.service` to Window Cleaning.
+This is intentionally simple Stage 1 route density. It does not claim to solve drive-time routing. Admin manual scheduling remains an override for deliberate exceptions.
 
-Window detail/extra/frequency multipliers are also normalised server-side, so client requests cannot supply arbitrary lower values.
+### Server-side enforcement
+New shared engine: `lib/booking-operations.js`.
 
-### My Namdar
-Recurring Window Cleaning requests offer 4/8/12-week cycles and default to 8-weekly. Namdar confirms price, first-clean requirements and schedule before activation.
+Original flows are preserved as:
+- `api/customer-quote-action-core.js`
+- `api/booking-core.js`
 
-## Release verification
+Wrappers:
+- `api/customer-quote-action.js` returns route-aware available slots after existing accepted-quote/ownership checks;
+- `api/booking.js` re-validates the submitted slot before the original booking logic runs.
+
+This prevents raw requests from bypassing operating days, notice, capacity, route density and current slot availability.
+
+### Admin operations panel
+Admin → Bookings gets controls for:
+- horizon;
+- minimum notice;
+- max jobs/day;
+- route density;
+- operating days;
+- customer booking windows;
+- next-14-days load/route preview.
+
+Booking permission can view. Settings permission/Admin can edit. Existing AAL2/MFA protection applies. Changes are audit logged.
+
+Configuration is stored in the existing `site_settings` row `booking_operations`; safe defaults work even before the row is persisted.
+
+### Recurring work
+There are currently no production recurring subscription rows, so no speculative recurring reservation layer is being introduced. Actual recurring bookings will participate in the same route/capacity context. Revisit advanced recurrence routing after real demand exists.
+
+## Candidate verification checklist
+- [x] shared booking-rules engine added
+- [x] customer available-slot wrapper added
+- [x] booking POST re-validation added
+- [x] Admin operations API/UI added
+- [x] admin loader updated
+- [x] regression test suite added
+- [x] CI workflow updated
 - [x] all three candidate handoff docs updated
-- [x] PR #38 opened
-- [x] exact-head CI `34712880930` passed including `scripts/window-stage1.test.mjs`
-- [x] exact-head preview `dpl_EJMytimDT1XQtcSW8a4wNLMnWCUP` READY / clean
-- [x] PR #38 merged as `f026803056f07d17ed1c257f1bd1094268a1cb08`
-- [x] production `dpl_EMqepbY1Aw8yqL6hBn2V6RtzJ2MG` READY on `namdar.co.uk`
-- [x] production Window service page returns new Stage 1 content
-- [x] public data still exposes Window Cleaning only and Window pricing only
-- [x] Gutter postcode/service request still returns HTTP 409
-- [x] Window postcode/service request still returns HTTP 200 in covered area
-- [x] Supabase service catalog rechecked: Window live, five future services planned
-- [x] no schema migration or DDL introduced by this release
+- [ ] PR opened
+- [ ] exact-head CI passed
+- [ ] exact-head Vercel preview READY / clean
+- [ ] preview/API/Admin smoke checked where possible
+- [ ] merged to main
+- [ ] default production booking rules persisted/verified
+- [ ] production deployment READY on `namdar.co.uk`
+- [ ] service catalog rechecked: Window live + five planned
+- [ ] final live-state handoff sync completed
 
 ## Current live service stages
 1. Window Cleaning — LIVE
@@ -63,15 +94,15 @@ Recurring Window Cleaning requests offer 4/8/12-week cycles and default to 8-wee
 
 Do not activate the next service simply because technical readiness exists.
 
-## Immediate next work
-1. define operational booking days, capacity and route-density rules for Window Cleaning;
-2. add/verify conversion measurement from postcode check through completed job;
-3. calibrate pricing from real Window Cleaning job duration/cost/margin once enough data exists;
-4. publish genuine before/after portfolio proof and reviews once real jobs are completed.
+## Next after booking operations
+1. conversion funnel measurement from postcode → estimate → accepted final quote → booked → completed;
+2. pricing calibration from actual completed Window Cleaning job duration/cost/margin;
+3. genuine before/after portfolio proof and reviews;
+4. only then consider the next service stage.
 
 ## Other open work
 - fresh privileged password/CAPTCHA/MFA completion pending;
-- `/api/booking-notifications` 504 investigation;
+- `/api/booking-notifications` 504 investigation remains separate;
 - Stripe, SMS, legal and remaining launch checks;
 - address-data pilot remains parked.
 

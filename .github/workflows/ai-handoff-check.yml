@@ -35,10 +35,12 @@ jobs:
           node --check admin-mfa-guard.js
           node --check admin-address-harvest.js
           node --check admin-services.js
+          node --check admin-booking-operations.js
           node --check api/address-harvest-cron.js
           node --check api/admin-address-harvest.js
           node --check api/admin-address-harvest-export.js
           node --check api/admin-services.js
+          node --check api/admin-booking-operations.js
           node --check api/address-data-v1.js
           node --check api/quote.js
           node --check api/quote-core.js
@@ -46,6 +48,10 @@ jobs:
           node --check api/postcode-core.js
           node --check api/subscription.js
           node --check api/subscription-core.js
+          node --check api/customer-quote-action.js
+          node --check api/customer-quote-action-core.js
+          node --check api/booking.js
+          node --check api/booking-core.js
           node --check api/public-data.js
           node --check api/sitemap.js
           node --check api/support-inbox.js
@@ -57,12 +63,14 @@ jobs:
           node --check lib/address-data-api.js
           node --check lib/os-open-data.js
           node --check lib/service-catalog.js
+          node --check lib/booking-operations.js
           node --check scripts/os-open-data-import.mjs
           node --test scripts/address-harvest-priority.test.mjs
           node --test scripts/address-commercial-foundation.test.mjs
           node --test scripts/os-open-data-foundation.test.mjs
           node --test scripts/service-catalog.test.mjs
           node --test scripts/window-stage1.test.mjs
+          node --test scripts/booking-operations.test.mjs
           node --check lib/server.js
           node --check lib/server-original.js
           node --check staff.js

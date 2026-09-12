@@ -6,99 +6,119 @@ Read `docs/AI_START.md` first.
 
 ## Production source of truth
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current product merge: `f026803056f07d17ed1c257f1bd1094268a1cb08` from PR #38.
-- PR #38 exact head: `1fad0ab7a7f6edd39d0afb0dbd9a04dfc70a622a`.
-- GitHub CI `34712880930`: SUCCESS.
-- Exact-head preview `dpl_EJMytimDT1XQtcSW8a4wNLMnWCUP`: READY / clean build.
-- Production `dpl_EMqepbY1Aw8yqL6hBn2V6RtzJ2MG`: READY on `https://namdar.co.uk`, no alias error.
-- No database migration was required for PR #38.
+- Main before current candidate: `77ed741f758d037a953ddc1a14f68a65996464e6`.
+- Window Cleaning Stage 1 product release: PR #38 merge `f026803056f07d17ed1c257f1bd1094268a1cb08`.
+- Canonical production: `https://namdar.co.uk`.
 - Supabase: `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
 - Only `windows` is live; gutters/jetwash/roof/handyman/tour3d remain planned.
 - Privileged staff requires AAL2/MFA.
 
-## Window Cleaning Stage 1 — LIVE
+## Current candidate
 
-PR #38 improved the Window Cleaning journey and fixed a service-gate weakness without activating any future service.
+Branch: `feat/window-booking-operations-20260912`.
+No schema migration is required.
 
-### Critical quote-gate fix
-Before PR #38, `api/quote.js` checked `body.service` although the real customer form sends `serviceKey`. The wrapper also defaulted a missing service to `windows`, so a crafted request could pass the outer live-service gate and reach the legacy core with another service key.
+### Why this change
+Before this candidate, accepted customers were offered every unused 3-hour window over the next 21 days. There was no operating-day rule, no configurable minimum notice, no daily-capacity rule and no route-density logic. The booking POST only protected against direct time overlap.
 
-Live fix:
-- gate resolves `body.serviceKey || body.service`;
-- missing/unknown keys are rejected;
-- non-live services return HTTP 409;
-- Window detail/extra/frequency values are normalised server-side before delegation.
+For a single-service Window Cleaning Stage 1 operation this could create an inefficient diary even though each individual booking was valid.
 
-This closes the direct future-service quote bypass and prevents arbitrary client-supplied lower Window multipliers.
+### Shared booking operations engine
+New `lib/booking-operations.js` provides the customer scheduling source of truth.
 
-### Window quote UX
-`conversion.js` keeps Window Cleaning as the sole live service and now asks:
-- exterior-window count;
-- window style;
-- current condition: maintenance / first Namdar clean / heavy build-up;
-- access detail: clear / gated / extension-conservatory / mixed complications;
-- extra glass: doors, roof lights, conservatories, unusual glass;
-- recurrence: one-off, 4-weekly, 8-weekly, 12-weekly.
+Default configuration:
+- horizon: 21 days;
+- minimum notice: 24 hours;
+- operating days: Mon–Sat (`[1,2,3,4,5,6]`);
+- windows: 08:00–11:00 / 11:00–14:00 / 14:00–17:00;
+- max jobs/day: 3;
+- route density enabled;
+- route zone based on postcode area prefix.
 
-A structured `[Window details]` block is submitted in quote notes for Admin review. The generic pricing engine still produces only a guide estimate; the final quote remains deliberately reviewed before booking.
+`sanitizeRules` constrains values server-side, including horizon 7–21 days, notice 0–168h and capacity 1–12.
 
-### Recurring pricing mapping
-`quote-core.js` supports:
-- one-off `1.00`;
-- 4-weekly `.86`;
-- 8-weekly `.90`;
-- 12-weekly `.94`.
+Configuration loads from existing `site_settings` row `booking_operations`. If missing or unavailable, the safe Stage 1 defaults above are used.
 
-The 4- and 12-week multipliers preserve the old monthly/quarterly pricing curve; 8-weekly is the midpoint. Legacy monthly/quarterly keys remain accepted for compatibility.
+### Route-density behaviour
+`postcodeZone()` uses the postcode area, e.g. `SE14 5TD → SE`, `SW2 3HL → SW`.
 
-### My Namdar subscriptions
-`subscription-core.js` accepts `4_weekly`, `8_weekly`, `12_weekly` and defaults new recurring requests to `8_weekly`.
-`account-service-availability.js` shows those three Window-only frequencies and explains that Namdar confirms regular price, first-clean requirements and schedule before activation.
+For each customer day:
+- if there are no pending/confirmed jobs, a qualifying customer from any covered route zone can take the first slot;
+- once a route zone exists that day, customers from another route zone are not offered that day;
+- occupied time windows are removed;
+- once daily capacity is reached, the day closes to further customer booking.
 
-### Window Cleaning service page
-`services/window-cleaning.html` now describes the actual live Stage 1 offer:
-- exterior glass, frames and exterior sills;
-- one-off and 4/8/12-week requests;
-- factors affecting the final quote;
-- first-clean/heavy-build-up review;
-- access, extension/conservatory and extra-glass guidance;
-- optional private photos;
-- no payment at estimate stage and reviewed final quote before booking.
+Admin/staff can still deliberately schedule or reschedule jobs manually outside customer self-booking rules. This preserves operational override.
 
-No unsupported insurance, guarantee, equipment or result claims were added.
+### Existing customer workflows preserved
+The original handlers were copied intact to:
+- `api/customer-quote-action-core.js`
+- `api/booking-core.js`
 
-## Tests / verification
-`scripts/window-stage1.test.mjs` is live in CI and verifies:
-- quote gate evaluates `serviceKey`;
-- Window input multipliers are normalised server-side;
-- 4/8/12-week guide-price keys exist;
-- homepage Window-specific questions and notes summary exist;
-- My Namdar recurrence options match;
-- Window service page documents inclusions and reviewed flow.
+`api/customer-quote-action.js` is now a wrapper:
+- POST quote accept/decline/photo actions delegate unchanged;
+- GET first runs the existing ownership/expiry/booking logic, then replaces schedulable slots with `availabilityForQuote()` output;
+- response includes safe scheduling metadata for future customer UX.
 
-Release verification:
-- CI `34712880930` succeeded on exact head `1fad0ab...`.
-- Exact-head preview `dpl_EJMytimDT1XQtcSW8a4wNLMnWCUP` READY; errors-only build clean.
-- Product PR #38 merged as `f026803056f07d17ed1c257f1bd1094268a1cb08`.
-- Production `dpl_EMqepbY1Aw8yqL6hBn2V6RtzJ2MG` READY and aliased to `namdar.co.uk`; alias error null.
-- Production Window service page returns 200 with new Stage 1 content.
-- Production `/api/public-data` still shows Window Cleaning only as live/quotable/public and only Window pricing.
-- Production Gutter postcode/service request returns 409 planned/unavailable.
-- Equivalent Window postcode request returns 200 covered.
-- Supabase catalog rechecked: Windows live; five future services planned.
+`api/booking.js` is now a wrapper:
+- keeps the existing authentication/ownership path;
+- re-validates `startsAt`/`endsAt` using `validateSlotForQuote()`;
+- returns 409 if the slot no longer complies with notice/day/capacity/route/current-window rules;
+- delegates valid requests to the existing booking engine, preserving accepted-quote checks, duplicate/conflict checks, promo/reward use, draft invoice creation and email/staff notifications.
 
-The direct crafted quote path is covered by CI regression tests. Current fetch tooling does not provide a convenient arbitrary POST smoke without creating a real quote record in production.
+### Admin booking operations
+New `api/admin-booking-operations.js`:
+- GET requires `bookings` permission and returns rules + 14-day operational preview;
+- GET returns `canEdit` so booking staff can be view-only;
+- POST requires `settings` permission;
+- POST upserts `site_settings.booking_operations` and audit logs `booking_operations.update`.
 
-## Next recommended Stage 1 milestone
-Focus on operational profitability rather than adding another service:
-1. define booking availability / operating days / route-density rules;
-2. measure the funnel: postcode → guide estimate → final quote → accepted → booked → completed;
-3. calibrate pricing from actual completed job duration/cost/margin once enough real jobs exist;
-4. add genuine before/after work and reviews as evidence accumulates.
+New `admin-booking-operations.js` injects a Booking operations panel into Admin → Bookings with:
+- horizon;
+- minimum notice;
+- max jobs/day;
+- route-density toggle;
+- Sun–Sat operating-day controls;
+- standard time-window controls;
+- 14-day load/route preview.
+
+`admin.js` loads this script with version `6.4.18-booking-ops-1`.
+
+### Recurring customers
+Production currently has zero `service_subscriptions` rows. No speculative recurring slot-reservation layer is being added yet. When recurring work becomes actual bookings, it is included in the same active-booking route/capacity context. Build more advanced recurring-route planning from real demand later.
+
+## Tests
+New `scripts/booking-operations.test.mjs` checks:
+- safe defaults;
+- server-side bounds;
+- SE/SW/other postcode-area parsing;
+- same-zone vs cross-zone day availability;
+- daily capacity closure;
+- quote/booking wrapper use of the shared engine;
+- privileged Admin endpoint/UI structure.
+
+`.github/workflows/ai-handoff-check.yml` now syntax-checks all new booking-operation files/cores/wrappers and runs this test suite.
+
+## Production data checked before implementation
+- `bookings`: 2 confirmed Window bookings, both already historical at the time of the change; both in Lewisham.
+- `service_subscriptions`: 0 rows.
+- service catalog remains Window live + five planned.
+
+## Release workflow
+1. Keep these handoff docs current on the candidate branch.
+2. Open PR.
+3. Require exact-head CI success.
+4. Require exact-head Vercel preview READY and clean errors-only build.
+5. Check preview/API/Admin surface where accessible.
+6. Merge only after gates pass.
+7. Persist the default `booking_operations` row in production, verify it and production service state.
+8. Sync docs to exact live merge/deployment IDs.
 
 ## Parked / non-negotiables
 - Do not activate another service.
 - Do not resume Code-Point/Open UPRN/GetAddress work automatically.
 - Existing accepted work survives service pause.
+- Customer booking rules are server-side, not UI-only.
+- Admin settings mutations remain AAL2/MFA protected.
 - Support tickets stay customer-only.
 - Never expose secrets.
