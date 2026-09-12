@@ -26,6 +26,8 @@ jobs:
           node --check account-captcha-guard.js
           node --check account-auth-hotfix.js
           node --check account-mfa-guard.js
+          node --check privileged-login-captcha.js
+          node --test scripts/privileged-login-captcha.test.mjs
           node --check admin.js
           node --check admin-original.js
           node --check admin-inbox-safety.js
