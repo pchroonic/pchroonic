@@ -29,24 +29,23 @@ module.exports=async function handler(req,res){try{
     const token=cleanToken(queryParam(req,'token'));if(!token)return json(res,400,{ok:false,error:'This feedback link is invalid.'});
     const row=(await db(`booking_feedback?token=eq.${encodeURIComponent(token)}&select=*&limit=1`))?.[0];if(!row)return json(res,404,{ok:false,error:'This feedback link could not be found.'});
     const {booking,quote}=await contextFor(row);if(!booking)return json(res,404,{ok:false,error:'The booking linked to this feedback no longer exists.'});
-    const reviewUrl=row.status==='positive'?await publicReviewUrl():'';
+    const reviewUrl=await publicReviewUrl();
     return json(res,200,{ok:true,feedback:{submitted:!!row.submitted_at,rating:row.rating,status:row.status,comments:row.comments||'',publicReviewAvailable:!!reviewUrl},job:{service:SERVICE_LABELS[quote?.service_key]||'Namdar service',customerName:quote?.customer_name||'Customer',completedAt:booking.completed_at||booking.starts_at,address:booking.address||''},reviewUrl});
   }
   if(req.method!=='POST')return json(res,405,{ok:false,error:'Method not allowed'});
   const b=parseBody(req),token=cleanToken(b.token);if(!token)return json(res,400,{ok:false,error:'This feedback link is invalid.'});
   let row=(await db(`booking_feedback?token=eq.${encodeURIComponent(token)}&select=*&limit=1`))?.[0];if(!row)return json(res,404,{ok:false,error:'This feedback link could not be found.'});
   if(b.action==='public_review_click'){
-    if(row.status!=='positive')return json(res,403,{ok:false,error:'Public review is only offered after positive feedback.'});
     const url=await publicReviewUrl();if(!url)return json(res,404,{ok:false,error:'Public review link is not configured yet.'});
     await db(`booking_feedback?id=eq.${encodeURIComponent(row.id)}`,{method:'PATCH',body:{public_review_clicked_at:new Date().toISOString(),updated_at:new Date().toISOString()}});
     return json(res,200,{ok:true,url});
   }
-  if(row.submitted_at){const url=row.status==='positive'?await publicReviewUrl():'';return json(res,200,{ok:true,duplicate:true,status:row.status,rating:row.rating,reviewUrl:url});}
+  if(row.submitted_at){const url=await publicReviewUrl();return json(res,200,{ok:true,duplicate:true,status:row.status,rating:row.rating,reviewUrl:url});}
   const rating=Number(b.rating),comments=String(b.comments||'').trim().slice(0,4000);if(!Number.isInteger(rating)||rating<1||rating>5)return json(res,400,{ok:false,error:'Please choose a rating from 1 to 5.'});
   const status=rating<=3?'needs_attention':'positive',now=new Date().toISOString();
   row=(await db(`booking_feedback?id=eq.${encodeURIComponent(row.id)}&submitted_at=is.null`,{method:'PATCH',prefer:'return=representation',body:{rating,comments:comments||null,status,submitted_at:now,updated_at:now}}))?.[0]||row;
   const {booking,quote}=await contextFor(row);
   let ticket=null;if(status==='needs_attention'){ticket=await routeToSupport(row,booking,quote,rating,comments);if(ticket?.id)row=(await db(`booking_feedback?id=eq.${encodeURIComponent(row.id)}`,{method:'PATCH',prefer:'return=representation',body:{support_ticket_id:ticket.id,updated_at:new Date().toISOString()}}))?.[0]||row;}
-  const reviewUrl=status==='positive'?await publicReviewUrl():'';
+  const reviewUrl=await publicReviewUrl();
   return json(res,200,{ok:true,status,rating,reviewUrl,supportNotified:status==='needs_attention',ticketNo:ticket?.ticket_no||null});
 }catch(e){return safeError(res,e)}};
