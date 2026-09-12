@@ -5,49 +5,41 @@ Last updated: 2026-09-12 UTC
 ## Baseline
 
 - Source: `pchroonic/pchroonic`, default branch `main`.
-- Production main before current service candidate: `870234204df1a9f0717cb43a4d0d91bb481a566c`.
-- Production: `https://namdar.co.uk` on Vercel.
+- Current product merge: `cbd189da5a1516238aa11b0d796ea865816892b4` from PR #36.
+- Production deployment: `dpl_AZtJJiXSMRas45F8mU8KTfLjqHwR`, READY on `https://namdar.co.uk`.
 - Supabase: `namdar-production` (`qjigldxjcpnrlyxgmlqq`), Free plan.
-- Address-data platform foundation is live but its next dataset import is intentionally parked.
+- Service catalog migration live: `20260912182925 service_catalog_activation`.
+- Address-data platform foundation remains live but imports are intentionally parked.
 
 ## Main product areas
 
 | Area | Status |
 | --- | --- |
-| Public website | Live; current service-offer accuracy is being fixed so only Window Cleaning is available |
-| Window Cleaning | Current commercial service; must remain live/quotable |
-| Future services | Built in site/code/pricing; candidate activation lifecycle being added |
-| Customer portal | Email + Google auth, customer MFA option, Turnstile/Supabase CAPTCHA live; subscriptions being service-gated |
-| Admin/Staff security | Mandatory AAL2/MFA live; fresh privileged password/CAPTCHA/MFA completion still pending |
+| Public website | Live; customer offer is now Window Cleaning only |
+| Window Cleaning | LIVE/quotable; current commercial focus |
+| Future services | Built/prepared but planned; Admin activation lifecycle live |
+| Customer portal | Live; recurring-service selector obeys live catalog |
+| Admin/Staff security | Mandatory AAL2/MFA live; Service launch stages available in Pricing |
 | Email inbox | Spam controls + Inbox Security v2 live |
-| Address system | Rights-aware source registry and OS property/postcode schema live; imports parked |
+| Address system | Rights-aware registry + OS property/postcode schema live; imports parked |
 | Future data API | Foundation live but disabled |
 | Support tickets | Customer-only; public inbound email stays Admin Email inbox |
 
-## Business rollout decision
+## Service rollout — LIVE
 
-Namdar will launch services gradually instead of presenting six services as already available.
+Namdar now launches services gradually.
 
-Current offer:
-- **Window Cleaning only**.
+Current status:
+1. Window Cleaning — **LIVE**
+2. Gutter Cleaning — planned
+3. Patio & Jet Washing — planned
+4. Roof Cleaning — planned
+5. Handyman Services — planned
+6. 3D Property Tours — planned
 
-Future stage candidates already present in the product:
-1. Window Cleaning — current/live
-2. Gutter Cleaning — future
-3. Patio & Jet Washing — future
-4. Roof Cleaning — future
-5. Handyman Services — future
-6. 3D Property Tours — future
+The order is not a permanent business promise. A future service can remain prepared, move to Coming soon, and later go Live when Namdar is genuinely ready to operate it.
 
-The order can change later; the important product requirement is that a future service can be prepared privately and activated only when Namdar is ready to operate it.
-
-## Current candidate — staged service activation
-
-Branch: `feat/service-catalog-window-cleaning-only-20260912`.
-
-Migration: `20260912192000_service_catalog_activation.sql` — candidate, not production-live yet.
-
-### Lifecycle
+## Service lifecycle / business-rule boundary
 
 `service_catalog.status` supports:
 - planned
@@ -56,72 +48,77 @@ Migration: `20260912192000_service_catalog_activation.sql` — candidate, not pr
 - paused
 - retired
 
-Only `live` accepts new quote/service-area/subscription work.
+Only `live` accepts new quote/service-specific postcode/subscription work. This is enforced server-side, not just by hiding UI.
 
-Initial desired state:
-- Windows live;
-- Gutters / Jet Washing / Roof / Handyman / 3D planned.
+Fail-safe on catalog failure: Windows live, all other known services planned.
 
-### Server enforcement
+Existing accepted customer commitments survive a later service pause.
 
-Candidate wraps the existing quote, postcode and subscription implementations with server-side live-status gates. Original implementations are preserved as `quote-core.js`, `postcode-core.js`, `subscription-core.js`.
+## Public website / SEO
 
-If the catalog is unavailable, fallback is intentionally Window-only live.
+Production public data verifies:
+- only Window Cleaning is live/quotable/public;
+- only Window Cleaning pricing is returned;
+- service-area public output resolves to `windows` only.
 
-Existing accepted customer commitments continue even if a service is later paused.
+Homepage hides planned/retired services and disables non-live quote choices. Coming-soon/paused states can be visible without accepting quotes.
 
-### Public website
+Future service HTML pages remain in the product so they can be activated later; while non-live they show an availability state, route quote actions to Windows and use `noindex,follow`.
 
-Homepage will show/quote only live services. Planned and retired services are hidden. Coming-soon or paused services can be visible without quote access.
+Production sitemap currently includes only `/services/window-cleaning` among service pages.
 
-Future service HTML pages remain built. Non-live pages display their launch state and redirect quote CTAs to Window Cleaning; they are dynamically marked noindex until live.
+## Customer portal
 
-Public pricing and public portfolio jobs are filtered to live services.
+New recurring-service requests are catalog driven. With the current business state, Window Cleaning is the only subscription-service choice.
 
-Public service areas with `service_keys=[]` resolve to current live services rather than displaying “All services”.
+3D-specific project/ticket presentation remains suppressed until the 3D service is live.
 
-The sitemap includes live services only.
+## Admin service stages
 
-### Customer portal
+Admin → Pricing contains **Service launch stages**.
 
-Recurring-service requests use the same live-service catalog. With the initial state, only Window Cleaning appears in the subscription selector.
+Possible status changes: Planned / Coming soon / Live / Paused / Retired.
 
-3D-specific portal/ticket wording is suppressed until 3D is live.
+Before a service can go Live, the backend requires:
+- pricing configured;
+- active service-area coverage.
 
-### Admin
+All six currently have prepared pricing and area readiness, but five remain planned by business choice. Status changes require settings permission/AAL2 and are audit logged.
 
-A new Service launch stages panel is injected into Pricing.
+## Release verification
 
-Admin can move a service through Planned / Coming soon / Live / Paused / Retired. Making a service live is rejected unless:
-- pricing exists;
-- an active service area covers it.
+- PR #36 exact head `ce21ffe89170b58ceb267298bcf1db690b72c798`.
+- GitHub CI `34711279114` SUCCESS.
+- Preview `dpl_Gwsoed8g4DVS6yVSPQ4ntiFYy2WR` READY / clean build.
+- Migration live as `20260912182925`.
+- Six catalog rows verified: Window live, five planned.
+- RLS enabled; anon/authenticated have no direct catalog grants.
+- direct production Gutter postcode/service request → HTTP 409 planned/unavailable.
+- equivalent Window request → HTTP 200 covered.
+- `/api/admin-services` unauthenticated → 401.
+- production public data → only Windows pricing; area services `["windows"]`.
+- production sitemap → Window service only.
+- Supabase advisors found no new service-catalog security/FK problem.
+- PR #36 merge `cbd189da5a1516238aa11b0d796ea865816892b4`.
+- Production deployment `dpl_AZtJJiXSMRas45F8mU8KTfLjqHwR` READY on `namdar.co.uk`.
 
-Status changes require privileged settings access and are audit logged.
+## Immediate next work
 
-## Why this is needed
+Improve Window Cleaning before launching another service:
+1. review/calibrate the Window Cleaning pricing model;
+2. improve the quote flow and questions specifically for windows;
+3. refine booking/service-frequency options;
+4. add strong Window Cleaning trust, FAQ, process and before/after content;
+5. improve Admin operating flow from quote review to completed job;
+6. add/confirm conversion measurement so the user can judge whether the stage is paying off.
 
-The old public UI lists all six services and old API code accepts all six service keys. Merely hiding future cards would leave a direct API bypass. The new catalog is therefore the business-rule boundary, while frontend visibility is only presentation.
-
-## Validation/release checklist
-
-- [ ] service-catalog regression suite passes in GitHub CI
-- [ ] exact-head Vercel preview READY and clean
-- [ ] migration applied after preview/CI gates
-- [ ] exactly 6 catalog rows: Window live, five planned
-- [ ] RLS/direct grants verified service-role-only
-- [ ] public data shows one live service + Window pricing only
-- [ ] active service area public output resolves to Windows
-- [ ] sitemap includes Window Cleaning and excludes future service slugs
-- [ ] planned new-work API requests blocked
-- [ ] Supabase advisors show no new schema problem
-- [ ] PR merged and production deployment READY on `namdar.co.uk`
-- [ ] all three continuity docs synced to final live state
+Do not activate the next service simply because the technical switch exists.
 
 ## Parked address-data work
 
-The OS Open UPRN + Code-Point foundation remains production-live from PR #34, but no official OS rows have been imported. The next address milestone, when deliberately resumed, is a controlled Code-Point Open service-area pilot.
+The OS Open UPRN + Code-Point foundation is live from PR #34, but no official OS rows have been imported. When deliberately resumed, the next address milestone is a controlled Code-Point service-area pilot.
 
-GetAddress harvesting remains blocked. Do not restore automated Typeahead/Autocomplete harvesting, bulk extraction, resale or the removed cron under current provider terms.
+GetAddress harvesting remains blocked under current terms/Namdar policy.
 
 ## Other open issues
 
@@ -134,4 +131,4 @@ GetAddress harvesting remains blocked. Do not restore automated Typeahead/Autoco
 
 ## Handoff rule
 
-Every substantial product/provider/data change updates `docs/AI_START.md`, `docs/AI_HANDOFF.md`, and this file. Never store credentials, raw API keys, customer secrets, TOTP codes or one-time Auth links. Service availability must be enforced server-side, not just visually.
+Every substantial product/provider/data change updates `docs/AI_START.md`, `docs/AI_HANDOFF.md`, and this file. Never store credentials, raw API keys, customer secrets, TOTP codes or one-time Auth links. Service availability must remain enforced server-side.
