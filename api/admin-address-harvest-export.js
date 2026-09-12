@@ -1,5 +1,6 @@
 const { requireStaff, safeError, queryParam } = require('../lib/server');
-const { rowsToCsv, exportDatasetRows, storageDownload } = require('../lib/address-harvest');
+const { DATASET, rowsToCsv, exportDatasetRows, storageDownload } = require('../lib/address-harvest');
+const { datasetPolicy } = require('../lib/address-policy');
 function attachment(res, type, filename, body) {
   res.statusCode = 200;
   res.setHeader('Content-Type', type);
@@ -11,6 +12,13 @@ module.exports = async function handler(req, res) {
   try {
     await requireStaff(req, 'settings');
     if (req.method !== 'GET') { res.statusCode=405; return res.end('Method not allowed'); }
+    const policy = await datasetPolicy(DATASET);
+    if (policy.bulkExportAllowed !== true) {
+      res.statusCode = 403;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-store');
+      return res.end(JSON.stringify({ ok:false, error:'Bulk export is disabled for this address source by its data-rights policy.', sourceDataset:DATASET, licenceCategory:policy.licenceCategory, termsReference:policy.termsReference }));
+    }
     const path = String(queryParam(req, 'path') || '').trim();
     const format = String(queryParam(req, 'format') || 'csv').toLowerCase();
     if (path) {
@@ -20,7 +28,7 @@ module.exports = async function handler(req, res) {
     }
     const rows = await exportDatasetRows();
     const stamp = new Date().toISOString().slice(0,10);
-    if (format === 'json') return attachment(res, 'application/json', `namdar-getaddress-${stamp}.json`, JSON.stringify({ exportedAt:new Date().toISOString(), count:rows.length, rows }, null, 2));
-    return attachment(res, 'text/csv; charset=utf-8', `namdar-getaddress-${stamp}.csv`, rowsToCsv(rows));
+    if (format === 'json') return attachment(res, 'application/json', `namdar-address-${stamp}.json`, JSON.stringify({ exportedAt:new Date().toISOString(), count:rows.length, rows }, null, 2));
+    return attachment(res, 'text/csv; charset=utf-8', `namdar-address-${stamp}.csv`, rowsToCsv(rows));
   } catch (error) { return safeError(res, error); }
 };
