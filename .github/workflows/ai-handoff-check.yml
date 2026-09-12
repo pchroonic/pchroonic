@@ -23,6 +23,7 @@ jobs:
           node --check app.js
           node --check account.js
           node --check account-original.js
+          node --check account-captcha-guard.js
           node --check account-auth-hotfix.js
           node --check account-mfa-guard.js
           node --check admin.js
