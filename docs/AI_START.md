@@ -7,13 +7,16 @@ Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PR
 ## Production baseline
 
 - Repository: `pchroonic/pchroonic`, default `main`.
-- Current main after docs PR #37: `80faf13d5ebbc7e00034300bd7eee15af9cb9538`.
-- Window-only staged-service product release: PR #36 merge `cbd189da5a1516238aa11b0d796ea865816892b4`.
-- Production is READY on `https://namdar.co.uk`.
-- Supabase migration live: `20260912182925 service_catalog_activation`.
+- Current product merge: `f026803056f07d17ed1c257f1bd1094268a1cb08` from PR #38.
+- PR #38 exact head: `1fad0ab7a7f6edd39d0afb0dbd9a04dfc70a622a`.
+- GitHub CI `34712880930`: SUCCESS.
+- Exact-head preview `dpl_EJMytimDT1XQtcSW8a4wNLMnWCUP`: READY, clean build.
+- Production deployment `dpl_EMqepbY1Aw8yqL6hBn2V6RtzJ2MG`: READY on `https://namdar.co.uk`, no alias error.
+- No database migration was required for PR #38.
+- Service catalog migration remains `20260912182925 service_catalog_activation`.
 - Address-data work remains parked; Address API disabled; GetAddress harvesting blocked.
 
-## Current business model
+## Current business model — LIVE
 
 **Window Cleaning is Namdar's only live/bookable service.**
 
@@ -25,50 +28,46 @@ Future services remain prepared but planned:
 5. Handyman Services — planned
 6. 3D Property Tours — planned
 
-Do not activate another service until the user deliberately decides Stage 1 has paid off and the next service is operationally ready.
+Production DB was rechecked after PR #38 and still has exactly that state.
 
-## Current candidate — Stage 1 Window Cleaning optimisation
+## Window Cleaning Stage 1 optimisation — LIVE
 
-Branch: `feat/window-cleaning-stage1-optimisation-20260912`.
+PR #38 is production-live.
 
-Goal: make the Window Cleaning customer journey and recurring-clean request flow materially better without activating any future service or resuming address-data work.
-
-Changes in the candidate:
-- fixes a service-gate bug in `/api/quote`: the wrapper previously read `body.service` while the real form sends `serviceKey`, which could let a crafted future-service quote reach the legacy core;
-- Window quote inputs are normalised server-side so client-supplied complexity multipliers cannot be arbitrarily lowered;
-- recurring quote choices become one-off / 4-week / 8-week / 12-week;
-- existing pricing curve is preserved: legacy monthly `.86` maps to 4-weekly, legacy quarterly `.94` maps to 12-weekly, and 8-weekly uses midpoint `.90`;
-- quote UX now asks Window-specific condition and access questions and records a structured Window-details summary in the quote notes for Admin review;
-- generic extra-complexity wording becomes Window-specific extra-glass wording;
-- homepage hero/copy is more specifically about Window Cleaning;
+Key changes:
+- `/api/quote` now gates on the actual submitted `serviceKey` (with `body.service` only as compatibility fallback), closing the prior crafted future-service bypass;
+- Window quote complexity/frequency values are normalised server-side before pricing;
+- recurring guide-price choices are one-off / 4-week / 8-week / 12-week;
+- prior pricing curve is preserved: 4-weekly `.86`, 8-weekly `.90`, 12-weekly `.94`;
+- quote UX asks Window-specific window style, condition, access and extra-glass questions;
+- structured Window details are submitted for Admin review;
+- homepage hero/copy is Window-focused;
 - My Namdar recurring Window Cleaning requests use 4/8/12-week options, defaulting to 8-weekly;
-- Window Cleaning service page now explains inclusions, recurring options, factors affecting price, access/photo guidance and estimate/final-quote separation;
-- regression suite `scripts/window-stage1.test.mjs` covers quote gate, input normalisation, recurrence frequencies and page/customer-portal behaviour.
+- Window Cleaning service page explains inclusions, recurring options, quote factors, access/photo guidance and estimate/final-quote separation;
+- regression suite `scripts/window-stage1.test.mjs` is part of CI.
 
-No database migration is required for this candidate.
+## Production verification
 
-## Window-only service enforcement
+Verified after merge:
+- production deployment is READY and aliased to `namdar.co.uk` with no alias error;
+- errors-only build log is clean;
+- `/services/window-cleaning` returns the new Stage 1 content, including exterior glass/frames/sills and 4/8/12-week requests;
+- `/api/public-data` still exposes Window Cleaning as the only live/quotable/public service and only Window pricing;
+- `/api/postcode?postcode=SE14%205TD&service=gutters` returns HTTP 409 planned/unavailable;
+- equivalent Window Cleaning postcode request returns HTTP 200 covered;
+- Supabase `service_catalog` still has Windows live and five future services planned.
 
-`service_catalog.status` remains the server-side source of truth.
+The direct crafted quote bypass is regression-tested in CI; current fetch tooling does not provide a convenient arbitrary POST smoke against production without creating a real quote record.
 
-New work is gated for:
-- `/api/quote`;
-- `/api/postcode?service=...`;
-- `/api/subscription` POST.
+## Immediate next Window Cleaning work
 
-The candidate specifically fixes the `/api/quote` key mismatch so the gate now evaluates the actual submitted `serviceKey`.
+Focus next on operating Stage 1 well and measuring whether it pays off:
+1. booking availability / operating-day and route-density rules;
+2. conversion funnel measurement from postcode → estimate → accepted final quote → booked → completed;
+3. pricing calibration from real completed Window Cleaning jobs once enough data exists;
+4. genuine before/after proof and reviews once real work is completed.
 
-Existing accepted quotes/bookings remain valid if a service is later paused.
-
-## Release gates for this candidate
-
-1. Update all three handoff docs on the branch.
-2. Open a PR from `feat/window-cleaning-stage1-optimisation-20260912`.
-3. Require GitHub CI success including `scripts/window-stage1.test.mjs`.
-4. Require exact-head Vercel preview READY with clean build.
-5. Smoke-test preview Window quote UI/service page and verify a direct future-service quote is blocked where possible.
-6. Merge only after gates pass.
-7. Verify production deployment on `namdar.co.uk` and sync docs to exact live IDs if needed.
+Do not activate another service merely because technical readiness exists.
 
 ## Do not break
 
