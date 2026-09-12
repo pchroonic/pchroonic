@@ -23,7 +23,7 @@ Namdar uses three continuity layers:
 - `docs/AI_HANDOFF.md` — detailed technical continuity, migrations, deployment checks and implementation decisions.
 - `docs/PROJECT_STATUS.md` — broader roadmap and launch status.
 
-CI requires all three to be updated with any product-source change. This is designed so a new ChatGPT/Claude session can resume quickly without rereading the full history unless the task is substantial.
+CI requires all three to be updated with any product-source change.
 
 ## Support model — unchanged
 
@@ -65,41 +65,56 @@ Stage 2 is enforced in three layers:
 - Canonical `admin.js` serves `6.4.16-security-mfa-2` and live `admin-mfa-guard.js` has no bypass.
 - Database definition checks confirmed both central staff-permission function and staff self-access policy require AAL2.
 - Controlled database test using the same active admin identity internally: `aal1` denied, `aal2` allowed.
-- **User production smoke test passed on 2026-09-12:** full Admin sign-out, fresh sign-in, authenticator challenge completed, and Admin → Inbox loaded normally. Do not repeat unless a future auth change needs regression testing.
+- User production smoke test passed on 2026-09-12: full Admin sign-out, fresh sign-in, authenticator challenge completed, and Admin → Inbox loaded normally.
 
-## Mobile homepage horizontal-overflow regression — FIX LIVE, IPHONE CONFIRMATION PENDING
+## Mobile homepage horizontal-overflow regression — SECOND FIX IN VERIFICATION
 
-On 2026-09-12 the owner supplied an iPhone screenshot of the homepage quote form showing a blank strip on the right. The screenshot also showed the left edge of the page clipped by a similar amount, indicating the whole document had been horizontally panned rather than the quote section simply having extra right padding.
+### What happened
 
-Likely cause was an intrinsic-width mobile form/grid child on iOS Safari. The quote UI used plain `1fr` CSS grid tracks and includes a native multi-file input; native file controls can retain a min-content width that pushes the document beyond the visual viewport on Safari even when the control has `width:100%`.
+The owner first reported an iPhone screenshot where the homepage could be panned horizontally and a blank strip appeared on the right. PR #12 added shrink-safe quote grids/file-input containment plus a dynamically loaded mobile viewport guard. That production deployment removed the visible right-side blank strip, but a second real-iPhone screenshot on 2026-09-12 showed the whole document still shifted sideways: the logo, eyebrow, headline and paragraph were clipped on the left.
 
-Implementation:
-- `mobile-overflow-fix.css` contains isolated homepage/quote containment rules;
-- quote shell, field rows, service choices and progress grid use shrink-safe `minmax(0,1fr)` tracks;
-- grid items and quote controls get `min-width:0`, and controls are capped at `max-width:100%`;
-- the native file input is explicitly constrained and clipped inside the form;
-- on mobile, `html` and `body.conversion-home` use `overflow-x:clip` plus `overscroll-behavior-x:none`, with `overflow-x:hidden` fallback for engines without `clip`;
-- the viewport guard is scoped to the public homepage so internal Admin/Staff table scrolling is not affected;
-- existing intentionally horizontally scrollable strips remain locally scrollable;
-- homepage-only `conversion.js` loads `/mobile-overflow-fix.css?v=20260912` before conversion interactions start.
+Therefore PR #12 must **not** be treated as a fully closed regression.
 
-Verification and deployment:
-- local `node --check` on updated `conversion.js`: passed;
-- CSS structural sanity checks: passed;
-- 390px Chromium regression test: document `scrollWidth === innerWidth`, native file input remained inside the quote form, and a local horizontally scrollable proof strip retained `scrollWidth > clientWidth`;
-- the exact Safari/iPhone symptom was not reproducible in Chromium, so this is not a Safari reproduction claim;
-- PR #12: `Fix mobile quote horizontal overflow`;
-- feature/PR head: `febd6bbaacee5c08273e4ba7b70d8749dc160313`;
-- GitHub CI run `34685321573`: success;
-- exact Vercel preview: `dpl_8vbLRZdTAUttgXjhfRw2LBtb8sXq`, READY; build log confirms branch `fix/mobile-quote-overflow-20260912`, commit `febd6bb`;
-- main/production merge SHA: `285b7c3da8215dc24e543f9a6143e565d10e61a7`;
-- production deployment: `dpl_CkWNqBc8JkMuWh77BWYJXkXwP3oA`, READY on exact merge SHA, target production, aliases include `namdar.co.uk`, `aliasError: null`;
-- canonical `https://namdar.co.uk/conversion.js` returned HTTP 200 and contains the stylesheet loader;
-- canonical `https://namdar.co.uk/mobile-overflow-fix.css?v=20260912` returned HTTP 200 and contains the expected shrink/viewport rules.
+### Likely remaining cause
 
-No database migration, Auth change, environment variable, provider configuration or customer-data change was involved.
+The first containment stylesheet was injected by `conversion.js`, which runs at the end of the document. iOS Safari can restore the prior horizontal scroll position before that late stylesheet is loaded, leaving the visual viewport offset even after overflow is later hidden.
 
-**Remaining verification:** ask the owner to refresh/reopen the production homepage on the same iPhone and confirm the page no longer slides sideways or exposes the blank right-side gap. Only after that confirmation should this regression be marked fully closed.
+### Second-fix branch
+
+`fix/ios-root-overflow-20260912`
+
+### Second-fix implementation
+
+- `index.html` links `/mobile-overflow-fix.css?v=20260912b` directly in the document `<head>` immediately after the main stylesheet, so mobile containment applies before Safari layout/scroll restoration.
+- `index.html` cache-busts `conversion.js` as `conversion.js?v=20260912b`.
+- `mobile-overflow-fix.css` now uses `overflow-x:hidden` on both `html` and `body.conversion-home` at mobile widths instead of relying on late `overflow-x:clip` behavior.
+- `html`/homepage body receive explicit `width:100%`, `min-width:0`, `max-width:100%`, and horizontal overscroll containment.
+- Header, main, footer, hero, hero copy/panel/visual, quote section/form/result and key direct children are explicitly constrained with width/min-width/max-width rules.
+- Mobile header brand/menu/actions get shrink-safe flex constraints.
+- Existing quote grid shrink rules and iOS native file-input containment remain.
+- Local intentionally scrollable strips (`conversion-proof-strip`, `logo-strip`, `seo-conversion-proof`) remain scroll containers and are capped to the viewport rather than being globally disabled.
+- `conversion.js` no longer creates the stylesheet dynamically.
+- `conversion.js` adds `resetHorizontalViewport()` which forces x=0 on mobile homepage load, next animation frame, `pageshow`, and after orientation changes while preserving the vertical scroll position.
+
+No database migration, Auth change, environment variable, provider configuration or customer-data change is involved.
+
+### Verification status
+
+At the time of this handoff update:
+- branch source changes exist in `index.html`, `conversion.js`, and `mobile-overflow-fix.css`;
+- PR/CI/exact Vercel preview/production promotion are still pending;
+- the exact Safari behavior still requires the owner's same-iPhone confirmation after production deployment;
+- do not mark the regression closed until the owner confirms the page starts flush at the left edge and cannot be dragged sideways.
+
+### First-fix history for reference
+
+- PR #12: `Fix mobile quote horizontal overflow`.
+- Feature/PR head: `febd6bbaacee5c08273e4ba7b70d8749dc160313`.
+- GitHub CI run `34685321573`: success.
+- Exact Vercel preview: `dpl_8vbLRZdTAUttgXjhfRw2LBtb8sXq`, READY.
+- Main/production merge SHA: `285b7c3da8215dc24e543f9a6143e565d10e61a7`.
+- Production deployment: `dpl_CkWNqBc8JkMuWh77BWYJXkXwP3oA`, READY with `namdar.co.uk` and no alias error.
+- First-fix Chromium 390px regression checks passed, but real iPhone showed remaining left-side clipping afterward.
 
 ## Migration history note
 
@@ -113,11 +128,7 @@ Existing findings:
 - INFO: eight server-only operational tables have RLS enabled with no authenticated policies; intentional for tables accessed through service-role server code.
 - WARN: **Leaked Password Protection is disabled** in hosted Supabase Auth.
 
-Current Supabase docs state leaked-password protection rejects passwords known in HaveIBeenPwned's Pwned Passwords data and is available on **Supabase Pro plan and above**. The actual Namdar Supabase organization was verified on 2026-09-12 to be on the **Free plan**, so this advisor warning cannot be cleared without upgrading the organization.
-
-Treat Leaked Password Protection as a **plan-blocked optional hardening item**, not an active Free-plan blocker. Do not upgrade Supabase or incur a paid plan change without explicit owner approval. Do not repeatedly ask the owner to enable the setting while the organization remains on Free.
-
-The currently connected Supabase tools also do not expose hosted Auth configuration mutation/readback for these settings.
+Current Supabase docs state leaked-password protection is available on **Supabase Pro plan and above**. Namdar is on the Free plan, so treat it as optional/plan-blocked and do not upgrade without explicit owner approval.
 
 ## Applied production migrations relevant to current work
 
@@ -129,24 +140,23 @@ The currently connected Supabase tools also do not expose hosted Auth configurat
 
 ## Remaining launch work
 
-1. Obtain the owner's real-iPhone confirmation that the live mobile quote overflow/right-gap issue is fixed; then mark the regression closed.
+1. Complete second iPhone overflow fix PR/CI/preview/production verification and obtain same-device owner confirmation.
 2. Verify Supabase Auth Site URL is `https://namdar.co.uk` and review the redirect allowlist for stale/unintended URLs.
 3. Finish launch checks for Stripe, Turnstile, OAuth providers, SMS provider, Resend and legal configuration.
 4. Verify booking-notification/account-purge cron jobs and intended double-booking protection.
 5. Run safe recognized-mailbox/unknown-alias inbound behavior test.
 6. Complete controlled authenticated customer-support ticket test when a safe test customer is available.
-7. Optional/plan-blocked: enable Supabase Leaked Password Protection only if the owner later chooses a Pro-or-above plan.
+7. Optional/plan-blocked: enable Supabase Leaked Password Protection only if the owner later chooses Pro or above.
 
 ## Required workflow
 
 1. Read `docs/AI_START.md` first.
 2. For substantial work, read this file, `docs/PROJECT_STATUS.md` and `AGENTS.md` completely.
-3. Inspect repository and provider state before changing anything.
+3. Inspect repository/provider state before changing anything.
 4. Use branch → PR → CI → Vercel preview/testing → merge → production verification.
-5. Apply database migrations only with verified production intent and record the actual applied migration.
-6. Update `docs/AI_START.md`, this file and `docs/PROJECT_STATUS.md` in the same substantial product change.
-7. Never include credentials or private customer data.
+5. Update `docs/AI_START.md`, this file and `docs/PROJECT_STATUS.md` in the same substantial product change.
+6. Never include credentials or private customer data.
 
 ## Next recommended step
 
-Get the owner's real-iPhone confirmation for the production mobile overflow fix. If confirmed, close that regression in continuity, then resume Supabase Auth Site URL / redirect allowlist verification and the remaining provider launch-readiness checklist. Leaked Password Protection remains optional and plan-blocked while Supabase is on Free.
+Finish the second iPhone overflow fix promotion and real-device verification. If confirmed, close the regression in continuity, then resume Supabase Auth Site URL / redirect allowlist verification and the remaining provider launch-readiness checklist.
