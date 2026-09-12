@@ -36,11 +36,16 @@ jobs:
           node --check api/address-harvest-cron.js
           node --check api/admin-address-harvest.js
           node --check api/admin-address-harvest-export.js
+          node --check api/address-data-v1.js
           node --check api/support-inbox.js
           node --check api/resend-inbound.js
           node --check lib/address-harvest.js
           node --check lib/address-harvest-priority.js
+          node --check lib/address-harvest-compliance.js
+          node --check lib/address-policy.js
+          node --check lib/address-data-api.js
           node --test scripts/address-harvest-priority.test.mjs
+          node --test scripts/address-commercial-foundation.test.mjs
           node --check lib/server.js
           node --check lib/server-original.js
           node --check staff.js

@@ -1,5 +1,5 @@
 const { json, db, requireStaff, auditLog, safeError, parseBody } = require('../lib/server');
-const { MAX_DAILY_LOOKUPS, runHarvest, harvestStatus } = require('../lib/address-harvest-priority');
+const { MAX_DAILY_LOOKUPS, runHarvest, harvestStatus } = require('../lib/address-harvest-compliance');
 module.exports = async function handler(req, res) {
   try {
     const staff = await requireStaff(req, 'settings');
@@ -8,6 +8,10 @@ module.exports = async function handler(req, res) {
     const body = parseBody(req), action = String(body.action || '');
     if (action === 'settings') {
       const before = (await db('address_harvest_settings?id=eq.1&select=*&limit=1'))?.[0] || null;
+      const status = await harvestStatus();
+      if (body.enabled === true && status.compliance?.automatedBulkIngestAllowed !== true) {
+        return json(res, 409, { ok:false, error:status.compliance?.blockedReason || 'Automatic address harvesting is not permitted for this provider.', compliance:status.compliance });
+      }
       const patch = { updated_at:new Date().toISOString() };
       if (typeof body.enabled === 'boolean') patch.enabled = body.enabled;
       if (typeof body.prioritizeServiceAreas === 'boolean') patch.prioritize_service_areas = body.prioritizeServiceAreas;
@@ -22,6 +26,10 @@ module.exports = async function handler(req, res) {
       return json(res, 200, { ok:true, ...(await harvestStatus()) });
     }
     if (action === 'run-now') {
+      const status = await harvestStatus();
+      if (status.compliance?.automatedBulkIngestAllowed !== true) {
+        return json(res, 409, { ok:false, error:status.compliance?.blockedReason || 'Automated address harvesting is not permitted for this provider.', compliance:status.compliance });
+      }
       const requested = Math.round(Number(body.limit ?? 1));
       if (!Number.isFinite(requested) || requested < 1) return json(res, 400, { ok:false, error:'Manual run limit must be at least 1 postcode.' });
       const requestedLimit = Math.min(MAX_DAILY_LOOKUPS, requested);

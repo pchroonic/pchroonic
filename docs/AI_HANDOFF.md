@@ -2,211 +2,219 @@
 
 Last verified: 2026-09-12 UTC
 
-Read `docs/AI_START.md` first. This is the detailed technical continuity record. Never store secrets or private customer data here.
+Read `docs/AI_START.md` first. For the address-data business architecture read `docs/ADDRESS_DATA_PRODUCT.md`.
 
 ## Source of truth
 
 - Product: Namdar UK property services platform.
 - Repository: `pchroonic/pchroonic`, default `main`.
-- Current verified **product behavior commit**: `945091c31cab6600916cd07854de3df4ac830d6a` from merged PR #30.
-- PR #30 exact head: `7a55bda84f8b3c6ad4292ec5c618531b19d3b75f`.
-- PR #30 GitHub workflow `34707335676` passed, including address-priority regression tests.
-- Exact-head Vercel preview `dpl_6g5G3cwed7VGyyvhrkTULrKSsw53` was READY with a clean build.
-- Product deployment `dpl_8fZEaFkpCWnqigrguuArba94N6me` is READY, aliased to `https://namdar.co.uk`, no alias error.
+- Latest main docs merge before this candidate: `ae67594d6f744ee0c9c26520ba041402282e224b`.
+- Latest verified product behavior before this candidate: `945091c31cab6600916cd07854de3df4ac830d6a` from PR #30.
+- Production: `https://namdar.co.uk` on Vercel project `namdar-website-starter-1`.
 - Backend/Auth: Supabase `namdar-production` (`qjigldxjcpnrlyxgmlqq`), Free plan.
-- Email: Resend, verified `namdar.co.uk`, sending + receiving enabled.
+- Privileged Admin/Staff access requires AAL2/MFA.
 
-Docs-only merges may follow the product commit. Do not mistake a later docs-only SHA/deployment for a new behavior change.
+## Critical provider-terms correction
 
-## GetAddress manual discovery optimization — LIVE
+The previous handoff said the next step was a controlled one-postcode GetAddress harvest. **That plan is superseded.**
 
-PR #30 `Speed up controlled GetAddress manual discovery` is merged and deployed.
+On 2026-09-12, current GetAddress Terms were re-read. They state that Autocomplete/Typeahead requests must be initiated by human input, automated address lookups can lead to account closure, attempts to download whole/large sections of the dataset for offline use are prohibited, and resale of the service/data requires explicit permission.
 
-### Problem found
+Terms: `https://getaddress.io/Terms`.
 
-The priority layer previously used the same deep service-area queue target for manual and automatic runs:
+GetAddress's public FAQ separately says received addresses may be cached, but the more specific automation/offline extraction/resale restrictions mean Namdar must not use the existing harvest system as an automated database-building mechanism without explicit written provider permission.
 
-`Math.max(80, requested * 6)`
+**Do not run the one-postcode harvest, do not enable automatic harvesting, and do not re-add the scheduled harvest cron unless written permission is obtained and recorded.**
 
-So a one-postcode manual verification could try to prepare an 80-postcode covered queue before making the single paid lookup. Typeahead discovery itself does not increase lookup usage, but `seedServiceAreaQueue()` can make up to 12 sequential Typeahead calls with an 8-second timeout each. That is useful queue warming for automatic operation, but unnecessary latency/rate-limit exposure for a controlled one-postcode test.
+Production is still clean: zero harvest runs, zero queue rows, zero `getaddress-daily-cache` rows. No provider harvest lookup has been consumed.
 
-### Live repair
+## Current candidate branch
 
-`lib/address-harvest-priority.js` now exports and uses `queueTargetForRun(trigger, requested)`:
-- manual run target = requested postcode count, clamped to 1–20;
-- cron/automatic target = existing deep behavior, minimum 80 with 6× scaling;
-- cron requested 20 still targets 120;
-- verified covered postcodes are seeded before Typeahead discovery, so a manual run stops discovery as soon as enough covered pending candidates exist.
+`fix/address-data-rights-and-commercial-foundation-20260912`
 
-Production currently has 2 verified postcodes classified within the active service area in aggregate: one Lewisham and one Lambeth. Never copy actual postcode values into docs/chat.
+### New migration
 
-Regression file: `scripts/address-harvest-priority.test.mjs`.
-CI assertions include:
-- manual 1 → 1;
-- manual 5 → 5;
-- manual 20 → 20;
-- over-limit manual input → 20;
-- zero/invalid manual input → 1;
-- cron 1/10 → 80;
-- cron 20 → 120.
+`supabase/migrations/20260912172500_address_data_rights_and_distribution_guard.sql`
 
-`.github/workflows/ai-handoff-check.yml` now runs this test in addition to syntax checks.
+Not yet production-applied at the time this candidate handoff was written.
 
-No migration, secret, backup-format, paid Autocomplete behavior, service-area ordering, usage guard or automatic-enable change.
+It adds machine-readable rights to `address_dataset_registry`:
+- `licence_category`;
+- `operational_use_allowed`;
+- `human_input_required`;
+- `automated_bulk_ingest_allowed`;
+- `commercial_redistribution_allowed`;
+- `subscription_api_allowed`;
+- `bulk_export_allowed`;
+- `share_alike_required`;
+- attribution, terms/permission references, review timestamp and rights notes.
 
-### PR #30 verification
+Unknown/new sources default to fail closed for automation/distribution.
 
-- exact head `7a55bda84f8b3c6ad4292ec5c618531b19d3b75f`;
-- workflow `34707335676` success;
-- exact-head preview `dpl_6g5G3cwed7VGyyvhrkTULrKSsw53` READY; build errors filter empty;
-- merge commit `945091c31cab6600916cd07854de3df4ac830d6a`;
-- production `dpl_8fZEaFkpCWnqigrguuArba94N6me` READY on `namdar.co.uk`, no alias error;
-- post-deploy production DB remained `enabled=false`, `prioritize_service_areas=true`, cap 20, null last run/success/error, zero run rows, zero queue rows and zero `getaddress-daily-cache` rows;
-- therefore no paid provider lookup was consumed by this release.
+GetAddress registry policy becomes:
+- operational use allowed;
+- human input required;
+- automated bulk ingest false;
+- commercial redistribution false;
+- subscription API false;
+- bulk export false;
+- terms reference `https://getaddress.io/Terms`.
 
-## Controlled manual-run guard — LIVE
+OpenStreetMap registry policy becomes:
+- ODbL;
+- operational use true;
+- redistribution potentially true under ODbL;
+- subscription API and bulk export false by default because share-alike obligations need an explicit product design;
+- attribution retained.
 
-PR #28 previously fixed the paid-limit safety gap.
+Planned inactive commercial-friendly source registry entries:
+- `os-open-uprn` — OGL, intended UPRN/coordinate foundation;
+- `code-point-open` — OGL, intended postcode/location foundation.
 
-Live Admin/client behavior:
-- separate **Manual run postcode limit** input;
-- default 1;
-- max follows configured daily cap, hard maximum 20;
-- exact requested-count confirmation;
-- request sends `{action:'run-now', limit}`.
+### Exact source counts
 
-Live server behavior:
-- protected Admin API validates manual limit;
-- invalid/below-1 values rejected;
-- above-hard-max values clamped;
-- omitted manual limit defaults to 1 rather than the configured daily cap;
-- audit summary records the requested maximum.
+Audit found current production drift:
+- actual `master_addresses`: 1 OSM row / 1 postcode;
+- registry OSM `row_count`: 0.
 
-The base worker still enforces configured cap, local UTC usage, optional provider remaining allowance and concurrency/stale-run guards.
+The old GetAddress worker also incremented row count by rows upserted/returned, which can over-count when an upsert updates an existing source record.
 
-PR #28 product deployment was `dpl_AnnQ2n26h5WDCs239zDcSwxy1GZf`; live static JS was fetched directly and confirmed to contain the limit=1 UI/logic. Unauthenticated `/api/admin-address-harvest` remains HTTP 401.
+Candidate migration adds:
+- exact count reconciliation;
+- statement-level insert/update/delete triggers that recalculate only affected source counts;
+- `address_dataset_health` security-invoker view exposing actual count + sync state;
+- `refresh_address_dataset_registry_count(text)` server-only helper.
 
-## Existing address architecture
+### Distribution firewall
 
-- `api/address-search.js`: private `master_addresses` first, OpenStreetMap fallback when no local master addresses exist.
-- `api/address-get.js`: resolves master/directory/profile saved addresses.
-- `api/address-save.js`: captures customer corrections in secondary `address_directory`.
-- `postcode_directory`: verified known postcode/location metadata used for coverage/seeding.
-- `master_addresses`: reusable normalized address cache; unique `(source_dataset, source_record_id)` and RLS.
-- Customer address flow works even without a live paid GetAddress request; GetAddress is an optional server-side cache-growth source.
+`address_distribution_eligible` is a security-invoker, service-role-only view over `master_addresses` joined to source rights. It includes only rows where the source is active and both:
+- `commercial_redistribution_allowed = true`
+- `subscription_api_allowed = true`
 
-## GetAddress harvesting architecture
+Future paid APIs/exports must use this view or a stricter equivalent, never raw `master_addresses`.
 
-Production migrations already applied:
-- `20260912121339 address_harvest_automation`
-- `20260912121442 address_harvest_run_guard`
-- `20260912123809 address_harvest_service_area_priority`
+### GetAddress automation/export blocking
 
-Provider behavior rechecked on 2026-09-12:
-- Typeahead queries are rate-limited but do not increase lookup usage.
-- Postcode-only Autocomplete with `all=true` counts as one lookup and can return many address suggestions.
-- `/v3/usage?api-key={admin-key}` remains the usage/daily-limit endpoint.
+New `lib/address-policy.js`:
+- normalises source rights;
+- fails closed if metadata/migration lookup fails;
+- central helpers for automation/distribution decisions.
 
-Priority/data flow:
-- active `service_areas` are read dynamically; never replace this with a hard-coded borough list;
-- current active area is administrative and contains Lewisham, Southwark, Lambeth, Wandsworth and Greenwich;
-- administrative discovery uses GetAddress district filters;
-- covered queue metadata includes priority score, coverage label, outcode and learned expected yield;
-- duplicate Typeahead rows count only if a new queue row is inserted;
-- covered candidates first, then London/South-East fallback, then wider UK;
-- normalized addresses → `master_addresses` source `getaddress-daily-cache`;
-- raw provider payload → `address_harvest_snapshots`;
-- run status/counters → `address_harvest_runs`;
-- candidate/retry state → `address_harvest_postcodes`;
-- singleton settings/usage → `address_harvest_settings`;
-- successful run backups → private Supabase Storage bucket `address-harvest-backups` as JSON + CSV.
+New `lib/address-harvest-compliance.js` wraps the existing priority worker **before any Typeahead discovery**. When the GetAddress source rights say automation is not allowed, `runHarvest()` returns `provider_terms_blocked` and never invokes the provider worker.
 
-API/admin:
-- `/api/address-harvest-cron`: `CRON_SECRET` protected, Vercel daily 03:30 UTC;
-- `/api/admin-address-harvest`: AAL2/settings-staff only;
-- `/api/admin-address-harvest-export`: AAL2/settings-staff only;
-- Admin Service Areas panel exposes automatic toggle, service-area priority, daily cap, manual-run limit, configured-key booleans, usage/remaining, queue/counters, recent runs and secure exports.
+Updated:
+- `api/admin-address-harvest.js` uses compliance wrapper and rejects enabling/running restricted automation;
+- `api/address-harvest-cron.js` uses compliance wrapper as defense in depth;
+- `vercel.json` removes `/api/address-harvest-cron` from scheduled crons;
+- `api/admin-address-harvest-export.js` checks `bulkExportAllowed` before full cache or provider backup export;
+- `admin-address-harvest.js` displays rights state and disables restricted automation/export controls.
 
-Safety:
-- no provider request without `GETADDRESS_API_KEY`;
-- automatic cron respects `enabled` and production remains OFF;
-- manual run can operate while Automatic OFF;
-- local UTC usage prevents exceeding configured daily cap;
-- optional `GETADDRESS_ADMIN_KEY` adds authoritative provider remaining allowance;
-- 429 stops work and leaves the current postcode pending;
-- old transient errors retry after 24h up to 3 attempts;
-- running-job uniqueness + stale release prevent overlap.
+The old provider worker remains in source for possible future use only if provider rights explicitly change; normal product paths are guarded before it can issue Typeahead/Autocomplete calls.
 
-## Production harvest state — STILL CLEAN
+### Future paid Address API foundation
 
-Latest post-PR #30 check:
-- Automatic OFF;
-- priority ON;
-- cap 20;
-- no last run/success/error;
-- zero runs;
-- zero queued postcodes;
-- zero GetAddress-cached addresses.
+Migration adds server-only/RLS tables:
+- `address_api_clients` — status, plan, monthly request limit, product entitlements, future Stripe refs;
+- `address_api_keys` — key prefix + SHA-256 hash only; no raw key storage;
+- `address_api_usage_daily` — requests, rows and bytes served.
 
-Implementation, testing and deployment have still used no paid GetAddress lookup.
+`consume_address_api_request(...)` is SECURITY INVOKER, executable by service role only, and atomically checks active client/monthly quota before usage increments.
 
-## Real provider activation — NEXT AND STILL PENDING
+New `lib/address-data-api.js` provides normalisation/API-key hashing/public row minimisation.
 
-Do not claim end-to-end provider success yet.
+New `/api/address-data-v1`:
+- disabled unless `ADDRESS_DATA_API_ENABLED=true`;
+- bearer API key required;
+- active client + `address-v1` entitlement required;
+- monthly quota enforced;
+- max 100 rows per request;
+- only queries `address_distribution_eligible`;
+- returns source/licence/attribution metadata;
+- no public API clients/keys are created by the migration.
 
-Next sequence:
-1. Complete fresh Admin password sign-in with interactive Cloudflare Turnstile and mandatory MFA/AAL2.
-2. Open Admin → Service Areas → Daily address database growth.
-3. Confirm `GETADDRESS_API_KEY` reports configured without exposing its value.
-4. Confirm Automatic OFF, service-area priority ON, daily cap 20, Manual limit 1.
-5. Run exactly one postcode.
-6. Verify covered-area selection, normalized `master_addresses` rows, raw snapshot, run counters, usage accounting, JSON/CSV private backups and full export.
-7. If clean, deliberately use additional remaining daily allowance if desired.
-8. Only then consider switching Automatic ON.
+Do not enable this API yet.
 
-## Server-side secrets
+### CI/regression protection
 
-- `GETADDRESS_API_KEY` — required for real provider run.
-- `GETADDRESS_ADMIN_KEY` — optional authoritative usage readback.
-- `CRON_SECRET` — protects scheduled endpoints.
+New `scripts/address-commercial-foundation.test.mjs` covers:
+- unknown sources fail closed;
+- GetAddress-style restricted policy blocks automation/resale;
+- approved source can pass automation/distribution checks;
+- API helper normalisation/key hashing/minimal output;
+- Vercel config contains no address-harvest cron;
+- migration contains GetAddress block + subscription-eligible view + API tables;
+- provider bulk export checks rights.
 
-Never expose values through config endpoints, browser code, logs, docs, exports or chat. Never ask the owner to paste them into chat.
+CI workflow syntax-checks all new files and runs the new tests.
 
-## Auth/CAPTCHA current state
+## Commercial source strategy
 
-- canonical Site URL `https://namdar.co.uk`; redirect wildcard `https://namdar.co.uk/**`;
-- Email + Google intentionally enabled;
-- Cloudflare Turnstile/Supabase CAPTCHA live;
-- customer login/password-reset request smoke tests passed;
-- privileged Turnstile integration from PR #26 is live, but a complete fresh Admin password + CAPTCHA + MFA journey still requires interactive user completion;
-- privileged browser/API/RLS access requires AAL2;
-- Leaked Password Protection unavailable on current Supabase Free plan.
+Preferred next data sources:
+1. **OS Open UPRN** under OGL — UPRN/property points/coordinates; free commercial foundation, not full postal address text.
+2. **Code-Point Open** under OGL — postcode-unit coordinates/intelligence, not full premises addresses.
+3. Later obtain an explicit full-address redistribution/subscription licence (e.g. appropriate OS address/partner product or another provider with clear redistribution rights).
 
-## Auth email branding
+Do not treat HM Land Registry Price Paid address strings as a free resale address source: HMLR documents third-party Royal Mail/OS rights on those address fields. Transaction intelligence may be added later with field-level rights/provenance review.
 
-- source under `supabase/email-templates/`;
-- Reset Password live/verified with subject `Reset your Namdar password`;
-- SMTP address `accounts@namdar.co.uk`; display name changed to `Namdar`, fresh casing verification pending;
-- remaining Auth templates/Magic Link still need hosted apply/test;
-- no `_dmarc` record yet; BIMI/DMARC remains separate work.
+OpenStreetMap can be commercially used under ODbL but its derivative-database/share-alike obligations require a separate deliberate product design; it stays out of the proprietary subscription view by default.
 
-## Other remaining work
+## Future intelligence architecture
 
-- recurring production `/api/booking-notifications` 504s observed; investigate separately from GetAddress;
-- remaining Auth templates + Magic Link;
-- DMARC/BIMI after sender audit;
-- same-iPhone overflow confirmation;
-- Stripe, SMS, legal, cron/double-booking checks, inbound alias test and controlled customer-support journey.
+`master_addresses` remains source-specific observations. Do not destructively blend restricted/open/licensed providers into a source-less canonical row.
+
+After OS Open UPRN import, build:
+- `property_entities` keyed by UPRN;
+- `property_field_observations` with source record + field + value + observed time + confidence + redistribution eligibility;
+- authority/freshness/source-agreement scoring;
+- anomaly/contradiction tracking;
+- canonical values selected without losing provenance.
+
+See `docs/ADDRESS_DATA_PRODUCT.md`.
+
+## Production DB state before candidate migration
+
+- GetAddress harvest setting `enabled=false`;
+- `prioritize_service_areas=true`;
+- daily cap 20;
+- zero harvest runs;
+- zero harvest queue rows;
+- zero GetAddress master rows;
+- one OSM master-address row;
+- OSM registry row count currently stale at zero.
+
+## Required next workflow
+
+1. Run candidate CI and exact-head Vercel preview.
+2. Review migration security/DDL.
+3. Apply `address_data_rights_and_distribution_guard` to production.
+4. Verify rights flags, views/RLS/grants, API tables, exact OSM count=1 and GetAddress count=0.
+5. Verify no GetAddress provider call/run occurred.
+6. Merge PR only after checks pass.
+7. Verify production Vercel config has no harvest cron and Admin/API fail closed.
+8. Update handoff from candidate to live state.
+9. Move next address milestone to OS Open UPRN + Code-Point Open import design, not GetAddress harvesting.
 
 ## Non-negotiable rules
 
+- Storage does not equal ownership/redistribution permission.
+- No provider/API secrets in GitHub/docs/chat.
+- New datasets default to no automation/no paid distribution until reviewed.
+- Paid data surfaces must carry source/licence/attribution metadata.
+- GetAddress automated harvest stays blocked unless explicit written permission changes the policy.
+- ODbL data must not be silently repackaged into a proprietary dataset without satisfying ODbL obligations.
 - Support tickets remain customer-only; public inbound email stays Admin Email inbox.
-- Privileged access requires AAL2.
-- No secrets in GitHub/docs/chat.
+- Privileged staff access requires AAL2.
 - Never use/reproduce the previously exposed GitHub PAT.
-- Do not move production back to Netlify.
-- Do not bypass live service-area priority.
 
-## Required workflow
+## Other open work
 
-For substantial work use branch → PR → CI → preview/testing → merge → production verification. Update `docs/AI_START.md`, this file and `docs/PROJECT_STATUS.md` together. Never overclaim a provider/runtime path that has not actually been exercised.
+- privileged Admin fresh password/CAPTCHA/MFA completion still pending;
+- recurring `/api/booking-notifications` 504s need separate investigation;
+- remaining Auth templates + Magic Link;
+- DMARC/BIMI;
+- same-iPhone overflow confirmation;
+- Stripe/SMS/legal/launch checks.
+
+## Required workflow rule
+
+Substantial product/provider changes use branch → PR → CI → preview/testing → migration/database verification → merge → production verification, with all three continuity files updated. Never overclaim a provider/runtime path that was not exercised.
