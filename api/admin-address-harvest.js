@@ -22,8 +22,11 @@ module.exports = async function handler(req, res) {
       return json(res, 200, { ok:true, ...(await harvestStatus()) });
     }
     if (action === 'run-now') {
-      const result = await runHarvest({ trigger:'manual', respectEnabled:false, requestedLimit: body.limit || null });
-      await auditLog(req, staff, { action:'address_harvest.run', entityType:'address_harvest_runs', entityId:result.runId || '', summary:`Manual address harvest: ${result.status || result.reason || 'completed'}`, before:null, after:result });
+      const requested = Math.round(Number(body.limit ?? 1));
+      if (!Number.isFinite(requested) || requested < 1) return json(res, 400, { ok:false, error:'Manual run limit must be at least 1 postcode.' });
+      const requestedLimit = Math.min(MAX_DAILY_LOOKUPS, requested);
+      const result = await runHarvest({ trigger:'manual', respectEnabled:false, requestedLimit });
+      await auditLog(req, staff, { action:'address_harvest.run', entityType:'address_harvest_runs', entityId:result.runId || '', summary:`Manual address harvest requested up to ${requestedLimit} postcode${requestedLimit === 1 ? '' : 's'}: ${result.status || result.reason || 'completed'}`, before:null, after:result });
       return json(res, 200, { ok:true, result, ...(await harvestStatus()) });
     }
     return json(res, 400, { ok:false, error:'Unknown address harvest action.' });
