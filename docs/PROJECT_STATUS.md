@@ -20,7 +20,7 @@ Last updated: 2026-09-12 UTC
 | Sender avatar / BIMI | Paused; no DMARC record added yet |
 | Admin/Staff security | Mandatory privileged MFA/AAL2 live and verified |
 | Email inbox | Spam controls + Inbox Security v2 live |
-| Address system | Existing master/directory/OSM fallback live; GetAddress daily growth feature in progress |
+| Address system | Existing master/directory/OSM fallback live; GetAddress service-area-first daily growth feature in PR #24 |
 
 ## GetAddress daily address growth — IN PROGRESS
 
@@ -29,18 +29,25 @@ Goal: automatically use up to 20 daily GetAddress postcode lookups to grow Namda
 Architecture:
 - free/no-usage Typeahead discovers full postcode candidates;
 - one `all=true` postcode Autocomplete lookup can return many addresses and counts as one lookup;
+- **active Namdar Service Areas are first priority**, read dynamically from live `service_areas` so future coverage edits change harvesting automatically;
+- current live coverage is Lewisham, Southwark, Lambeth, Wandsworth and Greenwich;
+- provider district-filtered Typeahead builds a deep covered-postcode queue before paid lookups;
+- if covered candidates are unavailable, fallback remains London/South-East first, then wider UK;
+- queue stores coverage label, priority score, outward code and learned expected yield from previously harvested address counts;
+- Admin can switch service-area priority ON/OFF independently of the main automatic harvest switch; priority defaults ON while automatic harvesting defaults OFF;
 - normalized addresses → `master_addresses` / `getaddress-daily-cache`;
 - raw snapshots → `address_harvest_snapshots`;
-- run audit/status → `address_harvest_runs`;
+- run audit/status → `address_harvest_runs`, including covered-area postcode/address counters;
 - candidate queue → `address_harvest_postcodes`;
 - singleton ON/OFF/cap/provider usage state → `address_harvest_settings`;
 - daily JSON + CSV backup → private Supabase Storage `address-harvest-backups`;
-- Admin panel → toggle, cap, key-configured state, usage/remaining, totals, run-now, history, per-run download, full CSV/JSON export;
+- Admin panel → automatic toggle, service-area priority toggle, cap, key-configured state, usage/remaining, covered queue/counters, totals, run-now, history, per-run download, full CSV/JSON export;
 - cron → `/api/address-harvest-cron` daily 03:30 UTC with `CRON_SECRET`.
 
 Production migrations already safely applied, with automatic harvesting OFF:
 - `20260912121339 address_harvest_automation`
 - `20260912121442 address_harvest_run_guard`
+- `20260912123809 address_harvest_service_area_priority`
 
 Required production env before first real run:
 - `GETADDRESS_API_KEY` required;
@@ -66,8 +73,8 @@ Keys must be entered directly in Vercel and never pasted into chat or GitHub.
 
 ## Next actions
 
-1. Complete GetAddress branch/PR/CI/preview and deploy with automatic harvesting OFF.
-2. Configure GetAddress key(s) directly in Vercel, run one controlled manual harvest, inspect saved addresses and both backup formats, then enable daily mode only after successful verification.
+1. Complete PR #24 CI/preview with the service-area-first priority layer and deploy with automatic harvesting OFF.
+2. Configure GetAddress key(s) directly in Vercel, run one controlled manual harvest, verify the covered-area queue is populated first, inspect saved addresses and both backup formats, then enable daily mode only after successful verification.
 3. Apply/test remaining branded Auth emails and Magic Link.
 4. Resume DMARC/BIMI safely after sender audit.
 5. Same-iPhone overflow confirmation.
