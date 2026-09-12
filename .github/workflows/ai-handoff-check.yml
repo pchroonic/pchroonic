@@ -36,11 +36,14 @@ jobs:
           node --check admin-address-harvest.js
           node --check admin-services.js
           node --check admin-booking-operations.js
+          node --check admin-window-performance.js
           node --check api/address-harvest-cron.js
           node --check api/admin-address-harvest.js
           node --check api/admin-address-harvest-export.js
           node --check api/admin-services.js
           node --check api/admin-booking-operations.js
+          node --check api/admin-window-performance.js
+          node --check api/conversion-event.js
           node --check api/address-data-v1.js
           node --check api/quote.js
           node --check api/quote-core.js
@@ -71,13 +74,16 @@ jobs:
           node --test scripts/service-catalog.test.mjs
           node --test scripts/window-stage1.test.mjs
           node --test scripts/booking-operations.test.mjs
+          node --test scripts/window-performance.test.mjs
           node --check lib/server.js
           node --check lib/server-original.js
           node --check staff.js
           node --check staff-original.js
           node --check staff-mfa-guard.js
           node --check staff-sw.js
+          node --check funnel-tracking.js
           node --check conversion.js
+          node --check conversion-original.js
           node --check seo-page.js
 
       - name: Require current AI handoff documentation
