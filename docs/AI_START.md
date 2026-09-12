@@ -5,118 +5,77 @@ Last verified: 2026-09-12 UTC
 Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PROJECT_STATUS.md` for the roadmap.
 
 ## Production baseline
-
 - Repository: `pchroonic/pchroonic`, default `main`.
-- Current product merge: `858500c6c48d05af918c70d5ee087b319b9caf35` from PR #40.
-- PR #40 exact head: `b7948da451b4d2d7008470c3d05b90928970e732`.
-- GitHub CI `34714162465`: SUCCESS.
-- Exact-head preview `dpl_2zJyJxuR5C2gYmr38cWNDunuLMQM`: READY / clean build.
-- Production deployment `dpl_7f4JLEVgLvx27MwoCxMa8T85d3KY`: READY on `https://namdar.co.uk`, no alias error.
+- Current main before this candidate: `6c4171258cd12553d3bd94cabc8d02fdcb5ec262`.
+- Booking-operations product release: PR #40 merge `858500c6c48d05af918c70d5ee087b319b9caf35`.
+- Production is READY on `https://namdar.co.uk`.
 - Supabase: `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
-- Address-data work remains parked; Address API disabled; GetAddress harvesting blocked.
+- Window Cleaning is the only live/bookable service; five future services remain planned.
+- Address-data work remains parked.
 
-## Current business model
+## Current candidate — Window Stage 1 conversion & profitability
+Branch: `feat/window-conversion-profitability-20260912`.
 
-**Window Cleaning is Namdar's only live/bookable service.**
+Goal: measure whether Window Cleaning Stage 1 is working before adding another service.
 
-Future services remain prepared but planned:
-1. Window Cleaning — LIVE
-2. Gutter Cleaning — planned
-3. Patio & Jet Washing — planned
-4. Roof Cleaning — planned
-5. Handyman Services — planned
-6. 3D Property Tours — planned
+### Funnel source of truth
+Existing records already provide most downstream timestamps:
+- quote request: `quotes.created_at`;
+- final quote: `quotes.sent_at`;
+- acceptance: `quotes.customer_response/customer_responded_at`;
+- booking: `bookings.created_at`;
+- actual start/completion: `bookings.started_at/completed_at`.
 
-Do not activate another service until the user deliberately decides Stage 1 has paid off and the next service is operationally ready.
+The candidate adds only the missing postcode-to-quote linkage. `conversion.js` uses a session-only anonymous ID **only when the visitor has already chosen the existing `namdar_cookie_choice=marketing` consent**. Successful postcode API responses are posted to `/api/funnel-event`. Analytics stores only the postcode area letters (e.g. SE/SW), never the full postcode.
 
-## Window Cleaning Stage 1 — LIVE
+`api/quote.js` safely links the resulting quote ID to that anonymous visitor in server-only `quote_funnel_links`. Non-consenting visitors use quoting normally and are simply absent from the postcode-to-quote cohort.
 
-PR #38 hardened the quote gate and made quoting Window-specific. PR #40 now makes accepted-quote scheduling operationally realistic.
+### New server-only data
+Migration `20260912204000_window_stage1_conversion_profitability.sql` is already applied to production and adds:
+- `conversion_events` — privacy-safe postcode-check events;
+- `quote_funnel_links` — quote ↔ anonymous visitor link;
+- `booking_job_costs` — reviewed direct job costs/travel context.
 
-### Live booking operations rules
+All three tables have RLS enabled and direct `anon`/`authenticated` grants revoked. No customer-facing direct database access is introduced.
 
-`lib/booking-operations.js` is the shared source for customer self-booking availability and validation.
+### Admin performance reporting
+New `api/admin-window-performance.js` requires Analytics permission/AAL2 and reports a consistent consented visitor cohort:
+1. covered postcode check;
+2. guide quote requested;
+3. final quote sent;
+4. final quote accepted;
+5. appointment booked;
+6. job completed.
 
-Production `site_settings.booking_operations` is explicitly set to:
-- horizon: 21 days;
-- minimum notice: 24 hours;
-- operating days: Monday–Saturday;
-- windows: 08:00–11:00, 11:00–14:00, 14:00–17:00;
-- max jobs/day: 3;
-- route density: enabled;
-- route zone: postcode area prefix.
+Historical Window quotes/bookings remain included in completed-job economics, but are not falsely retro-linked to old postcode checks. The dashboard explicitly states the tracking start limitation.
 
-Rules are bounded server-side and fail safely to the same defaults if the settings row cannot be read.
+### Completed-job economics
+New `api/admin-job-economics.js` requires Bookings permission/AAL2 and audit logs edits. Admin → Reporting receives `admin-window-performance.js` with:
+- completed jobs;
+- total/average job value;
+- net payments collected for those jobs;
+- actual work hours from `started_at → completed_at`;
+- job value per actual work hour;
+- reviewed direct costs: consumables, parking, travel, other;
+- travel minutes/miles;
+- direct contribution and direct margin.
 
-### Route density
+**Direct contribution is not net profit.** Labour, overheads, tax and other business costs are not deducted. Jobs without a cost review are excluded from contribution/margin totals instead of being assumed to have £0 cost.
 
-Postcode area is used as the lightweight Stage 1 route zone, e.g. `SE14 → SE`, `SW2 → SW`.
+### Tests
+`scripts/window-performance.test.mjs` verifies server-only/RLS schema, privacy-safe funnel events, consent-aware session tracking, quote linkage, six funnel stages, permission gates, audited cost capture, direct-contribution wording, and Window-only fallback service state.
 
-For customer self-booking:
-- an empty operating day can start in any covered zone;
-- once a pending/confirmed booking exists that day, remaining customer slots stay in the same postcode-area zone;
-- occupied windows and daily capacity are enforced;
-- Admin manual scheduling remains an override for deliberate exceptions.
+CI has been expanded to syntax-check the new modules and run this suite.
 
-This is route-density grouping, not full drive-time optimization.
-
-### Server enforcement
-
-Existing business workflows remain preserved as cores:
-- `api/customer-quote-action-core.js`
-- `api/booking-core.js`
-
-Wrappers enforce the shared schedule:
-- `api/customer-quote-action.js` supplies route-aware available slots after the existing accepted-quote/ownership checks;
-- `api/booking.js` re-validates submitted slots before the original booking flow runs.
-
-A crafted booking request cannot bypass operating day, notice, capacity, route-zone or current-window availability rules.
-
-### Admin operations panel
-
-Admin → Bookings now has Booking operations controls for:
-- booking horizon;
-- minimum notice;
-- max jobs/day;
-- route-density toggle;
-- operating days;
-- enabled customer windows;
-- next-14-days load/route preview.
-
-Booking-authorized staff can view. Admin/staff with Settings permission can edit. Privileged access remains AAL2/MFA-protected and changes through the endpoint are audit logged.
-
-### Recurring work
-
-Production had zero recurring subscriptions when this release was implemented, so no speculative reservation engine was added. Once recurring work becomes real bookings, it participates in the same route/capacity context. Revisit advanced recurrence routing from real demand.
-
-## Release verification
-
-- PR #40 merged as `858500c6c48d05af918c70d5ee087b319b9caf35`.
-- CI `34714162465` passed the new `scripts/booking-operations.test.mjs` suite and syntax checks.
-- Exact-head preview `dpl_2zJyJxuR5C2gYmr38cWNDunuLMQM` READY; errors-only build clean.
-- Production `dpl_7f4JLEVgLvx27MwoCxMa8T85d3KY` READY and aliased to `namdar.co.uk`; alias error null.
-- Production `/api/admin-booking-operations` unauthenticated → HTTP 401.
-- Production Admin loader serves `6.4.18-booking-ops-1` and loads `admin-booking-operations.js`.
-- `site_settings.booking_operations` persisted and re-read with the rules above.
-- There were zero future pending/confirmed bookings during activation, so no scheduled work was displaced.
-- Service catalog rechecked: Window Cleaning live; five future services planned.
-- No schema migration was required.
-
-## Next recommended work
-
-Stay on Window Cleaning and measure whether Stage 1 pays off:
-1. conversion funnel: postcode → estimate → final quote → accepted → booked → completed;
-2. actual job duration/cost/margin capture for pricing calibration;
-3. genuine before/after proof and customer reviews;
-4. only then assess whether to launch Stage 2.
+## Booking operations still live
+Customer self-booking remains: 21-day horizon, 24h notice, Mon–Sat, 08–11 / 11–14 / 14–17, max 3 jobs/day, postcode-area route density enabled. Admin can adjust this via the MFA-protected Booking operations panel.
 
 ## Do not break
-
 - Window Cleaning only is the current commercial offering.
-- New-work service and booking rules remain server-side enforced.
-- Existing customer commitments survive service pauses.
-- Future services stay prepared but inactive.
-- Privileged staff access requires AAL2/MFA.
+- Do not activate Stage 2 until real Stage 1 evidence supports it.
+- Customer service/booking availability stays server-side enforced.
+- Existing accepted work survives service pauses.
+- Privileged staff requires AAL2/MFA.
+- Address-data work stays parked unless the user deliberately changes focus.
 - Support tickets remain customer-only; public inbound email remains Admin Email inbox.
-- Address-data work stays parked unless focus changes.
-- Never expose provider, Supabase, SMTP, Turnstile, GitHub, cron or API secrets.
+- Never expose secrets.
