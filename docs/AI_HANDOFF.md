@@ -8,94 +8,92 @@ Read `docs/AI_START.md` first. This is the detailed technical continuity record.
 
 - Product: Namdar UK property services platform.
 - Repository: `pchroonic/pchroonic`, default `main`.
-- Current verified product code: `3ea8f45301fcdfe25e5610abefcb71757a22a0d8` from PR #28.
-- Continuity-doc sync merged afterward as `d7c84edd0019d66650a4ecce7c02c6ce89ac5a01`; product behavior remained PR #28.
-- Hosting: Vercel project `namdar-website-starter-1`, canonical `https://namdar.co.uk`.
-- PR #28 product deployment: `dpl_AnnQ2n26h5WDCs239zDcSwxy1GZf`, READY.
-- PR #29 docs-only deployment: `dpl_Hc2MYZ5BXBpbYFLTNDX96fNuWF3T`, READY; no product behavior change.
+- Current verified **product behavior commit**: `945091c31cab6600916cd07854de3df4ac830d6a` from merged PR #30.
+- PR #30 exact head: `7a55bda84f8b3c6ad4292ec5c618531b19d3b75f`.
+- PR #30 GitHub workflow `34707335676` passed, including address-priority regression tests.
+- Exact-head Vercel preview `dpl_6g5G3cwed7VGyyvhrkTULrKSsw53` was READY with a clean build.
+- Product deployment `dpl_8fZEaFkpCWnqigrguuArba94N6me` is READY, aliased to `https://namdar.co.uk`, no alias error.
 - Backend/Auth: Supabase `namdar-production` (`qjigldxjcpnrlyxgmlqq`), Free plan.
 - Email: Resend, verified `namdar.co.uk`, sending + receiving enabled.
 
-## Manual service-area discovery optimization — CANDIDATE
+Docs-only merges may follow the product commit. Do not mistake a later docs-only SHA/deployment for a new behavior change.
 
-Branch: `perf/getaddress-fast-manual-discovery-20260912`.
+## GetAddress manual discovery optimization — LIVE
 
-### Finding
+PR #30 `Speed up controlled GetAddress manual discovery` is merged and deployed.
 
-During the final pre-provider audit, `lib/address-harvest-priority.js` was found to use the same deep queue target for both manual and automatic runs:
+### Problem found
 
-- old target: `Math.max(80, requested * 6)` for every priority run;
-- therefore a one-postcode manual test attempted to prepare an 80-postcode covered queue before the one paid lookup.
+The priority layer previously used the same deep service-area queue target for manual and automatic runs:
 
-Typeahead discovery itself does not increase lookup usage, but the current implementation permits up to 12 sequential discovery calls with an 8-second timeout each. That behavior is useful for daily automatic harvesting but unnecessary for the controlled one-postcode verification and increases wall time/rate-limit exposure.
+`Math.max(80, requested * 6)`
 
-Production database aggregate checks also confirmed there are already 2 verified postcodes inside the active administrative service area: one classified to Lewisham and one to Lambeth. Actual postcode values must not be copied into docs/chat.
+So a one-postcode manual verification could try to prepare an 80-postcode covered queue before making the single paid lookup. Typeahead discovery itself does not increase lookup usage, but `seedServiceAreaQueue()` can make up to 12 sequential Typeahead calls with an 8-second timeout each. That is useful queue warming for automatic operation, but unnecessary latency/rate-limit exposure for a controlled one-postcode test.
 
-### Candidate repair
+### Live repair
 
-- Added pure `queueTargetForRun(trigger, requested)`.
-- Manual target = the requested manual postcode count, clamped to 1–20.
-- Cron/automatic target retains existing deep-queue behavior: minimum 80; with requested 20 the target remains 120 via the 6× multiplier.
-- `runHarvest` now uses `queueTargetForRun(options.trigger, requested)` before `seedServiceAreaQueue`.
-- Because `seedKnownCovered()` runs first, a one-postcode manual request can stop discovery immediately when at least one verified covered postcode already exists.
-- No change to paid Autocomplete behavior, daily cap, usage guards, service-area ordering, retry logic, backup logic, database schema or secrets.
+`lib/address-harvest-priority.js` now exports and uses `queueTargetForRun(trigger, requested)`:
+- manual run target = requested postcode count, clamped to 1–20;
+- cron/automatic target = existing deep behavior, minimum 80 with 6× scaling;
+- cron requested 20 still targets 120;
+- verified covered postcodes are seeded before Typeahead discovery, so a manual run stops discovery as soon as enough covered pending candidates exist.
 
-Regression test added: `scripts/address-harvest-priority.test.mjs`.
-It covers:
+Production currently has 2 verified postcodes classified within the active service area in aggregate: one Lewisham and one Lambeth. Never copy actual postcode values into docs/chat.
+
+Regression file: `scripts/address-harvest-priority.test.mjs`.
+CI assertions include:
 - manual 1 → 1;
 - manual 5 → 5;
 - manual 20 → 20;
-- manual values above 20 clamp to 20;
-- manual 0/invalid normalize to 1;
+- over-limit manual input → 20;
+- zero/invalid manual input → 1;
 - cron 1/10 → 80;
 - cron 20 → 120.
 
-GitHub CI workflow now runs this test after syntax-checking `lib/address-harvest-priority.js`.
+`.github/workflows/ai-handoff-check.yml` now runs this test in addition to syntax checks.
 
-Status: candidate only until branch → PR → CI → Vercel preview → merge → production verification is complete.
+No migration, secret, backup-format, paid Autocomplete behavior, service-area ordering, usage guard or automatic-enable change.
 
-## GetAddress controlled first-run guard — LIVE
+### PR #30 verification
 
-PR #28 `Make first GetAddress manual run explicitly controlled` is merged and deployed.
+- exact head `7a55bda84f8b3c6ad4292ec5c618531b19d3b75f`;
+- workflow `34707335676` success;
+- exact-head preview `dpl_6g5G3cwed7VGyyvhrkTULrKSsw53` READY; build errors filter empty;
+- merge commit `945091c31cab6600916cd07854de3df4ac830d6a`;
+- production `dpl_8fZEaFkpCWnqigrguuArba94N6me` READY on `namdar.co.uk`, no alias error;
+- post-deploy production DB remained `enabled=false`, `prioritize_service_areas=true`, cap 20, null last run/success/error, zero run rows, zero queue rows and zero `getaddress-daily-cache` rows;
+- therefore no paid provider lookup was consumed by this release.
 
-### Live behavior
+## Controlled manual-run guard — LIVE
 
-`admin-address-harvest.js`:
+PR #28 previously fixed the paid-limit safety gap.
+
+Live Admin/client behavior:
 - separate **Manual run postcode limit** input;
-- defaults to `1`;
-- UI max follows configured daily cap, hard-capped at 20;
-- confirms exact requested count;
-- sends explicit `limit`.
+- default 1;
+- max follows configured daily cap, hard maximum 20;
+- exact requested-count confirmation;
+- request sends `{action:'run-now', limit}`.
 
-`api/admin-address-harvest.js`:
-- independently validates manual `limit`;
-- rejects invalid/below-1;
-- clamps above `MAX_DAILY_LOOKUPS`;
-- defaults omitted manual limit to `1`, not daily cap;
-- audit log records requested maximum.
+Live server behavior:
+- protected Admin API validates manual limit;
+- invalid/below-1 values rejected;
+- above-hard-max values clamped;
+- omitted manual limit defaults to 1 rather than the configured daily cap;
+- audit summary records the requested maximum.
 
-Base worker safeguards remain authoritative: configured cap, local UTC usage, optional provider remaining allowance, run-concurrency guard and service-area priority.
+The base worker still enforces configured cap, local UTC usage, optional provider remaining allowance and concurrency/stale-run guards.
 
-### PR #28 verification
-
-- Exact head `f39df7c32c6e822015374c452e7afec1bb3c5ea7` passed workflow `34706834723`.
-- Exact-head preview `dpl_CH6BjU8pHxGxtdQrLsHWnU1yiF6T` was READY with a clean build. Preview content itself was protected by Vercel SSO, so do not claim authenticated preview inspection.
-- Merge: `3ea8f45301fcdfe25e5610abefcb71757a22a0d8`.
-- Product deployment: `dpl_AnnQ2n26h5WDCs239zDcSwxy1GZf`, READY on `namdar.co.uk`, no alias error.
-- Live `admin-address-harvest.js` was directly fetched HTTP 200 and contains default `harvestRunLimit=1`, safe-first-run guidance and explicit `{action:'run-now',limit}`.
-- Live unauthenticated `/api/admin-address-harvest` returns 401.
-- Post-deploy DB: Automatic OFF, priority ON, cap 20, zero runs, zero queue rows and zero `getaddress-daily-cache` rows.
-- No paid provider lookup has been used by implementation/release verification.
+PR #28 product deployment was `dpl_AnnQ2n26h5WDCs239zDcSwxy1GZf`; live static JS was fetched directly and confirmed to contain the limit=1 UI/logic. Unauthenticated `/api/admin-address-harvest` remains HTTP 401.
 
 ## Existing address architecture
 
-- `api/address-search.js`: `master_addresses` first, OpenStreetMap fallback when local master has no addresses.
-- `api/address-get.js`: resolves saved master/directory/profile addresses.
-- `api/address-save.js`: captures customer corrections into `address_directory`.
-- `api/admin-address-master.js` + Admin Service Areas expose dataset status/postcode samples.
-- `master_addresses` unique `(source_dataset, source_record_id)` + indexes + RLS.
-- `postcode_directory` stores verified postcode/location metadata.
-- Customer address flow still works without a live paid provider request; GetAddress is an optional server-side reusable-cache growth source.
+- `api/address-search.js`: private `master_addresses` first, OpenStreetMap fallback when no local master addresses exist.
+- `api/address-get.js`: resolves master/directory/profile saved addresses.
+- `api/address-save.js`: captures customer corrections in secondary `address_directory`.
+- `postcode_directory`: verified known postcode/location metadata used for coverage/seeding.
+- `master_addresses`: reusable normalized address cache; unique `(source_dataset, source_record_id)` and RLS.
+- Customer address flow works even without a live paid GetAddress request; GetAddress is an optional server-side cache-growth source.
 
 ## GetAddress harvesting architecture
 
@@ -104,84 +102,105 @@ Production migrations already applied:
 - `20260912121442 address_harvest_run_guard`
 - `20260912123809 address_harvest_service_area_priority`
 
-Provider behavior rechecked 2026-09-12:
-- Typeahead queries are rate limited but do not increase lookup usage.
-- Postcode-only Autocomplete with `all=true` counts as one lookup and can return many addresses.
-- `/v3/usage?api-key={admin-key}` remains the usage endpoint.
+Provider behavior rechecked on 2026-09-12:
+- Typeahead queries are rate-limited but do not increase lookup usage.
+- Postcode-only Autocomplete with `all=true` counts as one lookup and can return many address suggestions.
+- `/v3/usage?api-key={admin-key}` remains the usage/daily-limit endpoint.
 
 Priority/data flow:
-- active `service_areas` read at runtime; do not hard-code boroughs;
-- current area is one administrative service area containing Lewisham, Southwark, Lambeth, Wandsworth and Greenwich;
-- administrative Typeahead uses provider district filters;
-- queue metadata includes priority score, coverage label, outcode and learned expected yield;
-- duplicate discovery only counts when a new queue row is inserted;
+- active `service_areas` are read dynamically; never replace this with a hard-coded borough list;
+- current active area is administrative and contains Lewisham, Southwark, Lambeth, Wandsworth and Greenwich;
+- administrative discovery uses GetAddress district filters;
+- covered queue metadata includes priority score, coverage label, outcode and learned expected yield;
+- duplicate Typeahead rows count only if a new queue row is inserted;
 - covered candidates first, then London/South-East fallback, then wider UK;
-- normalized results → `master_addresses` source `getaddress-daily-cache`;
-- raw payloads → `address_harvest_snapshots`;
+- normalized addresses → `master_addresses` source `getaddress-daily-cache`;
+- raw provider payload → `address_harvest_snapshots`;
 - run status/counters → `address_harvest_runs`;
-- queue → `address_harvest_postcodes`;
-- settings/usage → `address_harvest_settings`;
-- successful runs → private Supabase Storage `address-harvest-backups` JSON + CSV.
+- candidate/retry state → `address_harvest_postcodes`;
+- singleton settings/usage → `address_harvest_settings`;
+- successful run backups → private Supabase Storage bucket `address-harvest-backups` as JSON + CSV.
 
 API/admin:
-- `/api/address-harvest-cron`: `CRON_SECRET` protected, Vercel cron 03:30 UTC.
-- `/api/admin-address-harvest`: AAL2/settings staff only.
-- `/api/admin-address-harvest-export`: AAL2/settings staff only.
-- Admin panel shows automatic state, service-area priority, daily cap, manual limit, configured-key booleans, usage/remaining, queue/counters, recent runs and secure downloads.
+- `/api/address-harvest-cron`: `CRON_SECRET` protected, Vercel daily 03:30 UTC;
+- `/api/admin-address-harvest`: AAL2/settings-staff only;
+- `/api/admin-address-harvest-export`: AAL2/settings-staff only;
+- Admin Service Areas panel exposes automatic toggle, service-area priority, daily cap, manual-run limit, configured-key booleans, usage/remaining, queue/counters, recent runs and secure exports.
 
 Safety:
-- no provider calls without `GETADDRESS_API_KEY`;
-- Automatic cron respects `enabled`; production remains OFF;
-- manual runs can operate while Automatic OFF;
-- local UTC usage prevents configured cap overrun;
-- optional `GETADDRESS_ADMIN_KEY` further constrains against provider remaining allowance;
-- 429 stops work and returns postcode to pending;
-- transient failures retry after 24h up to 3 attempts;
-- partial unique running-job guard + stale release prevent overlap.
+- no provider request without `GETADDRESS_API_KEY`;
+- automatic cron respects `enabled` and production remains OFF;
+- manual run can operate while Automatic OFF;
+- local UTC usage prevents exceeding configured daily cap;
+- optional `GETADDRESS_ADMIN_KEY` adds authoritative provider remaining allowance;
+- 429 stops work and leaves the current postcode pending;
+- old transient errors retry after 24h up to 3 attempts;
+- running-job uniqueness + stale release prevent overlap.
 
-## Real provider activation — STILL PENDING
+## Production harvest state — STILL CLEAN
+
+Latest post-PR #30 check:
+- Automatic OFF;
+- priority ON;
+- cap 20;
+- no last run/success/error;
+- zero runs;
+- zero queued postcodes;
+- zero GetAddress-cached addresses.
+
+Implementation, testing and deployment have still used no paid GetAddress lookup.
+
+## Real provider activation — NEXT AND STILL PENDING
 
 Do not claim end-to-end provider success yet.
 
-Next sequence after the manual-discovery optimization is released:
-1. Fresh Admin password login + interactive Turnstile + mandatory MFA/AAL2.
+Next sequence:
+1. Complete fresh Admin password sign-in with interactive Cloudflare Turnstile and mandatory MFA/AAL2.
 2. Open Admin → Service Areas → Daily address database growth.
-3. Confirm key shows configured without exposing its value.
-4. Confirm Automatic OFF, priority ON, daily cap 20, Manual limit `1`.
+3. Confirm `GETADDRESS_API_KEY` reports configured without exposing its value.
+4. Confirm Automatic OFF, service-area priority ON, daily cap 20, Manual limit 1.
 5. Run exactly one postcode.
-6. Verify covered-area choice, normalized rows, raw snapshot, run counters, usage, JSON/CSV backup and full export.
-7. Deliberately use additional remaining allowance only after the first run is clean.
-8. Turn Automatic ON only after successful controlled verification.
+6. Verify covered-area selection, normalized `master_addresses` rows, raw snapshot, run counters, usage accounting, JSON/CSV private backups and full export.
+7. If clean, deliberately use additional remaining daily allowance if desired.
+8. Only then consider switching Automatic ON.
 
 ## Server-side secrets
 
-- `GETADDRESS_API_KEY` required for real provider run.
-- `GETADDRESS_ADMIN_KEY` optional usage readback.
-- `CRON_SECRET` protects scheduled endpoints.
+- `GETADDRESS_API_KEY` — required for real provider run.
+- `GETADDRESS_ADMIN_KEY` — optional authoritative usage readback.
+- `CRON_SECRET` — protects scheduled endpoints.
 
-Never expose secrets through config endpoints, HTML, logs, docs, exports or chat. Never ask the owner to paste them into chat.
+Never expose values through config endpoints, browser code, logs, docs, exports or chat. Never ask the owner to paste them into chat.
 
-## Auth/CAPTCHA
+## Auth/CAPTCHA current state
 
-- canonical Site URL `https://namdar.co.uk`, redirect wildcard `https://namdar.co.uk/**`;
+- canonical Site URL `https://namdar.co.uk`; redirect wildcard `https://namdar.co.uk/**`;
 - Email + Google intentionally enabled;
-- Supabase CAPTCHA uses Cloudflare Turnstile;
-- customer login/password reset smoke tests passed;
-- privileged Turnstile integration from PR #26 is live, but a complete fresh Admin password + CAPTCHA + MFA flow still requires interactive user completion;
+- Cloudflare Turnstile/Supabase CAPTCHA live;
+- customer login/password-reset request smoke tests passed;
+- privileged Turnstile integration from PR #26 is live, but a complete fresh Admin password + CAPTCHA + MFA journey still requires interactive user completion;
 - privileged browser/API/RLS access requires AAL2;
-- Leaked Password Protection unavailable on current Free plan.
+- Leaked Password Protection unavailable on current Supabase Free plan.
+
+## Auth email branding
+
+- source under `supabase/email-templates/`;
+- Reset Password live/verified with subject `Reset your Namdar password`;
+- SMTP address `accounts@namdar.co.uk`; display name changed to `Namdar`, fresh casing verification pending;
+- remaining Auth templates/Magic Link still need hosted apply/test;
+- no `_dmarc` record yet; BIMI/DMARC remains separate work.
 
 ## Other remaining work
 
-- Production runtime logs showed unrelated recurring `/api/booking-notifications` 504s; not mixed into GetAddress changes.
-- Remaining Auth templates + Magic Link test.
-- DMARC/BIMI after sender audit; no `_dmarc` record yet.
-- Same-iPhone overflow confirmation.
+- recurring production `/api/booking-notifications` 504s observed; investigate separately from GetAddress;
+- remaining Auth templates + Magic Link;
+- DMARC/BIMI after sender audit;
+- same-iPhone overflow confirmation;
 - Stripe, SMS, legal, cron/double-booking checks, inbound alias test and controlled customer-support journey.
 
 ## Non-negotiable rules
 
-- Support tickets remain customer-only; public inbound mail stays in Admin Email inbox.
+- Support tickets remain customer-only; public inbound email stays Admin Email inbox.
 - Privileged access requires AAL2.
 - No secrets in GitHub/docs/chat.
 - Never use/reproduce the previously exposed GitHub PAT.
@@ -190,4 +209,4 @@ Never expose secrets through config endpoints, HTML, logs, docs, exports or chat
 
 ## Required workflow
 
-For substantial work use branch → PR → CI → preview/testing → merge → production verification. Update `docs/AI_START.md`, this file and `docs/PROJECT_STATUS.md` together. Never overclaim a provider/runtime path that has not been exercised.
+For substantial work use branch → PR → CI → preview/testing → merge → production verification. Update `docs/AI_START.md`, this file and `docs/PROJECT_STATUS.md` together. Never overclaim a provider/runtime path that has not actually been exercised.
