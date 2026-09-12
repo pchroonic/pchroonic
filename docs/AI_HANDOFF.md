@@ -4,129 +4,151 @@ Last verified: 2026-09-12 UTC
 
 Read `docs/AI_START.md` first.
 
-## Source of truth
-- Repo: `pchroonic/pchroonic`
-- Default branch: `main`
-- Current production main before this change: `1748f3949237cadc4b414b46c1a05b31f1d23e12`
-- Working branch: `feat/window-post-job-followup-20260912`
-- Vercel project: `namdar-website-starter-1`
-- Supabase project: `namdar-production` (`qjigldxjcpnrlyxgmlqq`)
-- Canonical production: `https://namdar.co.uk`
-- Only `windows` is live; all other service-catalog rows remain planned.
+## Production source of truth
+- Repo: `pchroonic/pchroonic`, default `main`.
+- PR #45: `Add Window post-job close-out and honest review workflow`.
+- Exact feature head: `6c87352fcbd1ee04215096ef4cdc41b70b53fb64`.
+- GitHub Actions: `34718136246` — SUCCESS.
+- Exact-head preview: `dpl_HZyaGdp8zWN48TuL9n2ZntPeDRt7` — READY, clean errors-only build, no alias error.
+- Product merge: `f1e813866c0c854ca3b14b73c4c867ea00475e64`.
+- Product production: `dpl_6QT2rxS8epuMFvCq2t1EwMTjfWg8` — READY on `https://namdar.co.uk`, aliases include `namdar.co.uk`, `aliasError: null`.
+- Supabase: `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
+- Only `windows` is live; gutters/jetwash/roof/handyman/tour3d remain planned.
 - Address-data work is parked.
 - Staff/Admin privileged API access requires AAL2/MFA.
 
-## Live Window Stage 1 baseline
-The live product already has:
-- Window-specific quote inputs and server-side quote/live-service gating;
-- one-off and 4/8/12-week guide pricing;
-- server-enforced booking operations and postcode-area route density;
-- staff On my way / Start / Complete lifecycle with before/after photos and notes;
-- immediate completion email plus a queued 24-hour follow-up;
-- consent-aware postcode → quote acquisition tracking;
-- completed-job actual timing and direct-contribution reporting.
+## Window Stage 1 baseline
+Live before and through PR #45:
+- Window-specific quote inputs and service-live enforcement;
+- one-off/4/8/12-week guide pricing;
+- server-enforced customer booking operations and postcode-area route density;
+- Staff On my way / Start / Complete workflow, photos and notes;
+- consent-aware acquisition funnel;
+- actual job timing and direct-contribution reporting.
 
-Performance reporting uses:
-- `started_at → completed_at` for actual work time;
-- `booking_job_costs` only when a direct-cost review exists;
-- direct contribution, never “net profit”.
+`booking_job_costs` is the single Stage 1 direct-cost source of truth. Missing rows mean “not reviewed”, not £0 cost.
 
-## Post-job workflow change in this branch
+## PR #45 implementation
 
 ### Staff close-out
-New `staff-closeout.js` augments completed Window jobs in the existing Staff app without rewriting `staff-original.js`.
+New `staff-closeout.js` augments completed Window jobs without rewriting the large legacy Staff UI.
 
-`api/staff-jobs.js` now returns the assigned job's existing `booking_job_costs` row as `economics`.
+`api/staff-jobs.js` returns the assigned job's existing `booking_job_costs` row as `economics`.
 
 `api/staff-job-action.js` accepts `action='economics'` only when:
 - the booking is assigned to the authenticated staff member;
 - the job is completed;
-- the linked quote is `service_key='windows'`.
+- the linked quote has `service_key='windows'`.
 
-Values use the same bounds as Admin job economics:
+Bounds match Admin economics:
 - consumables / parking / travel / other direct cost: non-negative, max £100,000;
 - travel minutes: 0–1440;
 - travel miles: 0–10,000;
 - note: max 1500 chars.
 
-The action upserts `booking_job_costs`, sets `updated_by`, and writes `booking.economics` to the audit log.
+It upserts `booking_job_costs`, sets `updated_by`, and audit logs `booking.economics`.
 
 ### Neutral 24-hour follow-up
-Existing completion paths continue to call `scheduleBookingFollowUp()`, so no scheduling behavior or schema changes are needed.
+Completion paths still call the existing `scheduleBookingFollowUp()`; no new notification type or migration was introduced.
 
-New `lib/post-job-followup.js` processes due `booking_notifications.notification_type='follow_up'` before the legacy generic worker:
-- verifies booking still exists and is completed;
-- validates the existing follow-up event key against the completion event;
-- ensures the existing secure `booking_feedback` invite;
-- sends a neutral email asking for private feedback;
-- includes an optional “Leave an honest Google review” CTA only if `site_settings.reviews.value.public_review_url` is configured;
-- explicitly welcomes positive, neutral or negative experience and says no review rewards are offered;
-- archives the message in My Namdar.
+New `lib/post-job-followup.js` processes due `follow_up` rows before the generic booking worker:
+- atomically claims pending rows;
+- resets stale sending rows;
+- verifies the booking still exists and is completed;
+- verifies the follow-up event key against the current completion event;
+- loads the linked quote;
+- ensures an existing secure `booking_feedback` invite;
+- sends a neutral post-job email;
+- archives it for My Namdar;
+- retries provider failures up to the existing five-attempt ceiling.
 
-`api/booking-notifications.js` processes 10 post-job follow-ups first, then 10 generic booking notifications and 10 business follow-ups. Stage 1 capacity is max 3 jobs/day, so this keeps normal throughput while reducing the previous 100+100 sequential timeout risk.
+The message offers private Namdar feedback to every completed customer. If `publicReviewUrl()` returns a configured Google URL, it also shows an optional `Leave an honest Google review` CTA and explicitly welcomes positive, neutral or negative experiences with no review rewards.
 
 ### Review gating removed
-Previous `api/feedback.js` behavior exposed the public-review URL only after private status `positive`. That is being removed.
+Prior behavior in `api/feedback.js` exposed the public review URL only when private feedback status was `positive`. PR #45 deliberately removes that gating.
 
-New behavior:
-- GET returns configured public review availability regardless of rating/status;
-- `public_review_click` does not require a positive rating;
+Current behavior:
+- GET returns configured public-review availability regardless of private rating/status;
+- `public_review_click` requires a valid secure feedback token and configured public URL, not a positive rating;
 - duplicate and newly submitted feedback responses return the configured review URL regardless of rating;
-- 1–3 ratings still create/escalate private support work;
-- the client displays the same optional honest-review CTA after either positive or needs-attention private feedback.
+- 1–3 private ratings still create/escalate the existing private support workflow;
+- `feedback.js` renders the same optional honest-review CTA after either positive or needs-attention feedback.
 
-Do not restore positive-only review links.
+Do not restore positive-only review solicitation, discourage negative reviews, request a particular star rating, or add incentives.
 
-### Admin review settings
+### Admin review setting
 New:
 - `api/admin-review-settings.js`
 - `admin-post-job-followup.js`
 
-Admin → Bookings can view the setting with Bookings access; editing requires Settings permission/AAL2.
+Admin → Bookings:
+- GET requires Bookings/AAL2;
+- edit requires Settings/AAL2;
+- only blank or HTTPS Google-owned hosts are accepted (`google.com` subdomains, `g.page`, `goo.gl` and subdomains such as `maps.app.goo.gl`);
+- update is audit logged as `reviews.settings_update`.
 
-Only HTTPS Google-owned review URLs are accepted (`google.com` subdomains, `g.page`, `goo.gl` / subdomains). Empty value disables Google review requests.
+Production currently has no `site_settings` row with key `reviews`, therefore Google public-review CTAs are disabled until the official Business Profile review-request link is deliberately entered.
 
-Production currently has no `site_settings` key `reviews`; therefore this release does not invent or enable a Google review URL.
+### Notification worker
+`api/booking-notifications.js` now runs:
+1. `processPostJobFollowUps(10)`;
+2. `processDueBookingNotifications(10)`;
+3. `processBusinessFollowUps(10)`.
+
+This bounds sequential work and mitigates the prior 504 risk. It is not proof that the historical 504 is fully resolved; verify real cron runs before closing that item.
 
 ### Database
-No migration is required. Reused tables:
-- `bookings`
-- `booking_notifications`
-- `booking_feedback`
-- `booking_job_costs`
-- `site_settings`
+No migration in PR #45. Reused:
+- `bookings`;
+- `booking_notifications`;
+- `booking_feedback`;
+- `booking_job_costs`;
+- `site_settings`.
 
-At implementation inspection, production `booking_notifications` had only two historical sent rows: one confirmation and one 24h reminder; no synthetic completion/follow-up rows were created.
+Production after release:
+- `booking_job_costs`: 0 rows at verification;
+- `site_settings.reviews`: absent;
+- no synthetic feedback, cost or notification records were created for testing.
 
-## Regression coverage
-`scripts/post-job-followup.test.mjs` checks:
-- completed Window-only staff cost capture;
-- direct-contribution wording;
-- neutral post-job email;
-- public review no longer gated on positive private feedback;
-- Google-only/audited admin settings;
-- bounded cron batch order;
-- Admin/Staff module loading.
+## Release verification
+- local regression suite `scripts/post-job-followup.test.mjs`: 6/6 passed before PR;
+- exact-head GitHub Actions `34718136246`: SUCCESS;
+- exact-head Vercel preview `dpl_HZyaGdp8zWN48TuL9n2ZntPeDRt7`: READY, errors-only clean;
+- merge commit `f1e813866c0c854ca3b14b73c4c867ea00475e64`;
+- production `dpl_6QT2rxS8epuMFvCq2t1EwMTjfWg8`: READY, canonical alias present, no alias error;
+- unauthenticated `/api/admin-review-settings` → 401 `Please sign in as Namdar staff.`;
+- `/api/booking-notifications` without cron authorization → 401;
+- invalid `/api/feedback?token=bad` → 400;
+- live `staff.js` loads `/staff-closeout.js` with version `6.4.20-post-job-followup-1`;
+- live `admin.js` loads `/admin-post-job-followup.js` with the same version;
+- service catalog: Window live, five future services planned.
 
-The GitHub workflow also syntax-checks all new/changed modules.
+## Existing performance foundation
+Keep these Stage 1 rules:
+- acquisition tracking is consent-aware and session-only;
+- funnel endpoint is Window-only;
+- direct contribution is not net profit;
+- no-cost-review jobs are excluded from contribution/margin;
+- actual productivity requires valid `started_at → completed_at`;
+- `conversion_events`, `quote_funnel_links`, `booking_job_costs` remain server-only/RLS protected.
 
-## After product merge
-Update all three continuity docs with:
-- PR number;
-- exact feature head;
-- final GitHub Actions run;
-- exact-head Vercel preview deployment;
-- merge commit;
-- production deployment and alias status;
-- production smoke checks;
-- whether a Google review link remains unconfigured or has been deliberately entered.
+Closed duplicate PR #43 remains superseded. Do not revive it.
+
+## Next recommended work
+Use the release on real jobs before adding more systems:
+1. enter the official Google Business Profile review URL when available;
+2. complete every field job with Start → Complete;
+3. save the direct-cost/travel review, including genuine £0-cost jobs;
+4. collect authentic before/after evidence and feedback;
+5. calibrate price/capacity/route rules from real results;
+6. consider Stage 2 only after the user deliberately decides the Window evidence supports it.
 
 ## Non-negotiables
-- Window Cleaning only until deliberate Stage 2 decision.
-- No address-data work unless deliberately resumed.
-- Existing accepted work survives later pauses.
-- Service/booking rules remain server-side enforced.
-- Staff remains AAL2/MFA protected.
-- Review requests must remain neutral and equally available.
-- Support tickets remain customer-only.
+- Window Cleaning remains the only current commercial service.
+- Address-data work stays parked unless deliberately resumed.
+- Service/booking restrictions remain server-side enforced.
+- Existing commitments survive service pauses.
+- Privileged access remains AAL2/MFA protected.
+- Review solicitation remains neutral and equal.
+- Support tickets stay customer-only.
 - Never expose secrets.
