@@ -2,170 +2,148 @@
 
 Last verified: 2026-09-12 UTC
 
-Read `docs/AI_START.md` first for compact state. Use this file for detailed technical continuity. Never store secrets or private customer data here.
+Read `docs/AI_START.md` first. This is the detailed technical continuity record. Never store secrets or private customer data here.
 
 ## Source of truth
 
-- Product: Namdar, UK exterior-cleaning and handyman service platform.
-- Repository: `pchroonic/pchroonic`, default branch `main`.
-- Current `main` before branded-email branch: `f9192284d2f2844d3b2940408fb3cda363758b9c`.
-- Current live product code SHA: `72d52d06a09852de8ee5c329adf57f5934e5dcc1`.
+- Product: Namdar UK property services platform.
+- Repository: `pchroonic/pchroonic`, default `main`.
+- Main before current GetAddress branch: `bd2b9e56d5f50a7eac2d19c3e98cb8976374449e`.
 - Hosting: Vercel project `namdar-website-starter-1`, canonical `https://namdar.co.uk`.
-- Backend/Auth: Supabase `namdar-production` (`qjigldxjcpnrlyxgmlqq`), organization plan Free.
-- Email provider: Resend, verified domain `namdar.co.uk`, sending + receiving enabled, eu-west-1.
-- Current documented release heading: v6.4.16.
+- Backend/Auth: Supabase `namdar-production` (`qjigldxjcpnrlyxgmlqq`), Free plan.
+- Email: Resend, verified `namdar.co.uk`, sending + receiving enabled, eu-west-1.
+- Release heading remains v6.4.16.
 
-Repository plus verified provider/deployment state are the source of truth. If older notes conflict with code/live state, correct them.
+## Non-negotiable product/security rules
 
-## Continuity model
+- Customer support tickets are private to signed-in customers with an eligible Namdar relationship. Public inbound email remains Admin Email inbox.
+- Privileged Admin/Staff access requires MFA/AAL2 in browser, API and RLS. Migration `20260911230055 require_aal2_for_staff_permissions` is live.
+- Google sign-in is intentional and must not be disabled without migration/recovery.
+- No provider/API secrets in GitHub, docs or chat.
 
-- `docs/AI_START.md`: fast resume + exact next action.
-- `docs/AI_HANDOFF.md`: detailed technical continuity.
-- `docs/PROJECT_STATUS.md`: broader roadmap/status.
+## Auth/CAPTCHA current state
 
-CI requires all three for substantial product-source changes.
+- Site URL `https://namdar.co.uk`; only redirect wildcard `https://namdar.co.uk/**` remains.
+- Email + Google enabled; phone, anonymous sign-in, manual linking and other shown providers disabled.
+- Hosted Supabase CAPTCHA is ON with Cloudflare Turnstile.
+- PR #19 readiness code supplies CAPTCHA tokens to password login, Magic Link, Google ID token, signup, password reset and confirmation resend.
+- Production smoke tests passed: fresh/private customer login; password-reset request/delivery.
+- Magic Link and other non-destructive Auth smoke tests remain pending.
 
-## Support model — unchanged
+## Branded Auth email state
 
-Customer support tickets are private to signed-in customers with an existing quote, booking, subscription or project. Public visitors use quote/chat/email. Public inbound email remains Admin → Email inbox and does not become a customer support ticket.
+Source templates under `supabase/email-templates/` merged in `bd2b9e56d5f50a7eac2d19c3e98cb8976374449e`.
 
-## Phase 7 — Launch Security & Readiness
+Current hosted state:
+- Reset Password subject/HTML manually saved in Supabase and later verified in Gmail as branded Namdar email with subject `Reset your Namdar password`.
+- Initial immediate test after saving still used old template because hosted Auth configuration had not propagated; a later test confirmed new content.
+- Owner changed SMTP display name from `namdar` to `Namdar`; sender address stays `accounts@namdar.co.uk`. No post-change message has yet verified casing.
+- Other five prepared templates are not yet confirmed live.
+- Gmail raw message before sender-name change showed DKIM pass for `@namdar.co.uk` and SPF pass for `send.namdar.co.uk`.
+- Sender avatar is not controlled by HTML. BIMI/DMARC work is paused; Cloudflare currently has no `_dmarc` record. Do not add enforcement until sender audit is complete.
 
-### MFA Stage 2 — LIVE AND USER-VERIFIED
+## Existing Namdar address architecture
 
-MFA Stage 2 is enforced at browser/Admin/Staff, Vercel API and Supabase RLS layers. Applied migration: `20260911230055 require_aal2_for_staff_permissions`.
+- `api/address-search.js` searches `master_addresses` first, then OpenStreetMap fallback when local master has no result.
+- `api/address-get.js` resolves a saved master/directory/profile address.
+- `api/address-save.js` captures customer-profile corrections into secondary `address_directory`.
+- `api/admin-address-master.js` and Admin Service Areas expose dataset status and postcode samples.
+- `master_addresses` has unique `(source_dataset, source_record_id)` plus postcode/dataset indexes and RLS.
+- `address_dataset_registry` tracks data sources.
+- `postcode_directory` provides verified known postcode seeds.
 
-Verified production path on 2026-09-12: Admin sign-out → fresh sign-in → authenticator challenge → Admin Inbox loaded normally.
+Before this feature production contained only a handful of address records, so daily accumulation materially improves local coverage.
 
-References: PR #8, CI `34656209581` success, preview `dpl_2bfBkHgR4k8SY4hL4AcUrn3NWzzT` READY, main code SHA `ece88931bd5e05b26173b25ff7fa75c46b6b4e63`, production `dpl_Jkb8ZavhqrBD6PLpqjAPnEdiGAsW` READY.
+## GetAddress daily harvest — FEATURE IMPLEMENTATION
 
-## Homepage horizontal overflow — LIVE
+Feature branch: `feature/getaddress-daily-harvest-20260912`.
 
-PR #16 implemented all-width document containment and x=0 restoration after the issue was reproduced on both iPhone and Windows/Edge desktop.
+### Provider strategy
 
-Owner verification: Windows/Edge desktop confirmed fixed on 2026-09-12. Same-iPhone final check remains pending.
+Official GetAddress behavior used by the design:
+- Typeahead postcode queries are rate-limited but do not increase lookup usage.
+- Autocomplete query containing only a postcode with `all=true` counts as one lookup and returns all suggestions for that postcode.
+- GetAddress says returned address data may be cached/saved.
 
-## Supabase Auth URL Configuration — COMPLETE
+Therefore one daily credit can save many addresses. Namdar targets up to 20 **postcodes** per day, not merely 20 individual addresses.
 
-Owner saved:
-- Site URL `https://namdar.co.uk`
-- Redirect allowlist `https://namdar.co.uk/**`
+### Server-side secrets
 
-Four unnecessary Vercel exact/wildcard redirect entries were removed.
+- `GETADDRESS_API_KEY` — required for harvesting.
+- `GETADDRESS_ADMIN_KEY` — optional; used only for provider `/v3/usage` authoritative usage/daily-limit readback.
+- Existing `CRON_SECRET` protects the scheduled endpoint.
+- Keys are server-side only. Never expose them through `/api/config`, Admin HTML, logs, exports or docs.
 
-## Supabase Sign In / Providers — REVIEWED
+### Database/storage
 
-Intended production state:
-- new user signup + confirm email enabled;
-- Email provider enabled;
-- Google provider enabled and intentional;
-- Phone, anonymous sign-in, manual linking, all other shown social/custom providers disabled.
+Applied production migrations:
+- `20260912121339 address_harvest_automation`
+- `20260912121442 address_harvest_run_guard`
 
-Important: Namdar uses Google Identity Services and Supabase `signInWithIdToken`; production has at least one customer identity that relies on Google without a separate email/password identity. Do not disable Google without a recovery/migration plan.
+Created:
+- `address_harvest_settings`: singleton ON/OFF, cap 1–20, postcode seed cursor, provider usage snapshots, last run/success/error.
+- `address_harvest_runs`: operational run history/status/counters and backup paths.
+- `address_harvest_postcodes`: candidate queue and retry state.
+- `address_harvest_snapshots`: raw provider JSON per run/postcode.
+- private Storage bucket `address-harvest-backups` accepting JSON/CSV.
+- dataset registry row `getaddress-daily-cache`.
+- partial unique index allows only one `running` harvest per UTC day; code releases stale >30-minute runs before starting another.
 
-## Supabase Attack Protection / CAPTCHA — ENABLED
+All new public-schema operational tables have RLS enabled, no anon/authenticated privileges, and service-role access only. Backup bucket is private.
 
-Owner-confirmed Supabase Attack Protection is ON using Cloudflare Turnstile. Existing Namdar Turnstile secret was copied directly from Cloudflare into Supabase; no secret was shared or stored in repo/chat.
+### Worker behavior
 
-PR #19 `Prepare customer Auth for Supabase CAPTCHA` is live:
-- feature head `cecab9d0236a8ef804c7b52f6f78741f46a93001`;
-- CI `34688813723`: success;
-- preview `dpl_2rb4eyRExRTMiG1dxgdrf6xv4XHv`: READY;
-- production code SHA `72d52d06a09852de8ee5c329adf57f5934e5dcc1`;
-- production deployment `dpl_DSmsBZ9DTxg9Dtw9tbyYHWWtpxYw`: READY.
+`lib/address-harvest.js`:
+- Never runs without server API key.
+- Automatic cron respects `enabled`; manual Run once can operate while automatic is OFF.
+- Local UTC-day usage is always counted so Namdar cannot exceed its configured daily cap even without admin usage key.
+- If admin usage key exists, provider remaining allowance also constrains the run.
+- Seeds verified `postcode_directory` first, then rotating UK postcode-area/district Typeahead terms, prioritising London/surrounding areas.
+- Each selected postcode is looked up once with Autocomplete `all=true` and a structured template.
+- Suggestions normalize into existing `master_addresses`, source `getaddress-daily-cache`; suggestion ID is source record ID.
+- Raw response is preserved in snapshots.
+- Successful run creates JSON raw backup + normalized CSV in private Storage.
+- Provider 429 stops remaining work and leaves current postcode pending rather than spending blindly.
+- Old transient errors can retry after 24h up to 3 attempts.
 
-Live guard sends Turnstile tokens for password login, Magic Link, Google ID-token login, signup, password reset and confirmation resend, then resets the challenge/token after each request.
+### API/admin surface
 
-### CAPTCHA/Auth smoke-test progress
+- `api/address-harvest-cron.js`: CRON_SECRET-protected scheduled GET.
+- `api/admin-address-harvest.js`: AAL2/settings staff only; status, toggle/cap settings and manual run.
+- `api/admin-address-harvest-export.js`: AAL2/settings staff only; full current dataset CSV/JSON or private per-run backup download.
+- `admin-address-harvest.js`: dynamically injects management panel into existing Service Areas beside master-address tools. Shows ON/OFF, cap, key configured booleans, usage/remaining, total cached rows, last run/error, recent runs, Run once, and secure downloads.
+- `admin.js` loader adds the extension rather than modifying large `admin-original.js`.
+- CI syntax checks include all new JS.
+- `vercel.json` schedules `/api/address-harvest-cron` at `30 3 * * *` UTC.
 
-Passed:
-- fresh/private-session real customer login after CAPTCHA enablement → My Namdar opened normally;
-- password-reset request after CAPTCHA enablement → reset email delivered successfully through Resend to the owner.
+### Safe enablement sequence
 
-Do not store or quote the live reset URL/token returned in provider inspection. Treat one-time Auth links as secrets.
+1. Merge/deploy with automation OFF.
+2. Owner adds `GETADDRESS_API_KEY` directly in Vercel Production env. Optional `GETADDRESS_ADMIN_KEY` may also be added; never paste keys into chat.
+3. Redeploy if Vercel requires it for env changes.
+4. Open Admin → Service areas → Daily address database growth. Confirm key status configured and Automatic OFF.
+5. Run once manually. Verify run counters, master sample, CSV/JSON private backups and full export.
+6. Check GetAddress provider usage independently if desired.
+7. Only after successful test switch Automatic daily harvest ON.
 
-Still pending:
-- Magic Link request + delivered email;
-- alternate live login method if practical;
-- confirmation resend/safe signup only with a disposable account if needed.
-
-## Auth email branding — FEATURE SOURCE PREPARED, HOSTED TEMPLATES NOT LIVE YET
-
-The delivered password-reset email exposed that Supabase hosted Auth emails still use plain default HTML. Resend inspection also showed the SMTP display name currently renders as lowercase `namdar` from `accounts@namdar.co.uk`.
-
-Feature branch: `feature/branded-auth-emails-20260912`.
-
-Prepared source-controlled templates under `supabase/email-templates/`:
-- `README.md` — subjects, sender presentation, apply/test workflow and avatar/BIMI notes;
-- `reset-password.html`;
-- `magic-link.html`;
-- `confirm-signup.html`;
-- `change-email.html`;
-- `reauthentication.html`;
-- `invite.html`.
-
-### Design decisions
-
-- Uses existing Namdar palette: ink `#0d1715`, green `#173c32`, lime `#c8ff64`, mint `#d7f7e7`, paper `#f4f5ef`.
-- Uses table-based email layout with inline styles for broad client compatibility.
-- Brand header is an HTML/CSS `N` tile + `NAMDAR` wordmark rather than a remote image, so branding remains visible even with remote images blocked.
-- Consistent security copy, clear CTA, support link and Namdar footer.
-- Uses official Supabase Go-template variables such as `{{ .ConfirmationURL }}`, `{{ .Token }}` and `{{ .NewEmail }}`; no real one-time links/codes are committed.
-- Recommended sender display: `Namdar <accounts@namdar.co.uk>` rather than lowercase `namdar`.
-- Recommended subjects are recorded in the template README.
-
-Supabase hosted projects require these templates to be copied into Dashboard → Authentication → Emails / Email Templates (or changed through the Management API with a user-owned access token). Current connected Supabase tooling does not expose hosted Auth-template mutation, so **do not ask the user to paste an access token into chat**. Prefer dashboard application.
-
-No database migration or runtime code/environment-variable change is required for the template source itself.
-
-### Email provider state
-
-Resend domain `namdar.co.uk` is verified; sending and receiving are enabled. Resend reports DKIM and SPF sending records verified. Open Tracking and Click Tracking are currently disabled, which is desirable for Supabase one-time Auth links because link rewriting can break them.
-
-## Gmail sender avatar / BIMI — SEPARATE TASK
-
-The generic Gmail sender avatar is not controlled by Supabase email HTML. A durable cross-client logo is a sender-identity configuration task using DMARC + BIMI; Gmail brand-logo display may require an eligible CMC/VMC certificate path.
-
-Do not promise Gmail will show the logo merely because an image is placed in the email template. Do not tighten DMARC to `p=quarantine` or `p=reject` until legitimate Namdar senders are audited for SPF/DKIM alignment. Resend is known aligned at the provider domain level, but all possible senders must be checked before enforcement.
-
-## Branded email promotion/apply plan
-
-1. Complete branch review/CI/merge so templates are durably backed up in GitHub.
-2. Apply **Reset password** first in Supabase hosted Email Templates and update sender display name to `Namdar` if still lowercase.
-3. Trigger one controlled password reset and verify delivered rendering/sender in Gmail + Resend.
-4. If good, apply the remaining five auth templates and test non-destructive flows one at a time.
-5. Then audit DNS/DMARC + all legitimate senders before deciding on BIMI/certificate setup for the inbox avatar.
-
-Do not claim the branded templates are live until the Supabase dashboard has been saved and a delivered message is verified.
-
-## Leaked Password Protection — PLAN-BLOCKED
-
-Supabase Auth leaked-password protection remains disabled. Namdar is on Supabase Free and the feature requires Pro or above. Treat as optional/plan-blocked; do not upgrade or incur cost without explicit owner approval.
-
-## Applied recent production migrations
+## Other recent production migrations
 
 - `20260911213820 inbox_spam_controls`
 - `20260911213842 inbox_spam_blocklist_fk_index`
 - `20260911220343 inbox_security_indexes`
 - `20260911220415 harden_invoice_number_function_search_path`
 - `20260911230055 require_aal2_for_staff_permissions`
+- `20260912121339 address_harvest_automation`
+- `20260912121442 address_harvest_run_guard`
 
 ## Remaining launch work
 
-1. Finish branded Auth-email branch promotion, apply/reset-test hosted templates and then complete remaining auth-email set.
-2. Complete Magic Link/remaining CAPTCHA Auth smoke tests.
-3. Audit DMARC/sender alignment and decide BIMI/avatar path.
-4. Recheck same iPhone for homepage overflow and close cross-device regression if it passes.
-5. Finish Stripe, SMS, Resend/legal launch configuration.
-6. Verify production cron jobs and intended double-booking protections.
-7. Run safe recognized-mailbox/unknown-alias inbound behavior test.
-8. Complete controlled authenticated customer-support journey when a safe eligible test customer is available.
-9. Optional/plan-blocked: leaked-password protection only if owner later chooses Pro or above.
+- Finish GetAddress PR, preview, production deployment and controlled manual run, then enable only with owner approval.
+- Apply/test remaining branded Auth templates and Magic Link flow.
+- Resume DMARC/BIMI sender-avatar work; no `_dmarc` record has been added.
+- Same-iPhone overflow confirmation.
+- Stripe, SMS, remaining email/legal readiness, cron/double-booking regression checks, inbound alias test and controlled customer-support journey.
 
 ## Required workflow
 
-For substantial work: read `AGENTS.md`, `docs/AI_START.md`, this file, `docs/PROJECT_STATUS.md` and relevant source. Use branch → PR → CI → preview/testing → merge → production verification. Update all three continuity files in the same substantial change. Never include credentials, private customer data, TOTP codes, SMTP secrets, CAPTCHA secrets or one-time Auth links.
-
-## Next recommended step
-
-Finish CI/merge for `feature/branded-auth-emails-20260912`, then apply and test the branded Reset password template first before rolling the complete set into hosted Supabase Auth.
+For substantial work use branch → PR → CI → preview/testing → merge → production verification. Update `docs/AI_START.md`, this file and `docs/PROJECT_STATUS.md`. Never overclaim a provider/runtime path that has not been exercised.
