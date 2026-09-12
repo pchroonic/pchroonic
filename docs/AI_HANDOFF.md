@@ -2,111 +2,171 @@
 
 Last verified: 2026-09-12 UTC
 
-Read `docs/AI_START.md` first for the compact current state and immediate next action. Use this file for detailed technical continuity. Never store secret values or private customer data here.
+Read `docs/AI_START.md` first for compact state. Use this file for detailed technical continuity. Never store secrets or private customer data here.
 
 ## Source of truth
 
 - Product: Namdar, UK exterior-cleaning and handyman service platform.
 - Repository: `pchroonic/pchroonic`, default branch `main`.
-- Hosting: Vercel project `namdar-website-starter-1`.
-- Canonical domain: `https://namdar.co.uk`.
-- Backend: Supabase project `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
-- Supabase organization plan: **Free**.
-- Current documented release heading: Namdar v6.4.16.
+- Hosting: Vercel project `namdar-website-starter-1`, canonical `https://namdar.co.uk`.
+- Backend/Auth: Supabase `namdar-production` (`qjigldxjcpnrlyxgmlqq`), organization plan Free.
+- Current documented release heading: v6.4.16.
+- Current `main` before the CAPTCHA-readiness branch: `5a5c4f5e8578290ecda6ac16cafdb697f7ad4910`.
 
-Repository plus verified provider state are the source of truth.
+Repository plus verified provider/deployment state are the source of truth. If older notes conflict with code/live state, correct the notes.
 
-## Fast-resume continuity model
+## Continuity model
 
-Namdar uses three continuity layers:
-- `docs/AI_START.md` — compact current state, exact next action, blockers and do-not-repeat notes.
-- `docs/AI_HANDOFF.md` — detailed technical continuity, migrations, deployment checks and implementation decisions.
-- `docs/PROJECT_STATUS.md` — broader roadmap and launch status.
+- `docs/AI_START.md`: fast resume + exact next action.
+- `docs/AI_HANDOFF.md`: detailed technical continuity.
+- `docs/PROJECT_STATUS.md`: broader roadmap/status.
 
-CI requires all three to be updated with any product-source change.
+CI requires all three for substantial product-source changes.
 
 ## Support model — unchanged
 
-Customer support tickets remain private to signed-in customers with an existing quote, booking, subscription or project. Public visitors use quote/chat/email. External inbound email remains in Admin → Email inbox and does not become a customer support ticket.
+Customer support tickets are private to signed-in customers with an existing quote, booking, subscription or project. Public visitors use quote/chat/email. Public inbound email remains Admin → Email inbox and does not become a customer support ticket.
 
 ## Phase 7 — Launch Security & Readiness
 
 ### MFA Stage 2 — LIVE AND USER-VERIFIED
 
-The administrator successfully enrolled TOTP before Stage 2. Production has 1 verified MFA factor for 1 admin user.
+MFA Stage 2 is enforced at browser/Admin/Staff, Vercel API and Supabase RLS layers. Applied migration: `20260911230055 require_aal2_for_staff_permissions`.
 
-Stage 2 remains enforced at browser/Admin/Staff, central Vercel API and direct Supabase RLS layers. Applied production migration: `20260911230055 require_aal2_for_staff_permissions`. User production smoke test passed on 2026-09-12: full Admin sign-out, fresh sign-in, authenticator challenge completed, and Admin → Inbox loaded normally. Do not repeat unless a future auth change requires regression testing.
+Verified production path on 2026-09-12: Admin sign-out → fresh sign-in → authenticator challenge → Admin Inbox loaded normally.
 
-Stage 2 references:
-- feature commit `d203c64d9e5da3cca049bcb43e988f7432e2864c`;
+References:
 - PR #8;
-- GitHub CI `34656209581`: success;
+- CI `34656209581`: success;
 - preview `dpl_2bfBkHgR4k8SY4hL4AcUrn3NWzzT`: READY;
 - main code SHA `ece88931bd5e05b26173b25ff7fa75c46b6b4e63`;
-- production `dpl_Jkb8ZavhqrBD6PLpqjAPnEdiGAsW`: READY with `namdar.co.uk`.
+- production `dpl_Jkb8ZavhqrBD6PLpqjAPnEdiGAsW`: READY.
 
-## Homepage document-level horizontal overflow — ALL-WIDTH FIX LIVE
+Do not repeat unless a later auth change requires regression testing.
 
-The owner first reported the public homepage shifting sideways on iPhone. PR #12 and PR #14 improved mobile containment, but a later Windows/Edge desktop screenshot proved the same document-level overflow existed at desktop width too.
+## Homepage horizontal overflow — LIVE
 
-The all-width fix from PR #16 is live:
+PR #16 implemented all-width document containment and x=0 restoration after the issue was reproduced on both iPhone and Windows/Edge desktop.
+
+References:
 - feature SHA `5e05d6d3da1df0ea2049b3c2ca440e2ce304d2c2`;
-- GitHub CI `34686741515`: success;
-- exact preview `dpl_9AEFL9yKDgSvZGkAqGuKQnQws88a`: READY;
-- production runtime merge SHA `46a635396ae364fe9b5783bc18c3de2b72025efc`;
-- production deployment `dpl_Bh1kfnpaShf6JwNnzG6N6YvYP1Qh`: READY with `namdar.co.uk`, no alias error;
-- canonical CSS/JS both returned HTTP 200 with all-width containment and x=0 restoration logic.
-
-Live behavior:
-- root/body containment and `overflow-x:hidden` apply at all widths;
-- top-level homepage layout is bounded to the viewport;
-- desktop hero tracks are shrink-safe `minmax(0,...)` columns;
-- key grid/flex children use `min-width:0`;
-- quote/file-input containment remains;
-- intentional nested scrollers stay local;
-- homepage horizontal scroll position resets to x=0 on load, pageshow, resize and orientation change.
+- CI `34686741515`: success;
+- preview `dpl_9AEFL9yKDgSvZGkAqGuKQnQws88a`: READY;
+- production runtime SHA `46a635396ae364fe9b5783bc18c3de2b72025efc`;
+- production `dpl_Bh1kfnpaShf6JwNnzG6N6YvYP1Qh`: READY.
 
 Owner verification:
-- **Windows/Edge desktop confirmed fixed on 2026-09-12** after production deployment. The owner reported `fixed`.
-- Same-iPhone final verification is still pending. Do not mark the cross-device regression fully closed until that device check also passes.
+- Windows/Edge desktop: confirmed fixed on 2026-09-12.
+- same-iPhone final check: pending. Do not mark cross-device regression fully closed until that passes.
 
-No database migration, Auth change, environment variable, provider configuration or customer-data change was involved in the overflow fix.
+## Supabase Auth URL Configuration — COMPLETE
 
-## Supabase Auth URL Configuration — OWNER-VERIFIED COMPLETE
-
-On 2026-09-12 the owner opened Supabase → Authentication → URL Configuration and supplied a screenshot showing:
-- Site URL already set to `https://namdar.co.uk`;
-- redirect allowlist containing the production Namdar wildcard plus four Vercel preview/alias patterns.
-
-The owner then removed the four Vercel entries and confirmed `done` after saving.
-
-Final intended production Auth URL state:
+Owner reviewed Supabase → Authentication → URL Configuration and saved:
 - Site URL: `https://namdar.co.uk`
 - Redirect allowlist: `https://namdar.co.uk/**`
 
-Removed entries:
-- `https://namdar-website-starter-1-pooyamdi-8267.vercel.app/`
-- `https://namdar-website-starter-1-pooyamdi-8267.vercel.app/**`
-- `https://namdar-*-website-starter-1-pooyamdi-8267.vercel.app`
-- `https://namdar-*-website-starter-1-pooyamdi-8267.vercel.app/**`
+Removed four unnecessary Vercel exact/wildcard redirect entries. This is owner-verified dashboard state; current Supabase connector does not expose hosted Auth URL-setting readback.
 
-Reason: production authentication should return only to the canonical Namdar domain; broad Vercel preview wildcards were unnecessary and increased the trusted redirect surface.
+Do not repeat unless a redirect/login problem appears.
 
-The connected Supabase tools currently do not expose hosted Auth URL configuration readback/mutation. Therefore this setting is **owner-verified from the dashboard**, not connector-verified. Do not repeatedly ask the owner to redo this cleanup unless a redirect/login issue appears.
+## Supabase Sign In / Providers — REVIEWED
 
-## Auth provider code audit
+Owner supplied screenshots on 2026-09-12. Intended dashboard state:
+- new user signup: enabled;
+- confirm email: enabled;
+- manual linking: disabled;
+- anonymous sign-in: disabled;
+- Email provider: enabled;
+- Google provider: enabled;
+- Phone provider: disabled;
+- Apple, Azure, Bitbucket, Discord, Facebook, Figma, GitHub, GitLab, Kakao, Keycloak, LinkedIn/OIDC, Notion, Twitch, X/Twitter, Slack, Spotify, WorkOS, Zoom and other shown providers: disabled;
+- no custom providers configured.
 
-Repository search on 2026-09-12 found no `signInWithOAuth`, no `signInWithOtp`, and no explicit OAuth provider configuration in current Namdar source. The next Auth review should therefore inspect Supabase → Authentication → Sign In / Providers and verify that only providers intentionally used by the live Namdar login flow are enabled. Do not enable new providers merely because they are available in Supabase.
+### Important correction to earlier handoff notes
 
-## Security advisor state
+Older notes incorrectly said current Namdar source had no OAuth/provider usage. Full source inspection proves otherwise:
+- `account-original.js` uses Google Identity Services and `sb.auth.signInWithIdToken({provider:'google', ...})`;
+- generic `[data-oauth]` buttons also call `signInWithOAuth` when a provider is enabled;
+- `api/auth-providers.js` reads hosted Auth settings and exposes Google/Apple/Facebook availability to the portal;
+- the live account flow also uses `signInWithOtp` for email Magic Links.
 
-Existing findings remain:
-- INFO: eight server-only operational tables have RLS enabled with no authenticated policies; intentional for tables accessed through service-role server code.
-- WARN: **Leaked Password Protection is disabled** in hosted Supabase Auth.
+Privacy-safe production identity aggregation also showed at least one current customer identity relies on Google without a separate email/password identity. No identifying customer data is recorded here.
 
-Namdar is on Supabase Free and leaked-password protection requires Pro or above. Treat it as optional/plan-blocked and do not upgrade without explicit owner approval.
+**Do not disable Google** without first providing a safe account-migration/recovery path.
 
-## Applied production migrations relevant to current work
+## Supabase Attack Protection / CAPTCHA — CURRENTLY OFF, CODE READINESS IN PROGRESS
+
+Owner screenshot of Supabase → Authentication → Attack Protection on 2026-09-12 showed:
+- `Enable Captcha protection`: OFF;
+- `Prevent use of leaked passwords`: DISABLED/plan-blocked.
+
+Do not enable hosted Supabase CAPTCHA until the code-readiness patch below is deployed and verified.
+
+### Existing Namdar Turnstile implementation
+
+Production `/api/config` confirms the public Turnstile site-key configuration is present. The live customer portal:
+- loads Cloudflare Turnstile;
+- renders separate login and registration challenges;
+- already passes `captchaToken` to `signInWithPassword`;
+- already passes `captchaToken` to `signInWithOtp` Magic Link requests;
+- already passes `captchaToken` to `signUp`.
+
+Gap found before enabling Supabase CAPTCHA:
+- `resetPasswordForEmail` did not pass a CAPTCHA token;
+- confirmation `resend` did not pass a CAPTCHA token;
+- Google `signInWithIdToken` did not pass a CAPTCHA token even though current `auth-js` credentials support `options.captchaToken`;
+- Turnstile widget IDs were not retained, so a used one-time token was not explicitly reset/refreshed after an Auth request.
+
+Current Supabase documentation says hosted CAPTCHA protects sign-in, sign-up and password-reset forms, supports Cloudflare Turnstile, and requires the frontend to provide the CAPTCHA token. Supabase also recommends resetting the challenge after an Auth request so tokens are not reused.
+
+### CAPTCHA readiness implementation
+
+Feature branch: `security/auth-captcha-readiness-20260912`.
+
+Files changed/planned:
+- new `account-captcha-guard.js` compatibility overlay;
+- `account.js` loader version updated to `6.4.16-auth-captcha-1` and loads the new guard immediately after byte-preserved `account-original.js`;
+- `.github/workflows/ai-handoff-check.yml` syntax-checks the new guard;
+- all three continuity files updated.
+
+`account-original.js` remains byte-for-byte unchanged.
+
+`account-captcha-guard.js`:
+- overrides the existing `initTurnstile()` so login/register widget IDs are retained;
+- keeps the existing visual challenge containers and callbacks;
+- patches the created Supabase Auth client without exposing secrets;
+- requires the appropriate existing Turnstile token when a Namdar Turnstile site key is configured;
+- injects tokens into `signInWithPassword`, `signInWithOtp`, `signInWithIdToken`, `signUp`, `resetPasswordForEmail`, and `resend`;
+- resets/clears the relevant Turnstile challenge after each Auth request, including failed attempts.
+
+No database migration and no environment-variable change are required for this code patch.
+
+### Promotion state
+
+At the time of this handoff edit, branch implementation exists but PR/CI/Vercel preview/merge/production verification are still pending. Do not claim Supabase CAPTCHA itself is enabled yet.
+
+### Required owner action after code is live
+
+In Supabase → Authentication → Attack Protection:
+1. switch **Enable Captcha protection** ON;
+2. select **Cloudflare Turnstile**;
+3. obtain the existing Namdar Turnstile **Secret Key** from the Cloudflare dashboard and paste it directly into Supabase;
+4. Save changes.
+
+Never ask the owner to paste the Turnstile secret into chat. Never commit it to GitHub or documentation.
+
+After enabling, run controlled production Auth checks for:
+- password sign-in;
+- Magic Link request;
+- password-reset request;
+- Google sign-in;
+- signup/confirmation path using a safe synthetic account if practical, followed by cleanup.
+
+## Leaked Password Protection — PLAN-BLOCKED
+
+Supabase Security Advisor / Attack Protection shows leaked-password prevention disabled. Namdar is on Supabase Free and the feature requires Pro or above. Treat this as optional/plan-blocked. Do not upgrade or incur cost without explicit owner approval.
+
+## Applied recent production migrations
 
 - `20260911213820 inbox_spam_controls`
 - `20260911213842 inbox_spam_blocklist_fk_index`
@@ -116,24 +176,19 @@ Namdar is on Supabase Free and leaked-password protection requires Pro or above.
 
 ## Remaining launch work
 
-1. Inspect Supabase Authentication → Sign In / Providers and verify only intended providers are enabled.
-2. Recheck the same iPhone for the all-width overflow fix; if it passes, close the regression in continuity.
-3. Review Turnstile / Auth attack-protection settings.
-4. Finish launch checks for Stripe, SMS provider, Resend and legal configuration.
-5. Verify booking-notification/account-purge cron jobs and intended double-booking protection.
+1. Finish CAPTCHA readiness PR → CI → exact Vercel preview → merge → production verification.
+2. Then guide owner through enabling Supabase CAPTCHA with Cloudflare Turnstile secret entered directly in the dashboard; run Auth smoke tests.
+3. Recheck the same iPhone for homepage overflow and close the regression if it passes.
+4. Finish Stripe, SMS, Resend and legal launch configuration.
+5. Verify production cron jobs and intended double-booking protections.
 6. Run safe recognized-mailbox/unknown-alias inbound behavior test.
-7. Complete controlled authenticated customer-support ticket test when a safe test customer is available.
-8. Optional/plan-blocked: enable Supabase Leaked Password Protection only if the owner later chooses Pro or above.
+7. Complete controlled authenticated customer-support journey when a safe eligible test customer is available.
+8. Optional/plan-blocked: leaked-password protection only if owner later chooses Pro or above.
 
 ## Required workflow
 
-1. Read `docs/AI_START.md` first.
-2. For substantial work, read this file, `docs/PROJECT_STATUS.md` and `AGENTS.md` completely.
-3. Inspect repository/provider state before changing anything.
-4. Use branch → PR → CI → Vercel preview/testing → merge → production verification for code changes.
-5. Update `docs/AI_START.md`, this file and `docs/PROJECT_STATUS.md` in the same substantial product/provider change.
-6. Never include credentials or private customer data.
+For substantial work: read `AGENTS.md`, `docs/AI_START.md`, this file, `docs/PROJECT_STATUS.md` and relevant source. Use branch → PR → CI → preview/testing → merge → production verification. Update all three continuity files in the same substantial change. Never include credentials, private customer data, TOTP codes or CAPTCHA secrets.
 
 ## Next recommended step
 
-Ask the owner for a screenshot of **Supabase → Authentication → Sign In / Providers**. Verify only the providers actually used by Namdar are enabled; current source contains no OAuth or OTP sign-in calls. Then continue to Turnstile/attack-protection review.
+Finish promotion of `security/auth-captcha-readiness-20260912`. Only after the production code is verified should the owner enable hosted Supabase CAPTCHA and enter the Cloudflare Turnstile secret directly into Supabase.
