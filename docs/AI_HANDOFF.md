@@ -2,152 +2,91 @@
 
 Last verified: 2026-09-12 UTC
 
-Read `docs/AI_START.md` first. This file contains implementation detail and release rules.
+Read `docs/AI_START.md` first.
 
-## Source of truth
+## Production source of truth
+- Repo `pchroonic/pchroonic`, default `main`.
+- Current main after docs PR #37: `80faf13d5ebbc7e00034300bd7eee15af9cb9538`.
+- Window-only staged-service release is live from PR #36.
+- Canonical production: `https://namdar.co.uk`.
+- Supabase: `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
+- Only `windows` is live; gutters/jetwash/roof/handyman/tour3d remain planned.
+- Privileged staff requires AAL2/MFA.
 
-- Product: Namdar UK property-services platform.
-- Repository: `pchroonic/pchroonic`, default `main`.
-- Current product merge: `cbd189da5a1516238aa11b0d796ea865816892b4` from PR #36.
-- PR #36 exact head: `ce21ffe89170b58ceb267298bcf1db690b72c798`.
-- GitHub CI `34711279114`: SUCCESS.
-- Exact-head preview `dpl_Gwsoed8g4DVS6yVSPQ4ntiFYy2WR`: READY.
-- Production `dpl_AZtJJiXSMRas45F8mU8KTfLjqHwR`: READY on `https://namdar.co.uk`, no alias error.
-- Supabase: `namdar-production` (`qjigldxjcpnrlyxgmlqq`), Free plan.
-- Production migration: `20260912182925 service_catalog_activation`.
-- Privileged Admin/Staff access requires AAL2/MFA.
+## Current candidate
+Branch: `feat/window-cleaning-stage1-optimisation-20260912`.
+No database migration is required.
 
-## Business decision
+### Critical quote-gate fix
+`api/quote.js` previously checked `body.service` even though the customer quote form sends `serviceKey`. Because the old wrapper defaulted missing `service` to `windows`, a crafted request could pass the outer live-service check and reach `quote-core.js` with another service key.
 
-Namdar currently provides **Window Cleaning only**. The user wants to prove this service first, then activate additional services one by one. Future services must remain built/prepared so launch does not require a site rebuild.
+Candidate fix:
+- resolve the gate from `body.serviceKey || body.service`;
+- reject missing/unknown keys;
+- keep non-live response HTTP 409;
+- normalise Window detail/extra/frequency values server-side before delegating to the legacy core.
 
-Current live catalog:
-- `windows` — live
-- `gutters` — planned
-- `jetwash` — planned
-- `roof` — planned
-- `handyman` — planned
-- `tour3d` — planned
+Window allowed guide-price inputs are now constrained to known UI values rather than trusting arbitrary client multipliers.
 
-All six already have pricing and current active-area readiness. This is preparation, not permission to activate them.
+### Window quote UX
+`conversion.js` keeps Window Cleaning as the sole live service and enhances the quote UI after `app.js` loads:
+- exterior-window count;
+- window style;
+- current condition: maintenance / first Namdar clean / heavy build-up;
+- access detail: clear / gated / extension-conservatory / mixed complications;
+- extra glass choices tailored to doors, roof lights, conservatories, unusual glass;
+- recurrence choices: one-off, 4-weekly, 8-weekly, 12-weekly;
+- structured `[Window details]` summary appended to submitted notes for Admin review, then customer textarea restored locally.
 
-## service_catalog — LIVE
+The generic pricing engine still produces a guide estimate; the final quote remains reviewed manually before booking.
 
-`public.service_catalog` is the server-side source of truth.
+### Recurring pricing mapping
+`quote-core.js` keeps the prior discount curve and adds Stage 1 names:
+- one-off `1.00`;
+- 4-weekly `.86` (same as legacy monthly);
+- 8-weekly `.90` midpoint;
+- 12-weekly `.94` (same as legacy quarterly).
+Legacy monthly/quarterly keys remain accepted for compatibility.
 
-Statuses:
-- `planned`: hidden/not quotable
-- `coming_soon`: may be marketed, no new work
-- `live`: new quote/postcode/subscription work permitted
-- `paused`: new work blocked, existing commitments preserved
-- `retired`: no new work
+### My Namdar subscriptions
+`subscription-core.js` accepts `4_weekly`, `8_weekly`, `12_weekly` and defaults new recurring requests to `8_weekly`.
+`account-service-availability.js` rebuilds the Window-only frequency selector to 4/8/12 weeks and explains that Namdar confirms regular price, first-clean requirements and schedule before activation.
 
-RLS is enabled. anon/authenticated have no direct table grants. Server service role reads/writes the catalog.
+### Window Cleaning service page
+`services/window-cleaning.html` now focuses on the actual Stage 1 offer:
+- exterior glass, frames and exterior sills;
+- one-off and 4/8/12-week requests;
+- what affects the final quote;
+- first-clean/heavy-build-up review;
+- access, extension/conservatory and extra-glass guidance;
+- optional private photos;
+- no payment at estimate stage and reviewed final quote before booking.
 
-`lib/service-catalog.js` fails closed if DB lookup fails: Window Cleaning remains live; all other known services become planned.
+No unsupported insurance, guarantee, equipment or result claims were added.
 
-## Server enforcement
+## Tests
+New `scripts/window-stage1.test.mjs` verifies:
+- quote gate evaluates `serviceKey`;
+- Window input multipliers are normalised server-side;
+- 4/8/12-week guide-price keys exist;
+- homepage Window-specific questions and notes summary exist;
+- My Namdar recurrence options match;
+- Window service page documents inclusions and reviewed flow.
 
-The original implementations are preserved as:
-- `api/quote-core.js`
-- `api/postcode-core.js`
-- `api/subscription-core.js`
+CI workflow now runs this suite and syntax-checks all touched JS.
 
-Wrappers enforce catalog state before new work:
-- `api/quote.js`: unknown 400, non-live 409, live delegates to quote engine.
-- `api/postcode.js`: when a `service` query is supplied, non-live is rejected before coverage logic; postcode-only lookups remain available for other workflows.
-- `api/subscription.js`: POST new recurring request is blocked for non-live; GET existing subscriptions and PATCH cancellation remain unchanged.
+## Release workflow
+1. PR from candidate branch.
+2. GitHub CI must pass.
+3. Exact-head Vercel preview must be READY/clean.
+4. Verify preview service page and homepage assets.
+5. Merge only after gates pass.
+6. Verify production deployment/aliases and key public endpoints.
+7. Sync handoff to exact live commit/deployment IDs if necessary.
 
-Do not add a blanket live-status check to accepted quotes/bookings. A later pause stops new work and does not cancel existing commitments.
-
-Production smoke:
-- `/api/postcode?postcode=SE14%205TD&service=gutters` → 409 planned/unavailable.
-- same postcode with `service=windows` → 200 covered in Lewisham.
-
-## Public-data / website behaviour
-
-`api/public-data.js` returns safe service status metadata and only exposes live-service pricing and live-service published work.
-
-Production verified:
-- Window Cleaning live/quotable/public.
-- five future services planned/not quotable/not public.
-- pricing response contains only `windows` (£50 base, £4.50 unit under current pricing rule).
-- current public service-area output resolves empty DB `service_keys` to `["windows"]`.
-
-`conversion.js`:
-- applies synchronous Window-only fallback;
-- planned/retired cards and quote radios hidden/disabled;
-- coming-soon/paused can be visible but cannot initiate quote;
-- 3D section/nav follows catalog;
-- when Windows is sole live service, homepage metadata/copy/CTA/footer are Window-focused.
-
-`seo-page.js`:
-- future pages remain built;
-- non-live page receives unavailable state and `noindex,follow`;
-- quote CTA routes to live Window Cleaning journey;
-- planned related-service links are hidden.
-
-`account-service-availability.js`:
-- rebuilds recurring-service dropdown from live services;
-- currently Window Cleaning only;
-- suppresses 3D-specific wording/category until 3D is live.
-
-`api/sitemap.js`:
-- includes only live service slugs and published work belonging to live services.
-- production sitemap includes `/services/window-cleaning` and excludes gutter/roof/jetwash/handyman/3D service URLs.
-
-## Admin launch stages
-
-`api/admin-services.js` + `admin-services.js` are live in Admin → Pricing.
-
-Security:
-- `requireStaff(req,'settings')` uses existing AAL2 requirement;
-- unauthenticated production request returns 401;
-- every status change is audit logged.
-
-Before `live`, server checks:
-1. `pricing_rules` exists for the service;
-2. at least one active service area supports it. Empty DB `service_keys` means all configured services are operationally eligible for that area.
-
-Admin UI shows stage, status, pricing readiness and coverage readiness and confirms entering/leaving live.
-
-## Release verification
-
-- CI run `34711279114` passed service-catalog tests and syntax checks.
-- Preview `dpl_Gwsoed8g4DVS6yVSPQ4ntiFYy2WR` READY, clean errors-only build.
-- Migration live as `20260912182925`.
-- 6 rows verified: one live + five planned.
-- RLS enabled; no anon/auth direct grants.
-- transaction/rollback status test left Gutter as planned.
-- Supabase security advisor: expected INFO `RLS enabled, no policy` for server-only catalog, plus pre-existing leaked-password warning; no new service-catalog security issue.
-- Performance advisor: new catalog index appears unused because feature is new; no new unindexed FK from this feature.
-- Product PR #36 merged as `cbd189da5a1516238aa11b0d796ea865816892b4`.
-- Production deployment `dpl_AZtJJiXSMRas45F8mU8KTfLjqHwR` READY and aliased to `namdar.co.uk`.
-
-## Next recommended work
-
-Stay on Window Cleaning. Improve the end-to-end customer/service operation before launching another stage:
-- Window quote/pricing UX and pricing model;
-- booking availability and operational rules;
-- service-specific FAQs/content/trust proof;
-- recurring Window Cleaning options;
-- conversion tracking and funnel quality;
-- Admin workflow for quote review/job completion.
-
-Only move another service to live when the user deliberately decides the Window Cleaning stage has paid off and the next service is operationally ready.
-
-## Parked address-data platform
-
-PR #34 OS Open UPRN + Code-Point foundation remains live, but no official OS rows are imported. The Address API remains disabled. Do not restart the Code-Point pilot unless focus changes.
-
-GetAddress automated harvesting remains prohibited under current provider terms/Namdar policy.
-
-## Non-negotiable rules
-
-- Window Cleaning only remains the current offer until deliberate activation.
-- Never rely only on DOM/CSS hiding; new-work API gates are mandatory.
-- Existing accepted work survives service pauses.
-- Future service content/pricing may be prepared privately.
-- Privileged staff access requires AAL2/MFA.
-- Support tickets remain customer-only; public inbound email stays Admin Email inbox.
-- Never expose Supabase/provider/SMTP/Turnstile/GitHub/cron/API secrets.
+## Parked work / non-negotiables
+- Do not activate another service.
+- Do not resume Code-Point/Open UPRN/GetAddress work automatically.
+- Existing accepted work survives service pause.
+- Support tickets stay customer-only.
+- Never expose secrets.
