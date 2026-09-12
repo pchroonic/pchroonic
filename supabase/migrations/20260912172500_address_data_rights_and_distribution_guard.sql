@@ -128,6 +128,80 @@ $$;
 revoke all on function public.refresh_address_dataset_registry_count(text) from public, anon, authenticated;
 grant execute on function public.refresh_address_dataset_registry_count(text) to service_role;
 
+create or replace function public.sync_address_registry_after_insert()
+returns trigger
+language plpgsql
+security invoker
+set search_path = public
+as $$
+begin
+  update public.address_dataset_registry r
+  set row_count = (select count(*) from public.master_addresses m where m.source_dataset = r.source_dataset),
+      updated_at = now()
+  where r.source_dataset in (select distinct source_dataset from new_rows);
+  return null;
+end;
+$$;
+
+create or replace function public.sync_address_registry_after_delete()
+returns trigger
+language plpgsql
+security invoker
+set search_path = public
+as $$
+begin
+  update public.address_dataset_registry r
+  set row_count = (select count(*) from public.master_addresses m where m.source_dataset = r.source_dataset),
+      updated_at = now()
+  where r.source_dataset in (select distinct source_dataset from old_rows);
+  return null;
+end;
+$$;
+
+create or replace function public.sync_address_registry_after_update()
+returns trigger
+language plpgsql
+security invoker
+set search_path = public
+as $$
+begin
+  update public.address_dataset_registry r
+  set row_count = (select count(*) from public.master_addresses m where m.source_dataset = r.source_dataset),
+      updated_at = now()
+  where r.source_dataset in (
+    select source_dataset from new_rows
+    union
+    select source_dataset from old_rows
+  );
+  return null;
+end;
+$$;
+
+revoke all on function public.sync_address_registry_after_insert() from public, anon, authenticated;
+revoke all on function public.sync_address_registry_after_delete() from public, anon, authenticated;
+revoke all on function public.sync_address_registry_after_update() from public, anon, authenticated;
+grant execute on function public.sync_address_registry_after_insert() to service_role;
+grant execute on function public.sync_address_registry_after_delete() to service_role;
+grant execute on function public.sync_address_registry_after_update() to service_role;
+
+drop trigger if exists master_addresses_registry_count_insert on public.master_addresses;
+create trigger master_addresses_registry_count_insert
+after insert on public.master_addresses
+referencing new table as new_rows
+for each statement execute function public.sync_address_registry_after_insert();
+
+drop trigger if exists master_addresses_registry_count_delete on public.master_addresses;
+create trigger master_addresses_registry_count_delete
+after delete on public.master_addresses
+referencing old table as old_rows
+for each statement execute function public.sync_address_registry_after_delete();
+
+drop trigger if exists master_addresses_registry_count_update on public.master_addresses;
+create trigger master_addresses_registry_count_update
+after update on public.master_addresses
+referencing old table as old_rows new table as new_rows
+for each statement execute function public.sync_address_registry_after_update();
+
 update public.address_dataset_registry r
 set row_count = counts.row_count,
     updated_at = now()
@@ -144,6 +218,23 @@ set row_count = 0,
 where not exists (
   select 1 from public.master_addresses m where m.source_dataset = r.source_dataset
 );
+
+create or replace view public.address_dataset_health
+with (security_invoker = true)
+as
+select
+  r.*,
+  coalesce(c.actual_row_count, 0)::bigint as actual_row_count,
+  (r.row_count = coalesce(c.actual_row_count, 0)) as count_in_sync
+from public.address_dataset_registry r
+left join (
+  select source_dataset, count(*)::bigint as actual_row_count
+  from public.master_addresses
+  group by source_dataset
+) c using (source_dataset);
+
+revoke all on public.address_dataset_health from anon, authenticated;
+grant select on public.address_dataset_health to service_role;
 
 create or replace view public.address_distribution_eligible
 with (security_invoker = true)
@@ -164,3 +255,104 @@ where m.active = true
 
 revoke all on public.address_distribution_eligible from anon, authenticated;
 grant select on public.address_distribution_eligible to service_role;
+
+create table if not exists public.address_api_clients (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  status text not null default 'paused' check (status in ('active','paused','closed')),
+  plan_code text not null default 'sandbox',
+  monthly_request_limit bigint not null default 0 check (monthly_request_limit >= 0),
+  allowed_products text[] not null default '{}'::text[],
+  stripe_customer_id text,
+  stripe_subscription_id text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.address_api_keys (
+  id uuid primary key default gen_random_uuid(),
+  client_id uuid not null references public.address_api_clients(id) on delete cascade,
+  key_prefix text not null,
+  key_hash text not null unique,
+  label text,
+  active boolean not null default true,
+  expires_at timestamptz,
+  last_used_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create index if not exists address_api_keys_client_idx on public.address_api_keys (client_id, active);
+create index if not exists address_api_keys_prefix_idx on public.address_api_keys (key_prefix);
+
+create table if not exists public.address_api_usage_daily (
+  client_id uuid not null references public.address_api_clients(id) on delete cascade,
+  usage_date date not null default current_date,
+  request_count bigint not null default 0 check (request_count >= 0),
+  matched_rows bigint not null default 0 check (matched_rows >= 0),
+  bytes_served bigint not null default 0 check (bytes_served >= 0),
+  updated_at timestamptz not null default now(),
+  primary key (client_id, usage_date)
+);
+
+alter table public.address_api_clients enable row level security;
+alter table public.address_api_keys enable row level security;
+alter table public.address_api_usage_daily enable row level security;
+revoke all on public.address_api_clients from anon, authenticated;
+revoke all on public.address_api_keys from anon, authenticated;
+revoke all on public.address_api_usage_daily from anon, authenticated;
+grant all on public.address_api_clients to service_role;
+grant all on public.address_api_keys to service_role;
+grant all on public.address_api_usage_daily to service_role;
+
+create or replace function public.consume_address_api_request(
+  p_client_id uuid,
+  p_matched_rows bigint default 0,
+  p_bytes_served bigint default 0
+)
+returns bigint
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  v_limit bigint;
+  v_used bigint;
+  v_today_count bigint;
+begin
+  select monthly_request_limit into v_limit
+  from public.address_api_clients
+  where id = p_client_id and status = 'active'
+  for update;
+
+  if not found then
+    raise exception 'address_api_client_inactive';
+  end if;
+
+  if v_limit <= 0 then
+    raise exception 'address_api_quota_not_configured';
+  end if;
+
+  select coalesce(sum(request_count), 0) into v_used
+  from public.address_api_usage_daily
+  where client_id = p_client_id
+    and usage_date >= date_trunc('month', current_date)::date
+    and usage_date < (date_trunc('month', current_date) + interval '1 month')::date;
+
+  if v_used >= v_limit then
+    raise exception 'address_api_monthly_quota_exceeded';
+  end if;
+
+  insert into public.address_api_usage_daily (client_id, usage_date, request_count, matched_rows, bytes_served, updated_at)
+  values (p_client_id, current_date, 1, greatest(0, p_matched_rows), greatest(0, p_bytes_served), now())
+  on conflict (client_id, usage_date) do update set
+    request_count = public.address_api_usage_daily.request_count + 1,
+    matched_rows = public.address_api_usage_daily.matched_rows + excluded.matched_rows,
+    bytes_served = public.address_api_usage_daily.bytes_served + excluded.bytes_served,
+    updated_at = now()
+  returning request_count into v_today_count;
+
+  return v_today_count;
+end;
+$$;
+
+revoke all on function public.consume_address_api_request(uuid,bigint,bigint) from public, anon, authenticated;
+grant execute on function public.consume_address_api_request(uuid,bigint,bigint) to service_role;
