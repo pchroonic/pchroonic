@@ -4,6 +4,32 @@ Last verified: 2026-09-12 UTC
 
 Read `docs/AI_START.md` first. This is the detailed technical continuity record. Never store secrets or private customer data here.
 
+## GetAddress controlled first-run guard — 2026-09-12
+
+Continuation branch: `fix/getaddress-controlled-manual-run-20260912`.
+
+Reason for change: the existing Admin `Run once now` request did not send a lookup limit. Server-side, an omitted `body.limit` became `null`, so the base worker could use the full configured daily cap (currently 20). That made the intended first provider verification less controlled than the handoff described.
+
+Candidate repair on this branch:
+- `admin-address-harvest.js` adds a separate **Manual run postcode limit** input. It defaults to `1`, has a max tied to the configured daily cap, sends the explicit limit, and confirms the exact requested postcode count before starting.
+- The Admin panel explains that the first live provider check should remain at one postcode until the selected covered-area postcode, saved addresses and private backups are verified.
+- `api/admin-address-harvest.js` validates the manual limit independently. If a manual caller omits `limit`, the API now defaults to `1` rather than the daily cap. Invalid values below 1 are rejected and values above the hard maximum are clamped to `MAX_DAILY_LOOKUPS`.
+- The worker's existing daily-cap, local UTC usage, provider-usage, run-concurrency and service-area-priority safeguards remain authoritative.
+- No Supabase migration, new table, environment variable or provider setting is required.
+
+Provider contract was rechecked against current GetAddress documentation before the patch: Typeahead queries do not increase lookup usage, postcode-only Autocomplete with `all=true` is one lookup, and `GET /v3/usage?api-key={admin-key}` remains the usage endpoint.
+
+Live database was also rechecked before the candidate patch:
+- Automatic `enabled=false`;
+- `prioritize_service_areas=true`;
+- `daily_lookup_cap=20`;
+- provider usage fields still null because no provider usage check has run;
+- zero harvest runs, zero queued postcodes and zero `getaddress-daily-cache` rows.
+
+Status: candidate code is not production-live until branch → PR → CI → Vercel preview → merge → production verification completes.
+
+After it is live, the first provider run should be exactly one postcode while Automatic remains OFF. Do not enable the cron or use the rest of the allowance until that one-postcode run proves covered-area priority, address persistence, usage accounting and JSON/CSV backup creation.
+
 ## Privileged sign-in CAPTCHA repair — 2026-09-12
 
 During the GetAddress continuation, a fresh production Admin password sign-in was rejected with `captcha protection: request disallowed (no captcha_token found)`. Admin and Staff both called password Auth without a CAPTCHA token; only the customer account flow had been integrated.
@@ -18,15 +44,18 @@ Repair merged and live in PR #26:
 
 Current verified production repair: commit `356a73e6aa6d069f7616956f6ae82e4736380f09`, deployment `dpl_E64KTbTy7qMXqLKpQQJLLHuEy6Fe`, READY and aliased to `namdar.co.uk`.
 
-Immediate next step: complete the interactive Admin CAPTCHA and secure sign-in/MFA, then check GetAddress key/status and perform the controlled manual-run verification. Automatic harvesting has not been changed by this session. Do not claim the complete login or harvest journey has passed yet.
+Latest verified production HEAD before the controlled-run branch: `ebcf268aa94707aaa5dd74d5d1c374228b71560b`, deployed as `dpl_6mC9TbE5FCbuBu5S1hz7ARmpPGar`, READY on `namdar.co.uk`.
+
+Immediate next step: finish the controlled-run guard release, then complete the interactive Admin CAPTCHA and secure sign-in/MFA, check GetAddress key/status and perform the one-postcode manual verification. Automatic harvesting remains OFF. Do not claim the complete login or harvest journey has passed yet.
 
 ## Source of truth
 
 - Product: Namdar UK property services platform.
 - Repository: `pchroonic/pchroonic`, default `main`.
-- Current production code: `35e81842c0104587423397c41414d4610c20053e` from merged PR #24.
+- Latest verified production HEAD before this continuation branch: `ebcf268aa94707aaa5dd74d5d1c374228b71560b`.
 - Hosting: Vercel project `namdar-website-starter-1`, canonical `https://namdar.co.uk`.
-- Production deployment for GetAddress release: `dpl_8Ne2Vxse5RWyK2h1JvvZia9upc2m`, READY with no alias error.
+- Latest verified production deployment before this branch: `dpl_6mC9TbE5FCbuBu5S1hz7ARmpPGar`, READY.
+- GetAddress feature merge: `35e81842c0104587423397c41414d4610c20053e`; privileged CAPTCHA repair merge: `356a73e6aa6d069f7616956f6ae82e4736380f09`.
 - Backend/Auth: Supabase `namdar-production` (`qjigldxjcpnrlyxgmlqq`), Free plan.
 - Email: Resend, verified `namdar.co.uk`, sending + receiving enabled, eu-west-1.
 - Release heading remains v6.4.16.
@@ -75,9 +104,10 @@ PR #24 `Add automatic GetAddress address harvesting` merged into `main` as `35e8
 
 ### Provider strategy
 
-The implementation is designed around GetAddress behavior established during implementation:
-- Typeahead postcode search is used for candidate discovery before paid address retrieval.
-- Postcode-only Autocomplete with `all=true` is used for the paid lookup so a single postcode lookup can return/save many suggestions.
+Current GetAddress documentation was rechecked on 2026-09-12:
+- Typeahead postcode search is used for candidate discovery before paid address retrieval; queries are rate-limited but do not increase lookup usage.
+- Postcode-only Autocomplete with `all=true` is used for the paid lookup so a single postcode lookup can return/save many suggestions; that request counts as one lookup.
+- `GET https://api.getAddress.io/v3/usage?api-key={admin-key}` remains the subscription usage/daily-limit endpoint.
 - Returned addresses are cached in Namdar for reuse.
 
 The goal is therefore up to 20 **postcode lookups** per UTC day, not merely 20 individual addresses.
@@ -154,14 +184,14 @@ All harvest operational tables have RLS enabled, no anon/authenticated privilege
 ### API/admin surface
 
 - `api/address-harvest-cron.js`: `CRON_SECRET`-protected scheduled GET; uses priority worker.
-- `api/admin-address-harvest.js`: AAL2/settings staff only; status, automatic toggle, service-area priority toggle, cap and manual run.
+- `api/admin-address-harvest.js`: AAL2/settings staff only; status, automatic toggle, service-area priority toggle, cap and manual run. Candidate controlled-run patch validates an explicit manual `limit` and defaults an omitted manual request to 1 postcode.
 - `api/admin-address-harvest-export.js`: AAL2/settings staff only; full current dataset CSV/JSON or private per-run backup download.
-- `admin-address-harvest.js`: management panel injected into Service Areas beside master-address tools. Shows automatic state, priority state, cap, key configured booleans, usage/remaining, cached rows, covered queue/counters, last run/error, recent runs, Run once, and secure downloads.
+- `admin-address-harvest.js`: management panel injected into Service Areas beside master-address tools. Shows automatic state, priority state, cap, key configured booleans, usage/remaining, cached rows, covered queue/counters, last run/error, recent runs, Run once, and secure downloads. Candidate patch adds a separate manual-run limit default 1 plus explicit first-run guidance.
 - `admin.js` loader includes the extension instead of modifying large `admin-original.js`.
 - CI syntax checks include all harvest JS including `lib/address-harvest-priority.js`.
 - `vercel.json` schedules `/api/address-harvest-cron` at `30 3 * * *` UTC.
 
-### Production verification after merge
+### Production verification after PR #24 merge
 
 Verified on 2026-09-12:
 - PR #24 exact final feature head `80b89b2fab0f263ee54ebe985481e30d568bfa81` passed GitHub workflow run `34694744806`.
@@ -170,21 +200,23 @@ Verified on 2026-09-12:
 - Production `admin-address-harvest.js` HTTP 200.
 - Production unauthenticated `/api/address-harvest-cron` HTTP 401 `Unauthorized`.
 - Production unauthenticated `/api/admin-address-harvest` HTTP 401 `Please sign in as Namdar staff.`
-- DB settings after deploy: `enabled=false`, `prioritize_service_areas=true`, `daily_lookup_cap=20`, no last run/success/error.
-- `address_harvest_runs` count = 0 and candidate queue count = 0 immediately after deploy.
-- Therefore deployment/testing consumed no GetAddress paid lookup.
-- Supabase security/performance advisors showed no new critical harvest issue. New priority index is reported unused because harvesting has intentionally not run yet.
+- DB settings rechecked during the current continuation: `enabled=false`, `prioritize_service_areas=true`, `daily_lookup_cap=20`, no last run/success/error.
+- `address_harvest_runs` count = 0, candidate queue count = 0 and `getaddress-daily-cache` rows = 0 at the latest recheck.
+- Therefore deployment/testing has still consumed no GetAddress paid lookup.
+- Supabase security/performance advisors previously showed no new critical harvest issue. New priority index is reported unused because harvesting has intentionally not run yet.
 
 A real provider-key controlled manual run remains required before claiming end-to-end GetAddress behavior, actual provider yield, or backup runtime success.
 
 ### Safe activation sequence
 
-1. Owner adds `GETADDRESS_API_KEY` directly in Vercel Production Environment Variables. Optional `GETADDRESS_ADMIN_KEY` may also be added. Never paste keys into chat.
-2. Redeploy if Vercel requires it for environment changes.
-3. Open Admin → Service areas → Daily address database growth. Confirm key configured, Automatic OFF, Service-area priority ON and active coverage shown.
-4. Run once manually while Automatic remains OFF.
-5. Verify covered-area queue/counters, provider usage, master address sample, run metrics, private JSON/CSV backups and full export.
-6. Only after successful controlled test switch Automatic daily harvest ON.
+1. Complete the controlled manual-run guard PR/CI/preview/production verification.
+2. Complete Admin CAPTCHA and mandatory MFA/AAL2 sign-in.
+3. Confirm `GETADDRESS_API_KEY` is configured directly in Vercel/Admin status. Optional `GETADDRESS_ADMIN_KEY` may also be configured. Never paste keys into chat.
+4. Open Admin → Service areas → Daily address database growth. Confirm Automatic OFF, Service-area priority ON, active coverage shown and Manual run postcode limit = `1`.
+5. Run exactly one postcode manually while Automatic remains OFF.
+6. Verify covered-area queue/counters, provider usage, master address sample, run metrics, private JSON/CSV backups and full export.
+7. If the one-postcode run is clean, use more of the remaining daily allowance as desired.
+8. Only after successful controlled verification switch Automatic daily harvest ON.
 
 ## Other recent production migrations
 
@@ -199,7 +231,7 @@ A real provider-key controlled manual run remains required before claiming end-t
 
 ## Remaining launch work
 
-- Configure GetAddress key(s) directly in Vercel, perform one controlled manual run, then enable daily mode only with owner approval.
+- Finish the controlled manual-run guard release, then configure/confirm GetAddress key(s) directly in Vercel, perform one one-postcode manual run, and enable daily mode only after successful verification/owner approval.
 - Apply/test remaining branded Auth templates and Magic Link flow.
 - Resume DMARC/BIMI sender-avatar work; no `_dmarc` record has been added.
 - Same-iPhone overflow confirmation.
