@@ -45,82 +45,58 @@ Stage 2 references:
 - main code SHA `ece88931bd5e05b26173b25ff7fa75c46b6b4e63`;
 - production `dpl_Jkb8ZavhqrBD6PLpqjAPnEdiGAsW`: READY with `namdar.co.uk`.
 
-## Homepage document-level horizontal overflow — ALL-WIDTH FIX LIVE, OWNER CONFIRMATION PENDING
+## Homepage document-level horizontal overflow — ALL-WIDTH FIX LIVE
 
-### Reproduction history
+The owner first reported the public homepage shifting sideways on iPhone. PR #12 and PR #14 improved mobile containment, but a later Windows/Edge desktop screenshot proved the same document-level overflow existed at desktop width too.
 
-The owner first reported the public homepage shifting sideways on iPhone, with a blank strip visible on the right. PR #12 added shrink-safe quote-form grids/native file-input containment and a mobile viewport guard. That removed the visible right-side strip, but a follow-up iPhone screenshot still showed the whole document offset horizontally, with left-side brand/headline/body content clipped.
+The all-width fix from PR #16 is live:
+- feature SHA `5e05d6d3da1df0ea2049b3c2ca440e2ce304d2c2`;
+- GitHub CI `34686741515`: success;
+- exact preview `dpl_9AEFL9yKDgSvZGkAqGuKQnQws88a`: READY;
+- production runtime merge SHA `46a635396ae364fe9b5783bc18c3de2b72025efc`;
+- production deployment `dpl_Bh1kfnpaShf6JwNnzG6N6YvYP1Qh`: READY with `namdar.co.uk`, no alias error;
+- canonical CSS/JS both returned HTTP 200 with all-width containment and x=0 restoration logic.
 
-PR #14 moved the containment stylesheet into the document `<head>`, strengthened mobile root containment and added a mobile x=0 scroll-restoration reset. It deployed successfully, but on 2026-09-12 the owner then supplied a Windows/Edge desktop screenshot of `namdar.co.uk` showing the same class of failure at desktop width:
-- a document-level horizontal scrollbar was visible at the bottom;
-- the scrollbar was already positioned to the right;
-- the left portion of the header and hero was off-screen;
-- a large blank region appeared on the right side of the viewport.
+Live behavior:
+- root/body containment and `overflow-x:hidden` apply at all widths;
+- top-level homepage layout is bounded to the viewport;
+- desktop hero tracks are shrink-safe `minmax(0,...)` columns;
+- key grid/flex children use `min-width:0`;
+- quote/file-input containment remains;
+- intentional nested scrollers stay local;
+- homepage horizontal scroll position resets to x=0 on load, pageshow, resize and orientation change.
 
-Therefore the regression is **not iPhone-only**. Treat it as one cross-device homepage document-width / horizontal scroll-restoration bug.
+Owner verification:
+- **Windows/Edge desktop confirmed fixed on 2026-09-12** after production deployment. The owner reported `fixed`.
+- Same-iPhone final verification is still pending. Do not mark the cross-device regression fully closed until that device check also passes.
 
-### All-width implementation now live
+No database migration, Auth change, environment variable, provider configuration or customer-data change was involved in the overflow fix.
 
-Runtime files changed:
-- `mobile-overflow-fix.css`;
-- `conversion.js`.
+## Supabase Auth URL Configuration — OWNER-VERIFIED COMPLETE
 
-The live containment now applies at all viewport widths:
-- `html` and `body.conversion-home` use `width:100%`, `min-width:0`, `max-width:100%`, `overflow-x:hidden`, and `overscroll-behavior-x:none` globally;
-- top-level homepage `site-header`, `main`, `footer`, `hero` and quote containers are bounded by the viewport;
-- desktop hero grid columns use `minmax(0, 1.05fr) minmax(0, .95fr)` rather than plain fractional tracks;
-- direct children of key homepage flex/grid containers use `min-width:0`;
-- images/video/canvas/svg are capped at `max-width:100%` on the public homepage;
-- quote shell/field rows/service choices/progress retain shrink-safe `minmax(0,...)` tracks;
-- native file-input containment remains;
-- intentional nested horizontal scrollers remain local and capped to the viewport.
+On 2026-09-12 the owner opened Supabase → Authentication → URL Configuration and supplied a screenshot showing:
+- Site URL already set to `https://namdar.co.uk`;
+- redirect allowlist containing the production Namdar wildcard plus four Vercel preview/alias patterns.
 
-`conversion.js` resets the homepage horizontal viewport position to x=0 at **all viewport widths**:
-- immediately on execution;
-- on the next animation frame;
-- on `pageshow`;
-- after resize;
-- after orientation change;
-while preserving the current vertical scroll position.
+The owner then removed the four Vercel entries and confirmed `done` after saving.
 
-No database migration, Auth change, environment variable, provider configuration or customer-data change was involved.
+Final intended production Auth URL state:
+- Site URL: `https://namdar.co.uk`
+- Redirect allowlist: `https://namdar.co.uk/**`
 
-### All-width verification and production promotion
+Removed entries:
+- `https://namdar-website-starter-1-pooyamdi-8267.vercel.app/`
+- `https://namdar-website-starter-1-pooyamdi-8267.vercel.app/**`
+- `https://namdar-*-website-starter-1-pooyamdi-8267.vercel.app`
+- `https://namdar-*-website-starter-1-pooyamdi-8267.vercel.app/**`
 
-- PR #16: `Fix homepage horizontal overflow across all widths`.
-- Feature/PR head: `5e05d6d3da1df0ea2049b3c2ca440e2ce304d2c2`.
-- GitHub CI run `34686741515`: completed success.
-- Exact Vercel preview: `dpl_9AEFL9yKDgSvZGkAqGuKQnQws88a`, READY on exact feature SHA, `aliasError: null`.
-- Production merge SHA: `46a635396ae364fe9b5783bc18c3de2b72025efc`.
-- Production deployment: `dpl_Bh1kfnpaShf6JwNnzG6N6YvYP1Qh`, READY on exact merge SHA, target production, aliases include `namdar.co.uk`, `aliasError: null`.
-- Canonical `https://namdar.co.uk/mobile-overflow-fix.css?v=20260912b` returned HTTP 200 and contains the all-width root containment plus shrink-safe desktop hero tracks.
-- Canonical `https://namdar.co.uk/conversion.js?v=20260912b` returned HTTP 200 and contains all-width x=0 restoration reset plus resize handling.
+Reason: production authentication should return only to the canonical Namdar domain; broad Vercel preview wildcards were unnecessary and increased the trusted redirect surface.
 
-### Remaining verification
+The connected Supabase tools currently do not expose hosted Auth URL configuration readback/mutation. Therefore this setting is **owner-verified from the dashboard**, not connector-verified. Do not repeatedly ask the owner to redo this cleanup unless a redirect/login issue appears.
 
-Do **not** mark this regression fully closed until the owner confirms both:
-- on the Windows/Edge desktop used for the screenshot, the bottom document-level horizontal scrollbar is gone, the page begins at the true left edge, and the large blank right-side area no longer appears;
-- on the same iPhone, the page starts flush at the left edge and cannot be dragged sideways.
+## Auth provider code audit
 
-### Prior fix history
-
-First fix:
-- PR #12: `Fix mobile quote horizontal overflow`;
-- feature SHA `febd6bbaacee5c08273e4ba7b70d8749dc160313`;
-- CI `34685321573`: success;
-- preview `dpl_8vbLRZdTAUttgXjhfRw2LBtb8sXq`: READY;
-- production merge `285b7c3da8215dc24e543f9a6143e565d10e61a7`;
-- production deployment `dpl_CkWNqBc8JkMuWh77BWYJXkXwP3oA`: READY;
-- real iPhone follow-up proved left-side clipping remained.
-
-Second fix:
-- PR #14: `Harden iPhone homepage horizontal containment`;
-- feature SHA `6ae3563725ca280cade0ee6df46d7ed21315c0db`;
-- CI `34686101782`: success;
-- preview `dpl_Z3Cas7PhEMoLmz5KVa7RM3p4VPXH`: READY;
-- production merge `b1c1eb4e29cd03056799e5fbb1af47cf04fec2b1`;
-- production deployment `dpl_EqLFLD2VK6QMcN8o7YKz4AKvYAuM`: READY with `namdar.co.uk`, no alias error;
-- later Windows/Edge screenshot proved document-level horizontal overflow still existed at desktop width.
+Repository search on 2026-09-12 found no `signInWithOAuth`, no `signInWithOtp`, and no explicit OAuth provider configuration in current Namdar source. The next Auth review should therefore inspect Supabase → Authentication → Sign In / Providers and verify that only providers intentionally used by the live Namdar login flow are enabled. Do not enable new providers merely because they are available in Supabase.
 
 ## Security advisor state
 
@@ -140,23 +116,24 @@ Namdar is on Supabase Free and leaked-password protection requires Pro or above.
 
 ## Remaining launch work
 
-1. Obtain owner confirmation on both Windows desktop and iPhone for the live all-width overflow fix; if both pass, mark the regression closed in all three continuity files.
-2. Verify Supabase Auth Site URL is `https://namdar.co.uk` and review redirect allowlist for stale/unintended URLs.
-3. Finish launch checks for Stripe, Turnstile, OAuth providers, SMS provider, Resend and legal configuration.
-4. Verify booking-notification/account-purge cron jobs and intended double-booking protection.
-5. Run safe recognized-mailbox/unknown-alias inbound behavior test.
-6. Complete controlled authenticated customer-support ticket test when a safe test customer is available.
-7. Optional/plan-blocked: enable Supabase Leaked Password Protection only if the owner later chooses Pro or above.
+1. Inspect Supabase Authentication → Sign In / Providers and verify only intended providers are enabled.
+2. Recheck the same iPhone for the all-width overflow fix; if it passes, close the regression in continuity.
+3. Review Turnstile / Auth attack-protection settings.
+4. Finish launch checks for Stripe, SMS provider, Resend and legal configuration.
+5. Verify booking-notification/account-purge cron jobs and intended double-booking protection.
+6. Run safe recognized-mailbox/unknown-alias inbound behavior test.
+7. Complete controlled authenticated customer-support ticket test when a safe test customer is available.
+8. Optional/plan-blocked: enable Supabase Leaked Password Protection only if the owner later chooses Pro or above.
 
 ## Required workflow
 
 1. Read `docs/AI_START.md` first.
 2. For substantial work, read this file, `docs/PROJECT_STATUS.md` and `AGENTS.md` completely.
 3. Inspect repository/provider state before changing anything.
-4. Use branch → PR → CI → Vercel preview/testing → merge → production verification.
-5. Update `docs/AI_START.md`, this file and `docs/PROJECT_STATUS.md` in the same substantial product change.
+4. Use branch → PR → CI → Vercel preview/testing → merge → production verification for code changes.
+5. Update `docs/AI_START.md`, this file and `docs/PROJECT_STATUS.md` in the same substantial product/provider change.
 6. Never include credentials or private customer data.
 
 ## Next recommended step
 
-Get the owner's desktop and iPhone confirmation for the live all-width fix. If both pass, close the regression in continuity, then resume Supabase Auth Site URL / redirect allowlist verification and the remaining launch-readiness checklist.
+Ask the owner for a screenshot of **Supabase → Authentication → Sign In / Providers**. Verify only the providers actually used by Namdar are enabled; current source contains no OAuth or OTP sign-in calls. Then continue to Turnstile/attack-protection review.
