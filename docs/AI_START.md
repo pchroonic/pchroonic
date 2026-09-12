@@ -87,12 +87,39 @@ Server-only tables remain:
 
 They remain RLS-protected with no direct anon/authenticated table access. Historical quotes/bookings are not fabricated into acquisition tracking.
 
+## Current candidate — booking notification 504 hardening
+Branch: `fix/booking-notification-504-20260912`.
+
+Production runtime evidence now proves the historical issue is still active: Vercel grouped 21 `Gateway Timeout` errors on `/api/booking-notifications` between 9 and 12 September 2026. The stack points to Supabase REST calls inside business follow-up scanning/queueing and, in one sample, due business-notification delivery.
+
+This is not a current-volume problem. Production checks at investigation time showed:
+- 1 pending final quote;
+- 0 overdue invoices;
+- 0 unassigned bookings in the next 24h;
+- 1 stale scheduled booking;
+- only 4 sent rows in `business_notifications` and no pending backlog.
+
+The required `business_notifications` unique, entity and pending-due indexes already exist. The candidate therefore changes the access pattern instead of adding unnecessary indexes or schema.
+
+New `lib/business-followup-batched.js`:
+- builds quote/invoice/booking reminder candidates in memory;
+- bulk-loads invoice quote context rather than fetching one quote per invoice;
+- de-duplicates candidates by the existing unique event identity;
+- inserts in conflict-ignore batches (default 50 rows) using the existing unique constraint;
+- retries one transient 502/503/504 only for that idempotent conflict-ignore batch write;
+- records source/queue degradation without discarding healthy sources.
+
+`api/booking-notifications.js` now isolates four stages: post-job, generic booking delivery, business scan and business delivery. A partial stage failure is logged and returned as degraded without blocking the remaining stages; HTTP 503 is reserved for all four stages failing.
+
+No migration is required. Do not call the 504 issue resolved until exact-head CI/preview pass, the change reaches production, and real authenticated cron executions remain healthy.
+
 ## Next best work
-1. obtain the official Google Business Profile review-request URL and enter it in Admin → Bookings when ready;
-2. use Start → Complete → direct-cost review for every real Window job;
-3. collect genuine before/after photos and real customer reviews;
-4. use funnel conversion, value/work-hour, travel and direct contribution to calibrate Window pricing and capacity;
-5. assess Stage 2 only when real evidence supports it.
+1. release and observe the booking-notification resilience candidate against real cron executions;
+2. obtain the official Google Business Profile review-request URL and enter it in Admin → Bookings when ready;
+3. use Start → Complete → direct-cost review for every real Window job;
+4. collect genuine before/after photos and real customer reviews;
+5. use funnel conversion, value/work-hour, travel and direct contribution to calibrate Window pricing and capacity;
+6. assess Stage 2 only when real evidence supports it.
 
 ## Do not break
 - Window Cleaning only is the current commercial offering.

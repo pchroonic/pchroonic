@@ -75,6 +75,7 @@ jobs:
           node --check lib/service-catalog.js
           node --check lib/booking-operations.js
           node --check lib/post-job-followup.js
+          node --check lib/business-followup-batched.js
           node --check scripts/os-open-data-import.mjs
           node --test scripts/address-harvest-priority.test.mjs
           node --test scripts/address-commercial-foundation.test.mjs
@@ -84,6 +85,7 @@ jobs:
           node --test scripts/booking-operations.test.mjs
           node --test scripts/window-performance.test.mjs
           node --test scripts/post-job-followup.test.mjs
+          node --test scripts/booking-notification-resilience.test.mjs
           node --check lib/server.js
           node --check lib/server-original.js
           node --check staff.js
