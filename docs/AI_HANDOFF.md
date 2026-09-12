@@ -6,119 +6,93 @@ Read `docs/AI_START.md` first.
 
 ## Production source of truth
 - Repo `pchroonic/pchroonic`, default `main`.
-- Main before current candidate: `77ed741f758d037a953ddc1a14f68a65996464e6`.
-- Window Cleaning Stage 1 product release: PR #38 merge `f026803056f07d17ed1c257f1bd1094268a1cb08`.
-- Canonical production: `https://namdar.co.uk`.
-- Supabase: `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
+- Current product merge: `858500c6c48d05af918c70d5ee087b319b9caf35` from PR #40.
+- PR #40 exact head: `b7948da451b4d2d7008470c3d05b90928970e732`.
+- CI `34714162465`: SUCCESS.
+- Exact-head preview `dpl_2zJyJxuR5C2gYmr38cWNDunuLMQM`: READY / clean.
+- Production `dpl_7f4JLEVgLvx27MwoCxMa8T85d3KY`: READY on `https://namdar.co.uk`, no alias error.
+- Supabase `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
 - Only `windows` is live; gutters/jetwash/roof/handyman/tour3d remain planned.
-- Privileged staff requires AAL2/MFA.
+- Privileged staff access requires AAL2/MFA.
 
-## Current candidate
+## Window Cleaning booking operations — LIVE
 
-Branch: `feat/window-booking-operations-20260912`.
-No schema migration is required.
+Before PR #40, accepted customers could see every unused 3-hour window over 21 days, without operating-day, notice, capacity or route-density rules. PR #40 adds a shared operational boundary while preserving the existing quote/booking business logic.
 
-### Why this change
-Before this candidate, accepted customers were offered every unused 3-hour window over the next 21 days. There was no operating-day rule, no configurable minimum notice, no daily-capacity rule and no route-density logic. The booking POST only protected against direct time overlap.
+### Shared rules engine
+`lib/booking-operations.js` loads `site_settings.booking_operations` and safely falls back to the same Stage 1 defaults if unavailable.
 
-For a single-service Window Cleaning Stage 1 operation this could create an inefficient diary even though each individual booking was valid.
-
-### Shared booking operations engine
-New `lib/booking-operations.js` provides the customer scheduling source of truth.
-
-Default configuration:
-- horizon: 21 days;
-- minimum notice: 24 hours;
-- operating days: Mon–Sat (`[1,2,3,4,5,6]`);
-- windows: 08:00–11:00 / 11:00–14:00 / 14:00–17:00;
-- max jobs/day: 3;
+Live production rules:
+- 21-day horizon;
+- 24h minimum notice;
+- Mon–Sat operating days;
+- 08:00–11:00 / 11:00–14:00 / 14:00–17:00 windows;
+- max 3 jobs/day;
 - route density enabled;
-- route zone based on postcode area prefix.
+- route zone = postcode area prefix.
 
-`sanitizeRules` constrains values server-side, including horizon 7–21 days, notice 0–168h and capacity 1–12.
+Values are sanitized server-side. Horizon is bounded to 7–21 days, notice 0–168h and capacity 1–12.
 
-Configuration loads from existing `site_settings` row `booking_operations`. If missing or unavailable, the safe Stage 1 defaults above are used.
+### Route-density logic
+`postcodeZone()` maps postcodes to their area, e.g. SE14 → SE and SW2 → SW.
 
-### Route-density behaviour
-`postcodeZone()` uses the postcode area, e.g. `SE14 5TD → SE`, `SW2 3HL → SW`.
+Customer self-booking behaviour:
+- first booking can establish the route zone for an otherwise empty operating day;
+- once a pending/confirmed booking exists in that zone, customers in another zone do not see that day;
+- overlapping windows are unavailable;
+- max daily capacity closes the day when reached.
 
-For each customer day:
-- if there are no pending/confirmed jobs, a qualifying customer from any covered route zone can take the first slot;
-- once a route zone exists that day, customers from another route zone are not offered that day;
-- occupied time windows are removed;
-- once daily capacity is reached, the day closes to further customer booking.
+This is a simple Stage 1 density strategy, not a drive-time optimizer. Admin manual scheduling remains an intentional override.
 
-Admin/staff can still deliberately schedule or reschedule jobs manually outside customer self-booking rules. This preserves operational override.
-
-### Existing customer workflows preserved
-The original handlers were copied intact to:
+### Preserved cores and wrappers
+Original handlers are preserved as:
 - `api/customer-quote-action-core.js`
 - `api/booking-core.js`
 
-`api/customer-quote-action.js` is now a wrapper:
-- POST quote accept/decline/photo actions delegate unchanged;
-- GET first runs the existing ownership/expiry/booking logic, then replaces schedulable slots with `availabilityForQuote()` output;
-- response includes safe scheduling metadata for future customer UX.
+Live wrappers:
+- `api/customer-quote-action.js`: POST actions delegate unchanged; GET keeps existing ownership/expiry logic and replaces schedulable slots with shared route-aware availability.
+- `api/booking.js`: validates the submitted customer slot against shared rules before delegating to the original booking engine.
 
-`api/booking.js` is now a wrapper:
-- keeps the existing authentication/ownership path;
-- re-validates `startsAt`/`endsAt` using `validateSlotForQuote()`;
-- returns 409 if the slot no longer complies with notice/day/capacity/route/current-window rules;
-- delegates valid requests to the existing booking engine, preserving accepted-quote checks, duplicate/conflict checks, promo/reward use, draft invoice creation and email/staff notifications.
+The original accepted-quote checks, duplicate/conflict handling, promo/reward consumption, draft invoice creation and notifications remain intact.
 
-### Admin booking operations
-New `api/admin-booking-operations.js`:
-- GET requires `bookings` permission and returns rules + 14-day operational preview;
-- GET returns `canEdit` so booking staff can be view-only;
+### Admin controls
+`api/admin-booking-operations.js`:
+- GET requires `bookings` permission and returns rules + 14-day preview;
+- returns `canEdit` so booking-only staff are view-only;
 - POST requires `settings` permission;
-- POST upserts `site_settings.booking_operations` and audit logs `booking_operations.update`.
+- changes are audit logged as `booking_operations.update`.
 
-New `admin-booking-operations.js` injects a Booking operations panel into Admin → Bookings with:
-- horizon;
-- minimum notice;
-- max jobs/day;
-- route-density toggle;
-- Sun–Sat operating-day controls;
-- standard time-window controls;
-- 14-day load/route preview.
+`admin-booking-operations.js` is loaded from `admin.js` version `6.4.18-booking-ops-1` and injects controls in Admin → Bookings for horizon, notice, capacity, route density, operating days and time windows, plus a 14-day load/route preview.
 
-`admin.js` loads this script with version `6.4.18-booking-ops-1`.
+### Production configuration
+`site_settings.booking_operations` was explicitly seeded after deployment with the live rules above. This was DML into the existing settings table; no schema migration or DDL was required.
 
-### Recurring customers
-Production currently has zero `service_subscriptions` rows. No speculative recurring slot-reservation layer is being added yet. When recurring work becomes actual bookings, it is included in the same active-booking route/capacity context. Build more advanced recurring-route planning from real demand later.
+At release verification there were zero future pending/confirmed bookings, so activation could not displace existing scheduled work. There were also zero recurring subscription rows, so a speculative recurring reservation engine was deliberately not introduced.
 
-## Tests
-New `scripts/booking-operations.test.mjs` checks:
-- safe defaults;
-- server-side bounds;
-- SE/SW/other postcode-area parsing;
-- same-zone vs cross-zone day availability;
-- daily capacity closure;
-- quote/booking wrapper use of the shared engine;
-- privileged Admin endpoint/UI structure.
+### Tests and verification
+`scripts/booking-operations.test.mjs` verifies defaults/bounds, postcode zones, same-zone filtering, cross-zone rejection, daily capacity, shared wrappers and privileged Admin controls.
 
-`.github/workflows/ai-handoff-check.yml` now syntax-checks all new booking-operation files/cores/wrappers and runs this test suite.
+Release checks:
+- exact-head CI `34714162465`: SUCCESS;
+- exact-head preview `dpl_2zJyJxuR5C2gYmr38cWNDunuLMQM`: READY, clean errors-only build;
+- PR #40 merge `858500c6c48d05af918c70d5ee087b319b9caf35`;
+- production `dpl_7f4JLEVgLvx27MwoCxMa8T85d3KY`: READY on `namdar.co.uk`, aliasError null;
+- unauthenticated `/api/admin-booking-operations` returns 401;
+- production `admin.js` loads the new booking operations asset;
+- persisted settings re-read successfully;
+- service catalog still Window live + five planned.
 
-## Production data checked before implementation
-- `bookings`: 2 confirmed Window bookings, both already historical at the time of the change; both in Lewisham.
-- `service_subscriptions`: 0 rows.
-- service catalog remains Window live + five planned.
-
-## Release workflow
-1. Keep these handoff docs current on the candidate branch.
-2. Open PR.
-3. Require exact-head CI success.
-4. Require exact-head Vercel preview READY and clean errors-only build.
-5. Check preview/API/Admin surface where accessible.
-6. Merge only after gates pass.
-7. Persist the default `booking_operations` row in production, verify it and production service state.
-8. Sync docs to exact live merge/deployment IDs.
+## Next recommended Stage 1 milestone
+1. build/verify conversion funnel metrics from postcode through completed job;
+2. capture actual Window Cleaning job duration/cost/margin for pricing calibration;
+3. publish genuine before/after proof and collect reviews;
+4. assess Stage 2 only after evidence shows Window Cleaning is working.
 
 ## Parked / non-negotiables
-- Do not activate another service.
-- Do not resume Code-Point/Open UPRN/GetAddress work automatically.
+- Do not activate another service without deliberate user decision.
+- Do not resume address-data imports/GetAddress harvesting automatically.
 - Existing accepted work survives service pause.
-- Customer booking rules are server-side, not UI-only.
-- Admin settings mutations remain AAL2/MFA protected.
+- Customer service/booking restrictions remain server-side enforced.
+- Privileged settings remain AAL2/MFA protected.
 - Support tickets stay customer-only.
 - Never expose secrets.
