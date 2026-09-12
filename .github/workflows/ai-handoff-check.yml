@@ -62,6 +62,7 @@ jobs:
           node --test scripts/address-commercial-foundation.test.mjs
           node --test scripts/os-open-data-foundation.test.mjs
           node --test scripts/service-catalog.test.mjs
+          node --test scripts/window-stage1.test.mjs
           node --check lib/server.js
           node --check lib/server-original.js
           node --check staff.js

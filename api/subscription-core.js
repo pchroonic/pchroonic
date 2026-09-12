@@ -1,6 +1,6 @@
 const {json,parseBody,db,requireCustomer,safeError}=require('../lib/server');
 const SERVICES=new Set(['windows','gutters','roof','jetwash','handyman','tour3d']);
-const INTERVALS=new Set(['weekly','fortnightly','monthly','quarterly','custom']);
+const INTERVALS=new Set(['weekly','fortnightly','monthly','quarterly','4_weekly','8_weekly','12_weekly','custom']);
 module.exports=async function(req,res){try{
   const {user,profile}=await requireCustomer(req);
   if(req.method==='GET'){
@@ -9,14 +9,14 @@ module.exports=async function(req,res){try{
   }
   const b=parseBody(req);
   if(req.method==='POST'){
-    const service=String(b.serviceKey||'windows'),interval=String(b.intervalKey||'monthly');
+    const service=String(b.serviceKey||'windows'),interval=String(b.intervalKey||'8_weekly');
     if(!SERVICES.has(service)||!INTERVALS.has(interval))return json(res,400,{ok:false,error:'Choose a valid service and frequency.'});
     const address=String(b.address||[profile.address_line1,profile.address_line2,profile.city,profile.postcode].filter(Boolean).join(', ')).trim().slice(0,500);
     if(!address)return json(res,400,{ok:false,error:'Save your service address before starting a subscription.'});
     const existing=await db(`service_subscriptions?customer_id=eq.${encodeURIComponent(user.id)}&service_key=eq.${encodeURIComponent(service)}&status=in.(pending,active,paused)&select=id&limit=1`);
     if(existing?.length)return json(res,409,{ok:false,error:'You already have an open subscription for this service.'});
     const rows=await db('service_subscriptions',{method:'POST',prefer:'return=representation',body:{customer_id:user.id,service_key:service,interval_key:interval,status:'pending',starts_on:b.startsOn||null,address,notes:String(b.notes||'').slice(0,1000)}});
-    return json(res,201,{ok:true,subscription:rows?.[0],message:'Subscription request received. Namdar will confirm the price and schedule.'});
+    return json(res,201,{ok:true,subscription:rows?.[0],message:'Subscription request received. Namdar will confirm the regular price and schedule before activation.'});
   }
   if(req.method==='PATCH'){
     const id=String(b.id||'');if(!id)return json(res,400,{ok:false,error:'Subscription id required.'});

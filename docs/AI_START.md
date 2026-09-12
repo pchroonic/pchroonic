@@ -4,22 +4,20 @@ Last verified: 2026-09-12 UTC
 
 Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PROJECT_STATUS.md` for the roadmap.
 
-## Current production baseline
+## Production baseline
 
 - Repository: `pchroonic/pchroonic`, default `main`.
-- Current product merge: `cbd189da5a1516238aa11b0d796ea865816892b4` from PR #36.
-- PR #36 exact head: `ce21ffe89170b58ceb267298bcf1db690b72c798`.
-- GitHub CI run `34711279114`: SUCCESS.
-- Exact-head Vercel preview `dpl_Gwsoed8g4DVS6yVSPQ4ntiFYy2WR`: READY, clean build.
-- Production Vercel `dpl_AZtJJiXSMRas45F8mU8KTfLjqHwR`: READY on `https://namdar.co.uk`, no alias error.
+- Current main after docs PR #37: `80faf13d5ebbc7e00034300bd7eee15af9cb9538`.
+- Window-only staged-service product release: PR #36 merge `cbd189da5a1516238aa11b0d796ea865816892b4`.
+- Production is READY on `https://namdar.co.uk`.
 - Supabase migration live: `20260912182925 service_catalog_activation`.
-- Address-data work is parked; Address API remains disabled and GetAddress harvesting remains blocked.
+- Address-data work remains parked; Address API disabled; GetAddress harvesting blocked.
 
-## Current business model — LIVE
+## Current business model
 
 **Window Cleaning is Namdar's only live/bookable service.**
 
-Future services remain fully prepared in the website/database and can be activated later from Admin without rebuilding the site:
+Future services remain prepared but planned:
 1. Window Cleaning — LIVE
 2. Gutter Cleaning — planned
 3. Patio & Jet Washing — planned
@@ -27,84 +25,58 @@ Future services remain fully prepared in the website/database and can be activat
 5. Handyman Services — planned
 6. 3D Property Tours — planned
 
-Stage order is operational and can be changed later.
+Do not activate another service until the user deliberately decides Stage 1 has paid off and the next service is operationally ready.
 
-## Service lifecycle
+## Current candidate — Stage 1 Window Cleaning optimisation
 
-`service_catalog.status` is the server-side source of truth:
-- `planned` — hidden/not quotable;
-- `coming_soon` — may be shown but not quotable;
-- `live` — accepts new work;
-- `paused` — blocks new work while preserving existing commitments;
-- `retired` — no new work.
+Branch: `feat/window-cleaning-stage1-optimisation-20260912`.
 
-If the catalog cannot be read, Namdar fails safe to Window Cleaning live and every other known service planned.
+Goal: make the Window Cleaning customer journey and recurring-clean request flow materially better without activating any future service or resuming address-data work.
 
-## New-work protection
+Changes in the candidate:
+- fixes a service-gate bug in `/api/quote`: the wrapper previously read `body.service` while the real form sends `serviceKey`, which could let a crafted future-service quote reach the legacy core;
+- Window quote inputs are normalised server-side so client-supplied complexity multipliers cannot be arbitrarily lowered;
+- recurring quote choices become one-off / 4-week / 8-week / 12-week;
+- existing pricing curve is preserved: legacy monthly `.86` maps to 4-weekly, legacy quarterly `.94` maps to 12-weekly, and 8-weekly uses midpoint `.90`;
+- quote UX now asks Window-specific condition and access questions and records a structured Window-details summary in the quote notes for Admin review;
+- generic extra-complexity wording becomes Window-specific extra-glass wording;
+- homepage hero/copy is more specifically about Window Cleaning;
+- My Namdar recurring Window Cleaning requests use 4/8/12-week options, defaulting to 8-weekly;
+- Window Cleaning service page now explains inclusions, recurring options, factors affecting price, access/photo guidance and estimate/final-quote separation;
+- regression suite `scripts/window-stage1.test.mjs` covers quote gate, input normalisation, recurrence frequencies and page/customer-portal behaviour.
 
-The live-status rule is enforced server-side for:
+No database migration is required for this candidate.
+
+## Window-only service enforcement
+
+`service_catalog.status` remains the server-side source of truth.
+
+New work is gated for:
 - `/api/quote`;
 - `/api/postcode?service=...`;
 - `/api/subscription` POST.
 
-Existing accepted quotes/bookings are intentionally preserved if a service is later paused.
+The candidate specifically fixes the `/api/quote` key mismatch so the gate now evaluates the actual submitted `serviceKey`.
 
-Production verification:
-- direct Gutter Cleaning postcode request returns HTTP 409 planned/unavailable;
-- equivalent Window Cleaning postcode request succeeds for a covered postcode.
+Existing accepted quotes/bookings remain valid if a service is later paused.
 
-## Public website state
+## Release gates for this candidate
 
-Production `/api/public-data` verifies:
-- Window Cleaning `live=true`, `quotable=true`;
-- all five future services `planned`, `quotable=false`, `public=false`;
-- only Window Cleaning pricing is exposed publicly;
-- current public service-area `service_keys` resolves to `["windows"]`.
-
-Homepage/customer portal/service pages follow the same catalog:
-- planned services hidden from normal customer journeys;
-- coming-soon/paused can be displayed without quote access;
-- future service pages stay built and become usable when moved to live;
-- customer recurring-service selector shows live services only;
-- non-live service pages use `noindex,follow` and route quote actions to Window Cleaning.
-
-Production sitemap includes `/services/window-cleaning` and excludes the five future service slugs.
-
-## Admin service activation
-
-Admin → Pricing now has **Service launch stages**.
-
-Before a service can be made `live`, the server requires:
-- pricing configured;
-- at least one active service area covering it.
-
-All six services currently have prepared pricing and active-area readiness, but only Window Cleaning is live. Status changes require privileged `settings` access, AAL2/MFA and are audit logged. Unauthenticated `/api/admin-services` returns 401.
-
-## Security / database verification
-
-- `service_catalog` has RLS enabled.
-- anon/authenticated have no direct table grants; service role is the server access path.
-- Supabase advisor only adds the expected INFO that this deliberately server-only RLS table has no browser policy; no new service-catalog security/FK issue.
-- Status-change rollback test returned Gutter Cleaning to `planned`.
-
-## Immediate next service work
-
-Focus on making the **Window Cleaning customer journey excellent** before activating another service: pricing/quote UX, booking flow, service-specific content, trust/proof, operational rules and conversion improvements.
-
-Do not activate another service merely because pricing/coverage already exists; activation should follow the user's business decision that Window Cleaning has paid off and the next service is operationally ready.
-
-## Parked address-data work
-
-Do not resume automatically. The next address-data milestone remains the controlled Code-Point Open service-area pilot. The current Free Supabase database is not suitable for Britain-wide UPRN scale.
-
-GetAddress automated harvesting remains prohibited under current provider terms and Namdar policy.
+1. Update all three handoff docs on the branch.
+2. Open a PR from `feat/window-cleaning-stage1-optimisation-20260912`.
+3. Require GitHub CI success including `scripts/window-stage1.test.mjs`.
+4. Require exact-head Vercel preview READY with clean build.
+5. Smoke-test preview Window quote UI/service page and verify a direct future-service quote is blocked where possible.
+6. Merge only after gates pass.
+7. Verify production deployment on `namdar.co.uk` and sync docs to exact live IDs if needed.
 
 ## Do not break
 
-- Window Cleaning only is the current commercial offering unless deliberately activated otherwise.
-- UI hiding is not the business-rule boundary; new-work APIs must enforce live status server-side.
-- Existing customer commitments survive a later service pause.
-- Future service content/pricing can be prepared privately before launch.
+- Window Cleaning only is the current commercial offering.
+- New-work service availability must be enforced server-side, never only through hidden UI.
+- Existing customer commitments survive service pauses.
+- Future services stay prepared but inactive.
 - Privileged staff access requires AAL2/MFA.
 - Support tickets remain customer-only; public inbound email remains Admin Email inbox.
+- Address-data work stays parked unless the user changes focus.
 - Never expose provider, Supabase, SMTP, Turnstile, GitHub, cron or API secrets.

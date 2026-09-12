@@ -2,7 +2,7 @@ const { json, parseBody, db, authUser, sendEmail, escapeHtml, env, createStaffNo
 const ACCESS={easy:1,medium:1.12,difficult:1.3};
 const URGENCY={standard:1,soon:1.1,urgent:1.22};
 const PROPERTY={house:1,flat:1.05,commercial:1.18,other:1.08};
-const FREQUENCY={once:1,quarterly:.94,monthly:.86};
+const FREQUENCY={once:1,monthly:.86,quarterly:.94,'4_weekly':.86,'8_weekly':.90,'12_weekly':.94};
 const SERVICES=new Set(['windows','gutters','roof','jetwash','handyman','tour3d']);
 function num(v,min,max,fallback=null){const n=Number(v);if(!Number.isFinite(n))return fallback;return Math.min(max,Math.max(min,n))}
 function cleanPostcode(value=''){const raw=String(value).trim().toUpperCase().replace(/\s+/g,'');return raw.length>3?`${raw.slice(0,-3)} ${raw.slice(-3)}`:raw}
