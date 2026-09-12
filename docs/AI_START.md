@@ -20,6 +20,23 @@ This is the first file every AI/developer should read. It is intentionally short
 - Applied MFA migration: `20260911230055 require_aal2_for_staff_permissions`.
 - Customer support tickets remain customer-only; public inbound email remains Admin Email inbox.
 
+## Active UI hotfix
+
+The owner reported an iPhone/mobile homepage regression on 2026-09-12: the quote form could be dragged horizontally, exposing a blank strip on the right.
+
+Fix branch: `fix/mobile-quote-overflow-20260912`.
+
+The patch:
+- makes quote/form CSS grid tracks shrink safely with `minmax(0,1fr)` and `min-width:0`;
+- constrains native form controls, especially the iOS file input, to the form width;
+- adds a homepage-only mobile horizontal viewport guard using `overflow-x:clip` with an older-browser fallback;
+- keeps intentionally horizontally scrollable components independent;
+- is loaded by the existing homepage-only `conversion.js` through `mobile-overflow-fix.css`.
+
+No database, Auth, environment-variable, provider or customer-data change is involved.
+
+**Status:** branch implementation exists; PR/CI/Vercel preview and real iPhone regression confirmation are still required before calling the fix complete/live.
+
 ## Plan-blocked security item
 
 Supabase Security Advisor reports **Leaked Password Protection is disabled**, but Supabase documentation states this feature is available on **Pro plan and above**. The Namdar Supabase organization is currently on the **Free plan**, so this warning cannot be cleared without a paid upgrade.
@@ -28,12 +45,13 @@ Do not upgrade Supabase or incur a paid plan change without the owner's explicit
 
 ## Immediate next action
 
-Verify Supabase Auth production URL configuration:
-1. Confirm the Site URL is `https://namdar.co.uk`.
-2. Confirm the redirect allowlist contains only intended Namdar production/auth callback URLs and no stale test/preview URLs that should not remain.
-3. Record the verified settings without storing secrets.
+1. Complete the mobile overflow hotfix workflow: PR → CI → exact Vercel preview → merge → production verification.
+2. Ask the owner to reopen/refresh `namdar.co.uk` on the same iPhone and verify the page can no longer slide sideways or reveal the right-side gap.
+3. Then resume Supabase Auth production URL configuration:
+   - Site URL should be `https://namdar.co.uk`;
+   - review the redirect allowlist for stale or unintended test/preview URLs.
 
-Current connected Supabase tools do not expose hosted Auth configuration mutation/readback for these settings, so this may require the Supabase Dashboard.
+Current connected Supabase tools do not expose hosted Auth configuration mutation/readback for the URL settings, so that step may require the Supabase Dashboard.
 
 ## After that
 
