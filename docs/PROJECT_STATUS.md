@@ -4,71 +4,94 @@ Last updated: 2026-09-12 UTC
 
 ## Production baseline
 - Repo: `pchroonic/pchroonic`, default `main`.
-- Current production main before this change: `1748f3949237cadc4b414b46c1a05b31f1d23e12`.
-- Canonical production: `https://namdar.co.uk`.
+- Latest product release: PR #45, merge `f1e813866c0c854ca3b14b73c4c867ea00475e64`.
+- Product production: `dpl_6QT2rxS8epuMFvCq2t1EwMTjfWg8`, READY on `https://namdar.co.uk`, no alias error.
 - Supabase: `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
 - Window Cleaning is the only live/quotable/bookable service.
 - Gutter Cleaning, Patio & Jet Washing, Roof Cleaning, Handyman Services and 3D Property Tours remain planned.
 - Address-data work remains parked.
 
 ## Window Cleaning Stage 1 — LIVE
-Live:
-- Window-only quote and recurring journey;
-- server-side service/quote gating;
-- route-aware customer booking;
-- Staff field-job lifecycle;
-- consent-aware acquisition funnel;
-- actual work-time/productivity reporting;
-- reviewed direct-cost/direct-contribution reporting.
+Product sequence:
+- PR #38: Window-specific quote/recurring journey and quote-gate hardening.
+- PR #40: operational customer booking rules and postcode-area route density.
+- PR #42: consent-aware acquisition funnel + completed-job direct-contribution reporting.
+- PR #45: field close-out + neutral post-job feedback/Google-review workflow.
 
 Live booking defaults: 21 days, 24h notice, Mon–Sat, 08–11 / 11–14 / 14–17, max 3 jobs/day, postcode-area route density.
 
-Direct contribution is **not net profit**. Labour, overheads, tax and other business costs are outside the Stage 1 metric. Jobs without cost review are excluded instead of being assumed £0-cost.
+## Post-job workflow — LIVE
+For real Window jobs:
+1. Staff uses On my way → Start job → Complete job.
+2. Completed jobs expose direct-cost/travel close-out.
+3. Saving close-out creates/updates the existing `booking_job_costs` review.
+4. Immediate completion email remains.
+5. Existing follow-up scheduling sends a neutral request 24 hours after completion.
+6. Private Namdar feedback remains available to every completed customer.
+7. If the official Google review URL is configured, the same optional honest public-review choice is available regardless of private rating.
+8. Low private ratings still alert support privately.
 
-## In progress — completed-job close-out + honest review workflow
-Branch: `feat/window-post-job-followup-20260912`.
-
-Scope:
-- Staff completed Window jobs get direct-cost/travel close-out using existing `booking_job_costs`;
-- staff cost edits are assigned-job-only, completed-job-only, Window-only, bounded and audit logged;
-- immediate completion email remains;
-- 24-hour follow-up becomes a neutral request for private feedback plus optional honest Google review;
-- positive-only public-review gating is removed;
-- low private ratings still alert support without suppressing the public-review option;
-- Admin gets a Settings-protected official Google review URL control;
-- notification cron work is reduced from large 100-item batches to bounded 10-item stages to reduce timeout risk;
-- no schema migration or synthetic data is needed.
-
-Production currently has no `site_settings.reviews` row, so Google review requests remain disabled until the official Business Profile review link is deliberately entered.
+Production currently has no `site_settings.reviews` row, so Google review CTAs are disabled until the official Google Business Profile review-request link is deliberately entered.
 
 ## Review integrity rule
-Never selectively solicit only positive reviews. Never offer incentives or ask for a particular star rating. The same Google review choice must be available to completed customers regardless of their private rating.
+Do not selectively solicit only positive reviews. Do not discourage negative reviews, request a particular star rating, or offer incentives. Private support escalation may coexist with the same neutral public-review option.
+
+## Performance / economics — LIVE
+Admin → Reporting measures:
+- consented postcode → quote → final sent → accepted → booked → completed funnel;
+- completed jobs;
+- total/average job value;
+- collected revenue;
+- actual work hours;
+- value per work hour;
+- reviewed direct costs;
+- travel minutes/miles;
+- direct contribution and margin.
+
+**Direct contribution is not net profit.** Labour, overheads, tax and other business costs are excluded. Missing cost reviews are excluded from contribution/margin rather than assumed £0.
+
+Production `booking_job_costs` contained 0 rows at PR #45 release verification; no synthetic job-cost data was inserted.
 
 ## Database/security
-Existing Stage 1 internal tables:
-- `conversion_events`
-- `quote_funnel_links`
-- `booking_job_costs`
+Server-only Stage 1 tables remain:
+- `conversion_events`;
+- `quote_funnel_links`;
+- `booking_job_costs`.
 
-They remain RLS-protected and server-only.
+They remain RLS-protected with no direct anon/authenticated table access.
 
-The post-job release reuses:
-- `booking_notifications`
-- `booking_feedback`
-- `booking_job_costs`
-- `site_settings`
+PR #45 required no schema migration and reused:
+- `booking_notifications`;
+- `booking_feedback`;
+- `booking_job_costs`;
+- `site_settings`.
 
-No new table is planned.
+## PR #45 release verification
+- exact head `6c87352fcbd1ee04215096ef4cdc41b70b53fb64`;
+- CI `34718136246` SUCCESS;
+- exact-head preview `dpl_HZyaGdp8zWN48TuL9n2ZntPeDRt7` READY / clean build;
+- merge `f1e813866c0c854ca3b14b73c4c867ea00475e64`;
+- production `dpl_6QT2rxS8epuMFvCq2t1EwMTjfWg8` READY with canonical alias and no alias error;
+- unauthenticated review-settings endpoint 401;
+- cron endpoint without secret 401;
+- invalid feedback token 400;
+- live Admin/Staff entrypoints load the new modules;
+- service catalog: Window live, five planned;
+- no review URL invented and no synthetic job-cost records created.
 
-## Immediate next work after release
-1. enter the official Google review-request link if/when the Google Business Profile is ready;
-2. use Start → Complete → direct-cost review for each real Window job;
-3. collect genuine before/after photos and reviews;
-4. calibrate price, capacity and route rules from real value/work-hour, travel and direct contribution;
-5. assess Stage 2 only after enough evidence exists.
+## Notification 504 status
+PR #45 reduces cron batch sizes to 10 + 10 + 10 and prioritizes post-job follow-ups. Treat this as a mitigation, not a confirmed resolution of the historical `/api/booking-notifications` 504. Close that issue only after observing healthy real cron executions.
+
+## Immediate next work
+1. Add the official Google Business Profile review-request URL in Admin → Bookings when available.
+2. Use the complete Staff lifecycle and direct-cost close-out on every real Window job.
+3. Collect genuine before/after photos and customer feedback/reviews.
+4. Calibrate Window pricing/capacity/route rules from real conversion, work time, travel and direct contribution.
+5. Assess Stage 2 only after enough evidence exists and the user deliberately chooses to proceed.
 
 ## Other open work
-- fresh privileged password/CAPTCHA/MFA completion pending;
+- fresh privileged password/CAPTCHA/MFA interactive completion;
+- observe real `/api/booking-notifications` cron health after batching change;
 - Stripe, SMS, legal and remaining launch checks;
 - address-data pilot remains parked.
 
