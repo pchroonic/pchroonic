@@ -8,11 +8,30 @@ Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PR
 
 **Phase 7 — Launch Security & Readiness**
 
+## Controlled manual discovery optimization — CANDIDATE
+
+Current branch: `perf/getaddress-fast-manual-discovery-20260912`.
+
+A final pre-provider audit found that manual runs and automatic runs were using the same deep service-area queue target. Even a one-postcode manual verification therefore aimed for at least 80 pending covered postcodes before the paid lookup. That Typeahead discovery is non-billable, but it can add unnecessary latency and provider rate-limit exposure to the first controlled test.
+
+Candidate behavior:
+- manual run queue target = exactly the requested postcode limit;
+- automatic/cron queue target remains deep: minimum 80, scaling by the existing 6× multiplier (20 daily lookups → target 120);
+- service-area priority, paid lookup limits, provider/local usage guards and Automatic OFF state are unchanged;
+- regression tests cover manual `1`, `5`, `20`, hard-max clamping and cron `80/120` behavior;
+- CI now runs the new address-harvest priority test.
+
+Live production already has 2 verified postcodes inside the current service area (aggregate only: one Lewisham and one Lambeth), so after this candidate ships, the first one-postcode manual run should be able to seed enough known covered candidates without first trying to fill an 80-postcode Typeahead queue. Do not expose the actual saved postcodes in handoff/chat.
+
+Status: candidate branch only until PR → CI → Vercel preview → merge → production verification completes.
+
 ## Production baseline
 
 - Repository: `pchroonic/pchroonic`, default branch `main`.
-- Current verified production code: `3ea8f45301fcdfe25e5610abefcb71757a22a0d8` (PR #28 controlled GetAddress manual-run guard).
-- Production deployment: Vercel `dpl_AnnQ2n26h5WDCs239zDcSwxy1GZf`, READY and aliased to `https://namdar.co.uk` with no alias error.
+- Current verified **product code**: `3ea8f45301fcdfe25e5610abefcb71757a22a0d8` (PR #28 controlled GetAddress manual-run guard).
+- Continuity-doc sync merged afterward as `d7c84edd0019d66650a4ecce7c02c6ce89ac5a01`; it did not change product behavior.
+- PR #28 product-code deployment: Vercel `dpl_AnnQ2n26h5WDCs239zDcSwxy1GZf`, READY on `https://namdar.co.uk` with no alias error.
+- PR #29 docs-only deployment: `dpl_Hc2MYZ5BXBpbYFLTNDX96fNuWF3T`, READY on `namdar.co.uk`; product code is unchanged from PR #28.
 - Exact-head PR #28 preview: `dpl_CH6BjU8pHxGxtdQrLsHWnU1yiF6T`, READY; GitHub workflow run `34706834723` passed.
 - Supabase: `namdar-production` (`qjigldxjcpnrlyxgmlqq`), Free plan.
 - Resend: `namdar.co.uk` verified for sending/receiving.
@@ -65,16 +84,14 @@ Required server-only secret: `GETADDRESS_API_KEY`. Optional `GETADDRESS_ADMIN_KE
 
 ## Immediate next action
 
-A real provider run is still pending. Do **not** switch Automatic ON yet.
-
-Next sequence:
-1. Complete fresh Admin password sign-in, interactive Cloudflare CAPTCHA and mandatory MFA/AAL2.
-2. Open Admin → Service Areas → Daily address database growth.
-3. Confirm `GETADDRESS_API_KEY` shows configured without exposing its value.
-4. Confirm Automatic OFF, Service-area priority ON and Manual run postcode limit = `1`.
-5. Run exactly **1 postcode**.
-6. Verify the selected postcode is from covered service-area priority, addresses are saved, provider/local usage increments correctly, run metrics are recorded, and both private JSON/CSV backups plus full export work.
-7. Only after that succeeds should additional daily allowance be used or Automatic daily harvesting be considered.
+1. Finish the manual-discovery optimization through PR/CI/preview/production verification.
+2. Complete fresh Admin password sign-in, interactive Cloudflare CAPTCHA and mandatory MFA/AAL2.
+3. Open Admin → Service Areas → Daily address database growth.
+4. Confirm `GETADDRESS_API_KEY` shows configured without exposing its value.
+5. Confirm Automatic OFF, Service-area priority ON and Manual run postcode limit = `1`.
+6. Run exactly **1 postcode**.
+7. Verify covered-area selection, saved addresses, provider/local usage, run metrics, raw snapshot, private JSON/CSV backups and full export.
+8. Only after success should additional daily allowance be used or Automatic daily harvesting be considered.
 
 Do not claim the full privileged-login or real GetAddress provider journey has passed until the interactive CAPTCHA/MFA and one-postcode run are completed.
 
