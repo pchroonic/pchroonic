@@ -8,7 +8,8 @@ For fast continuation, read `docs/AI_START.md` first. This file is the broader r
 
 - Release documented in `README.md`: v6.4.16.
 - Source: GitHub `main` in `pchroonic/pchroonic`.
-- Current live product commit: `46a635396ae364fe9b5783bc18c3de2b72025efc`.
+- Current live runtime product commit: `46a635396ae364fe9b5783bc18c3de2b72025efc`.
+- Current continuity main baseline before this docs-only update: `c08a97a22acea924615e10b21da85856bbd14a75`.
 - Delivery: Vercel project `namdar-website-starter-1`, canonical domain `namdar.co.uk`.
 - Data/auth/storage: Supabase `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
 - Supabase organization plan: **Free**.
@@ -27,12 +28,13 @@ CI requires all three files to change whenever product-source files change.
 
 | Area | Status |
 | --- | --- |
-| Public website | Live; all-width homepage horizontal-overflow fix deployed, desktop + iPhone confirmation pending |
+| Public website | Live; all-width horizontal-overflow fix deployed, desktop confirmed fixed, iPhone confirmation pending |
 | Customer portal | Session fix + optional customer MFA live |
 | Admin workspace | Inbox Security v2 + mandatory privileged MFA/AAL2 live and user smoke-tested |
 | Staff PWA | Mandatory privileged MFA/AAL2 live; AAL2 required for offline cached session |
 | Server functions | Privileged APIs require AAL2 through central `requireStaff()` wrapper |
 | Production DB | Central privileged RLS requires AAL2 |
+| Supabase Auth URLs | Production Site URL/redirect allowlist hardened and owner-verified |
 
 ## Phase 7 — Launch Security & Readiness
 
@@ -47,54 +49,37 @@ References:
 - main Stage 2 code SHA `ece88931bd5e05b26173b25ff7fa75c46b6b4e63`;
 - production `dpl_Jkb8ZavhqrBD6PLpqjAPnEdiGAsW`: READY.
 
-## Homepage horizontal overflow — ALL-WIDTH FIX LIVE, OWNER CONFIRMATION PENDING
+## Homepage horizontal overflow — ALL-WIDTH FIX LIVE
 
-The regression was initially treated as mobile/iPhone-specific. PR #12 improved quote/grid containment and PR #14 moved containment into the `<head>` plus added mobile scroll-position reset. The owner later reproduced the same document-level failure on Windows/Edge desktop: a full-page horizontal scrollbar, left-side header/hero content off-screen, and a large blank area on the right.
+The issue was reproduced on iPhone and later on Windows/Edge desktop, proving it was a cross-device document-width / horizontal scroll-restoration problem.
 
-The issue is therefore a cross-device homepage document-width / horizontal scroll-restoration problem.
-
-All-width fix now live:
-- PR #16: `Fix homepage horizontal overflow across all widths`;
+All-width fix:
+- PR #16;
 - feature SHA `5e05d6d3da1df0ea2049b3c2ca440e2ce304d2c2`;
-- GitHub CI run `34686741515`: success;
-- exact preview `dpl_9AEFL9yKDgSvZGkAqGuKQnQws88a`: READY on exact feature SHA with no alias error;
-- main merge SHA `46a635396ae364fe9b5783bc18c3de2b72025efc`;
-- production deployment `dpl_Bh1kfnpaShf6JwNnzG6N6YvYP1Qh`: READY on exact merge SHA with `namdar.co.uk` and no alias error.
+- GitHub CI `34686741515`: success;
+- preview `dpl_9AEFL9yKDgSvZGkAqGuKQnQws88a`: READY;
+- production merge SHA `46a635396ae364fe9b5783bc18c3de2b72025efc`;
+- production `dpl_Bh1kfnpaShf6JwNnzG6N6YvYP1Qh`: READY with `namdar.co.uk` and no alias error.
 
-Live implementation:
-- homepage root/body use `width:100%`, `min-width:0`, `max-width:100%`, `overflow-x:hidden`, and horizontal overscroll containment at all viewport widths;
-- header/main/footer/hero/quote containers are bounded to the viewport;
-- desktop hero tracks are shrink-safe `minmax(0,...)` columns;
-- key flex/grid children use `min-width:0`;
-- quote-grid/native-file-input containment remains;
-- intentional nested horizontal scrollers remain local;
-- homepage horizontal position is reset to x=0 on load, `pageshow`, resize and orientation change.
+Owner verification:
+- Windows/Edge desktop: **confirmed fixed on 2026-09-12**.
+- iPhone: final confirmation remains pending.
 
-Canonical production verification:
-- `/mobile-overflow-fix.css?v=20260912b` returned HTTP 200 and contains the all-width root/desktop-grid containment;
-- `/conversion.js?v=20260912b` returned HTTP 200 and contains the all-width x=0 reset plus resize handling.
+Do not mark the cross-device regression fully closed until the same-iPhone recheck also passes.
 
-No database, Auth, provider, environment-variable or customer-data change was part of this fix.
+## Supabase Auth URL Configuration — COMPLETE
 
-**Remaining:** owner confirmation is required on both Windows desktop and the same iPhone before closing the regression.
+On 2026-09-12 the owner reviewed and cleaned Supabase Authentication → URL Configuration.
 
-### Prior overflow-fix history
+Final intended production state:
+- Site URL: `https://namdar.co.uk`
+- Redirect allowlist: `https://namdar.co.uk/**`
 
-PR #12:
-- feature SHA `febd6bbaacee5c08273e4ba7b70d8749dc160313`;
-- CI `34685321573`: success;
-- preview `dpl_8vbLRZdTAUttgXjhfRw2LBtb8sXq`: READY;
-- production merge `285b7c3da8215dc24e543f9a6143e565d10e61a7`;
-- production `dpl_CkWNqBc8JkMuWh77BWYJXkXwP3oA`: READY;
-- iPhone follow-up proved remaining left clipping.
+Removed four unnecessary Vercel redirect entries, including the exact project alias and broad wildcard preview patterns. The owner confirmed the changes were saved by replying `done`.
 
-PR #14:
-- feature SHA `6ae3563725ca280cade0ee6df46d7ed21315c0db`;
-- CI `34686101782`: success;
-- preview `dpl_Z3Cas7PhEMoLmz5KVa7RM3p4VPXH`: READY;
-- production merge `b1c1eb4e29cd03056799e5fbb1af47cf04fec2b1`;
-- production `dpl_EqLFLD2VK6QMcN8o7YKz4AKvYAuM`: READY;
-- later Windows/Edge screenshot proved desktop document overflow remained.
+The connected Supabase tools do not currently expose hosted Auth URL-setting readback, so this is owner-verified dashboard state.
+
+Repository search found no `signInWithOAuth`, `signInWithOtp`, or explicit OAuth provider usage in current source. Next Auth review should therefore inspect **Sign In / Providers** and confirm only intentionally used providers are enabled.
 
 ## Database/Auth verification
 
@@ -125,14 +110,15 @@ Namdar is on Supabase Free and leaked-password protection requires Pro or above,
 
 ## Outstanding work
 
-1. Obtain desktop + iPhone confirmation for the live all-width homepage overflow fix; if both pass, mark the regression closed.
-2. Confirm Supabase Auth Site URL is `https://namdar.co.uk` and review redirect allowlist for stale/unintended URLs.
-3. Complete provider launch readiness for Stripe, Turnstile, OAuth, SMS, Resend and legal configuration.
-4. Verify production cron jobs and intended double-booking protections.
-5. Run safe recognized-mailbox/unknown-alias inbound behavior test.
-6. Complete controlled customer-support ticket journey when a safe eligible test customer is available.
-7. Optional/plan-blocked: enable Leaked Password Protection only if the owner later chooses Supabase Pro or above.
+1. Review Supabase Authentication → Sign In / Providers and verify only intended login providers are enabled.
+2. Recheck the same iPhone for the all-width homepage overflow fix; close the regression if it passes.
+3. Review Turnstile / Auth attack-protection settings.
+4. Complete provider launch readiness for Stripe, SMS, Resend and legal configuration.
+5. Verify production cron jobs and intended double-booking protections.
+6. Run safe recognized-mailbox/unknown-alias inbound behavior test.
+7. Complete controlled customer-support ticket journey when a safe eligible test customer is available.
+8. Optional/plan-blocked: enable Leaked Password Protection only if the owner later chooses Supabase Pro or above.
 
 ## Handoff maintenance rule
 
-Any substantial product change must update **all three** continuity files in the same change: `docs/AI_START.md`, `docs/AI_HANDOFF.md`, and `docs/PROJECT_STATUS.md`. CI enforces this for product-source changes. Never include credentials or customer data.
+Any substantial product or provider-configuration change must update **all three** continuity files in the same change: `docs/AI_START.md`, `docs/AI_HANDOFF.md`, and `docs/PROJECT_STATUS.md`. CI enforces this for product-source changes. Never include credentials or customer data.
