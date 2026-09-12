@@ -1,5 +1,66 @@
-/* Namdar mobile viewport containment — 2026-09-12 */
-/* Loaded in the document head so iOS/Safari cannot restore a sideways page position before containment applies. */
+/* Namdar homepage viewport containment — 2026-09-12 */
+/* Loaded in the document head so browser scroll restoration cannot leave the page sideways. */
+
+html,
+body.conversion-home {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+}
+
+body.conversion-home {
+  position: relative;
+}
+
+.conversion-home .site-header,
+.conversion-home main,
+.conversion-home footer,
+.conversion-home .section-pad,
+.conversion-home .hero,
+.conversion-home .hero-copy,
+.conversion-home .hero-panel,
+.conversion-home .hero-visual,
+.conversion-home .quote-section,
+.conversion-home .quote-shell,
+.conversion-home .quote-form,
+.conversion-home .quote-result {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.conversion-home .site-header,
+.conversion-home main,
+.conversion-home footer,
+.conversion-home .hero,
+.conversion-home .quote-section {
+  width: 100%;
+}
+
+.conversion-home .hero {
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
+}
+
+.conversion-home .site-header > *,
+.conversion-home .hero > *,
+.conversion-home .hero-copy > *,
+.conversion-home .hero-panel > *,
+.conversion-home .section-head > *,
+.conversion-home .conversion-process-grid > *,
+.conversion-home .conversion-confidence-grid > *,
+.conversion-home .service-grid > *,
+.conversion-home .gallery-grid > * {
+  min-width: 0;
+}
+
+.conversion-home img,
+.conversion-home video,
+.conversion-home canvas,
+.conversion-home svg {
+  max-width: 100%;
+}
+
 .quote-shell,
 .quote-shell > *,
 .quote-form,
@@ -36,7 +97,7 @@
   max-width: 100%;
 }
 
-/* iOS/Safari file controls can otherwise keep an intrinsic width wider than the form. */
+/* Native file controls can retain an intrinsic width wider than the form. */
 .quote-form input[type="file"] {
   display: block;
   width: 100%;
@@ -51,7 +112,20 @@
   margin-right: 8px;
 }
 
+/* Keep intentional horizontal scrollers local instead of letting them widen the document. */
+.conversion-proof-strip,
+.logo-strip,
+.seo-conversion-proof,
+.portal-tabs,
+.customer-job-progress {
+  max-width: 100%;
+}
+
 @media (max-width: 1000px) {
+  .conversion-home .hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .quote-shell {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -62,19 +136,6 @@
 }
 
 @media (max-width: 700px) {
-  html,
-  body.conversion-home {
-    width: 100%;
-    min-width: 0;
-    max-width: 100%;
-    overflow-x: hidden;
-    overscroll-behavior-x: none;
-  }
-
-  body.conversion-home {
-    position: relative;
-  }
-
   .conversion-home .site-header,
   .conversion-home main,
   .conversion-home footer,
@@ -88,15 +149,12 @@
   .conversion-home .quote-form,
   .conversion-home .quote-result {
     width: 100%;
-    min-width: 0;
-    max-width: 100%;
   }
 
   .conversion-home .site-header > *,
   .conversion-home .hero > *,
   .conversion-home .hero-copy > *,
   .conversion-home .hero-panel > * {
-    min-width: 0;
     max-width: 100%;
   }
 
@@ -135,12 +193,6 @@
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-
-  .conversion-proof-strip,
-  .logo-strip,
-  .seo-conversion-proof {
-    max-width: 100%;
   }
 
   .mobile-conversion-bar {
