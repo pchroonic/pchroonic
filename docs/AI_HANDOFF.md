@@ -8,7 +8,7 @@ Read `docs/AI_START.md` first for compact state. Use this file for detailed tech
 
 - Product: Namdar, UK exterior-cleaning and handyman service platform.
 - Repository: `pchroonic/pchroonic`, default branch `main`.
-- Current live product SHA: `72d52d06a09852de8ee5c329adf57f5934e5dcc1`.
+- Current live product code SHA: `72d52d06a09852de8ee5c329adf57f5934e5dcc1`.
 - Hosting: Vercel project `namdar-website-starter-1`, canonical `https://namdar.co.uk`.
 - Backend/Auth: Supabase `namdar-production` (`qjigldxjcpnrlyxgmlqq`), organization plan Free.
 - Current documented release heading: v6.4.16.
@@ -67,13 +67,20 @@ Important correction to older notes: Namdar does use Google authentication. `acc
 
 Privacy-safe production identity aggregation showed at least one current customer identity relies on Google without a separate email/password identity. No identifying data is recorded here. **Do not disable Google** without a safe recovery/migration plan.
 
-## Supabase Attack Protection / CAPTCHA — READINESS CODE LIVE, HOSTED TOGGLE PENDING
+## Supabase Attack Protection / CAPTCHA — ENABLED, AUTH SMOKE TESTS PENDING
 
-Owner screenshot on 2026-09-12 showed:
-- `Enable Captcha protection`: OFF;
-- leaked-password prevention: disabled/plan-blocked.
+### Owner-confirmed provider configuration
 
-Namdar already had Cloudflare Turnstile on customer login/register. Audit before enabling hosted Supabase CAPTCHA found missing token coverage for password reset, confirmation resend and Google ID-token login, plus no explicit one-time challenge reset after auth requests.
+On 2026-09-12 the owner confirmed that Supabase → Authentication → Attack Protection was saved with:
+- **Enable Captcha protection: ON**;
+- provider: **Cloudflare Turnstile**;
+- the existing Namdar Turnstile Secret Key copied directly from the Cloudflare Turnstile widget into Supabase.
+
+No Turnstile secret value was shared in chat, committed to GitHub or written to continuity docs.
+
+Readback limitation: the connected Supabase tool does not expose hosted Auth CAPTCHA configuration readback, so the enabled/provider state above is owner-confirmed dashboard state. Do not overclaim independent provider verification until controlled production Auth smoke tests pass.
+
+Leaked-password prevention remains disabled/plan-blocked; see below.
 
 ### CAPTCHA readiness implementation — LIVE
 
@@ -83,34 +90,34 @@ Promotion verification:
 - feature/PR head: `cecab9d0236a8ef804c7b52f6f78741f46a93001`;
 - GitHub CI run `34688813723`: success;
 - exact Vercel preview `dpl_2rb4eyRExRTMiG1dxgdrf6xv4XHv`: READY on exact feature SHA, no alias error;
-- production merge/main SHA `72d52d06a09852de8ee5c329adf57f5934e5dcc1`;
+- production merge/main code SHA `72d52d06a09852de8ee5c329adf57f5934e5dcc1`;
 - production deployment `dpl_DSmsBZ9DTxg9Dtw9tbyYHWWtpxYw`: READY on exact merge SHA, target production, aliases include `namdar.co.uk`, `aliasError: null`;
 - canonical `https://namdar.co.uk/account.js` returned HTTP 200 and loads `account-captcha-guard.js` with version `6.4.16-auth-captcha-1` before the session/MFA guards;
 - canonical `https://namdar.co.uk/account-captcha-guard.js?v=6.4.16-auth-captcha-1` returned HTTP 200 with expected token injection/reset logic.
 
 Implementation details:
 - `account-original.js` remains byte-for-byte preserved;
-- new `account-captcha-guard.js` retains login/register Turnstile widget IDs;
+- `account-captcha-guard.js` retains login/register Turnstile widget IDs;
 - supplies the existing CAPTCHA token to `signInWithPassword`, `signInWithOtp`, `signInWithIdToken`, `signUp`, `resetPasswordForEmail`, and `resend`;
 - clears/resets the relevant Turnstile challenge after each Auth call, success or failure;
-- CI now syntax-checks the new guard;
+- CI syntax-checks the guard;
 - no database migration, environment-variable change or secret commit was required.
 
-Current Supabase docs confirm hosted CAPTCHA protects sign-in, sign-up and password-reset endpoints, supports Cloudflare Turnstile and requires a provider secret in the dashboard plus frontend token submission.
+Current Supabase documentation confirms hosted CAPTCHA protects sign-in, sign-up and password-reset endpoints and supports Cloudflare Turnstile when the frontend provides a valid CAPTCHA token and the provider secret is configured.
 
-### Immediate owner action
+### Required smoke tests after enablement
 
-In Supabase → Authentication → Attack Protection:
-1. turn **Enable Captcha protection** ON;
-2. choose **Cloudflare Turnstile**;
-3. copy the existing Namdar Turnstile **Secret Key** from Cloudflare and paste it directly into the Supabase secret field;
-4. click **Save changes**.
+Do not mark this stage fully verified until controlled production customer-auth checks have passed.
 
-Never ask the owner to paste, screenshot or store the Turnstile secret in chat/GitHub/docs.
+Recommended order:
+1. open `https://namdar.co.uk/account` in a fresh/private browser session and verify the Turnstile challenge can complete;
+2. sign in with one real existing customer account using its normal method (password or Google) and confirm the portal opens;
+3. test the alternate live login method where practical (Google or password);
+4. request a Magic Link and verify the request is accepted;
+5. request a password reset and verify the request is accepted;
+6. test confirmation resend or a safe signup/confirmation path only if a suitable test account exists; clean up any synthetic account immediately afterward.
 
-After owner confirms saved, run controlled production Auth checks for password sign-in, Google sign-in, Magic Link request, password-reset request, and a safe signup/confirmation path where practical.
-
-Do not claim hosted Supabase CAPTCHA is enabled until the owner has saved that dashboard configuration.
+Never ask the owner for account passwords, Google tokens, Turnstile secrets or customer private data.
 
 ## Leaked Password Protection — PLAN-BLOCKED
 
@@ -126,7 +133,7 @@ Supabase Auth leaked-password protection remains disabled. Namdar is on Supabase
 
 ## Remaining launch work
 
-1. Owner enables Supabase hosted CAPTCHA with Cloudflare Turnstile secret entered directly in dashboard; run controlled Auth smoke tests.
+1. Complete hosted CAPTCHA production Auth smoke tests and mark the stage verified if they pass.
 2. Recheck same iPhone for homepage overflow and close cross-device regression if it passes.
 3. Finish Stripe, SMS, Resend and legal launch configuration.
 4. Verify production cron jobs and intended double-booking protections.
@@ -140,4 +147,4 @@ For substantial work: read `AGENTS.md`, `docs/AI_START.md`, this file, `docs/PRO
 
 ## Next recommended step
 
-Guide the owner through enabling hosted Supabase CAPTCHA on the Attack Protection page. The code readiness prerequisite is already live and verified.
+Run the first real production My Namdar login smoke test in a fresh/private browser session now that hosted Supabase CAPTCHA is owner-confirmed enabled.
