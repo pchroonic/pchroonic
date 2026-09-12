@@ -1,5 +1,5 @@
 const { json, db, requireStaff, auditLog, safeError, parseBody } = require('../lib/server');
-const { MAX_DAILY_LOOKUPS, runHarvest, harvestStatus } = require('../lib/address-harvest');
+const { MAX_DAILY_LOOKUPS, runHarvest, harvestStatus } = require('../lib/address-harvest-priority');
 module.exports = async function handler(req, res) {
   try {
     const staff = await requireStaff(req, 'settings');
@@ -10,6 +10,7 @@ module.exports = async function handler(req, res) {
       const before = (await db('address_harvest_settings?id=eq.1&select=*&limit=1'))?.[0] || null;
       const patch = { updated_at:new Date().toISOString() };
       if (typeof body.enabled === 'boolean') patch.enabled = body.enabled;
+      if (typeof body.prioritizeServiceAreas === 'boolean') patch.prioritize_service_areas = body.prioritizeServiceAreas;
       if (body.dailyLookupCap !== undefined) {
         const cap = Math.round(Number(body.dailyLookupCap));
         if (!Number.isFinite(cap)) return json(res, 400, { ok:false, error:'Daily lookup cap must be a number.' });
@@ -17,7 +18,7 @@ module.exports = async function handler(req, res) {
       }
       await db('address_harvest_settings?id=eq.1', { method:'PATCH', body:patch });
       const after = (await db('address_harvest_settings?id=eq.1&select=*&limit=1'))?.[0] || null;
-      await auditLog(req, staff, { action:'address_harvest.settings', entityType:'address_harvest_settings', entityId:'1', summary:`Address harvest ${after?.enabled ? 'enabled' : 'disabled'}; daily cap ${after?.daily_lookup_cap || MAX_DAILY_LOOKUPS}`, before, after });
+      await auditLog(req, staff, { action:'address_harvest.settings', entityType:'address_harvest_settings', entityId:'1', summary:`Address harvest ${after?.enabled ? 'enabled' : 'disabled'}; daily cap ${after?.daily_lookup_cap || MAX_DAILY_LOOKUPS}; service-area priority ${after?.prioritize_service_areas === false ? 'off' : 'on'}`, before, after });
       return json(res, 200, { ok:true, ...(await harvestStatus()) });
     }
     if (action === 'run-now') {
