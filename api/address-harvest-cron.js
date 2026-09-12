@@ -1,5 +1,5 @@
 const { json, env, safeError } = require('../lib/server');
-const { runHarvest } = require('../lib/address-harvest');
+const { runHarvest } = require('../lib/address-harvest-priority');
 module.exports = async function handler(req, res) {
   try {
     if (req.method !== 'GET') return json(res, 405, { ok:false, error:'Method not allowed' });
