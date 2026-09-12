@@ -2,180 +2,254 @@
 
 Last verified: 2026-09-12 UTC
 
-Read `docs/AI_START.md` first. For commercial architecture read `docs/ADDRESS_DATA_PRODUCT.md`; for imports read `docs/OS_OPEN_DATA_IMPORT.md`.
+Read `docs/AI_START.md` first. This file contains implementation detail and release rules.
 
-## Production source of truth
+## Source of truth
 
-- Product: Namdar UK property services platform.
+- Product: Namdar UK property-services platform.
 - Repository: `pchroonic/pchroonic`, default `main`.
-- Latest product release: PR #34 `Add OS Open UPRN and Code-Point property data foundation`.
-- Product merge: `c5d2d33cda10bf1d80ecdf6229e7f352146b4b55`.
-- PR #34 final head: `c8fa029ba0ea18174aace2f15c87a43008a57980`.
-- Final GitHub workflow: `34709973230`, success.
-- Final exact-head Vercel preview: `dpl_892iE2LPJ5bCpjQAXrMChrTRkK5L`, READY.
-- Production Vercel deployment: `dpl_9DUfnUNbuENpdWZypq4uYiMjVFwe`, READY on `https://namdar.co.uk`, no alias error.
+- Production main before the current services candidate: `870234204df1a9f0717cb43a4d0d91bb481a566c`.
+- Canonical domain: `https://namdar.co.uk`.
 - Supabase: `namdar-production` (`qjigldxjcpnrlyxgmlqq`), Free plan.
-- Production DB after release: about 16 MB.
-- Production migrations now include:
-  - `20260912173038 address_data_rights_and_distribution_guard`
-  - `20260912175957 os_open_property_foundation`
-  - `20260912180242 os_open_import_fk_indexes`
+- Privileged Admin/Staff browser/API/RLS access requires AAL2/MFA.
+- Support tickets remain customer-only. Public inbound email remains Admin Email inbox.
 
-## GetAddress remains operational-only
+## Current business decision
 
-Do not resume the old postcode/background harvesting plan. Current GetAddress terms require human-initiated Autocomplete/Typeahead and restrict automated extraction/resale. Vercel has no scheduled GetAddress harvest; Admin/export/worker paths fail closed from rights metadata.
+Namdar currently provides **Window Cleaning only**.
 
-Verified production state remains:
-- Automatic OFF;
-- zero harvest runs;
-- zero harvest queue rows;
-- zero `getaddress-daily-cache` rows.
+The user wants to prove the Window Cleaning business first. If it performs well, additional services will be launched one by one. The website should nevertheless retain future service pages, pricing structures and code so a later stage can be activated without rebuilding the product.
 
-## OS Open UPRN + Code-Point foundation — LIVE
+Address-data expansion is deliberately parked while this services work is completed. Do not restart the Code-Point/Open UPRN pilot unless focus changes again.
 
-The schema/import framework is production-live, but **no official OS dataset rows have been imported yet**.
+## Problem found in the existing product
 
-### Data model
+Before this candidate, six services are hard-coded throughout the public site:
+- Window Cleaning (`windows`)
+- Gutter Cleaning (`gutters`)
+- Roof Cleaning (`roof`)
+- Patio / Jet Washing (`jetwash`)
+- Handyman (`handyman`)
+- 3D Property Tours (`tour3d`)
 
-Do not put OS Open UPRN into `master_addresses`. It is property-identifier/location data, not complete postal-address text.
+All six appear on the homepage and quote radio list. More importantly, `/api/quote`, `/api/postcode` and `/api/subscription` accept dormant service keys directly. Therefore a CSS/UI-only hide would not enforce the business model.
 
-Live stores:
-- `master_addresses` — source-specific address observations, including future separately licensed full-address data;
-- `postcode_points` — Code-Point Open postcode-unit coordinates and administrative codes;
-- `property_entities` — UPRN-keyed OS Open UPRN property locations;
-- `property_field_observations` — sparse future enrichment facts with source/version/confidence/provenance;
-- `open_data_import_runs` — upstream version/scope/checksum/row counters/status.
+Production already has pricing rules for all six. The current active service area has `service_keys=[]`, historically meaning all services. That configuration is retained so future live services inherit the area automatically unless an area is later made service-specific.
 
-### Registry/count model
+## Current candidate
 
-`address_dataset_registry` now includes:
-- `record_store`;
-- `upstream_product_id`;
-- `expected_refresh_days`;
-- `last_checked_at`;
-- `last_available_version`.
+Branch:
+`feat/service-catalog-window-cleaning-only-20260912`
 
-Live mappings:
-- GetAddress + OSM → `master_addresses`;
-- `os-open-uprn` → `property_entities`, upstream `OpenUPRN`, expected refresh ~42 days;
-- `code-point-open` → `postcode_points`, upstream `CodePointOpen`, expected refresh ~92 days.
+Migration:
+`supabase/migrations/20260912192000_service_catalog_activation.sql`
 
-`refresh_address_dataset_registry_count()` resolves the correct record store, and statement-level insert/update/delete triggers keep counts synchronized. `address_dataset_health` reports actual/active counts and count drift across all stores.
+This migration is NOT production-live until the release workflow verifies and applies it.
 
-### Rights/security boundary
+## New service_catalog model
 
-New tables are RLS-enabled, browser roles have no grants/policies, and server service role is the intended access path.
+`public.service_catalog` is the server-side source of truth for whether Namdar is accepting new work for a service.
 
-Service-role-only rights-filtered views:
-- `postcode_distribution_eligible`;
-- `property_distribution_eligible`;
-- `property_field_distribution_eligible`.
+Columns include:
+- `service_key` primary key
+- `name`
+- `short_name`
+- `slug`
+- `status`
+- `stage_number`
+- `display_order`
+- `description`
+- `live_since`
+- timestamps
 
-Rows only qualify when row/source are active and the source explicitly allows both commercial redistribution and subscription API use.
+Allowed statuses:
+- `planned`: prepared but hidden/not quotable
+- `coming_soon`: may be marketed as upcoming but still not quotable
+- `live`: new quotes/postcode service checks/subscription requests permitted
+- `paused`: visible as temporarily unavailable, new work blocked
+- `retired`: no new work
 
-Both OS registry sources remain inactive and currently contain zero rows, so these commercial views return zero rows.
+Initial seeded state:
+1. windows → live
+2. gutters → planned
+3. jetwash → planned
+4. roof → planned
+5. handyman → planned
+6. tour3d → planned
 
-### Import finalizer
+The table has RLS enabled. `anon` and `authenticated` have direct privileges revoked; `service_role` owns server access. Public clients receive only a safe projection through `/api/public-data`.
 
-`finalize_open_data_import(run_id, complete_scope, activate_source)` is live and verified:
-- requires a running import;
-- deactivates older rows only when the caller explicitly declares the same source/scope complete;
-- never treats a truncated sample as complete automatically;
-- refreshes exact source count;
-- updates dataset/version/check/import metadata;
-- activates the source only when explicitly requested.
+## Fail-closed helper
 
-Disposable QA verification showed complete-scope refresh deactivates old same-scope rows while preserving the current run. All QA source/rows/runs were removed afterward.
+`lib/service-catalog.js` contains the canonical definitions and status helpers.
 
-## Streaming importer — LIVE IN SOURCE
+If the database catalog cannot be read, it deliberately falls back to:
+- Window Cleaning = live
+- every other known service = planned
 
-`lib/os-open-data.js` provides:
-- dependency-free CSV parsing;
-- Code-Point field mapping;
-- header-driven Open UPRN parsing;
-- British National Grid EPSG:27700 → WGS84 conversion;
-- Polygon/MultiPolygon/Feature GeoJSON filtering including holes;
-- radius fallback only when a service area has no geometry;
-- OS product IDs/download endpoint constants and product-version helpers.
+This prevents a database/runtime failure from accidentally making future services available.
 
-`scripts/os-open-data-import.mjs`:
-- `--dataset=codepoint|uprn`;
-- file or recursive directory input;
-- dry-run default;
-- default `active-service-areas` scope;
-- upstream version discovery if `--version` omitted;
-- write mode needs server-only Supabase credentials at runtime;
-- checks source rights + expected `record_store` before writing;
-- write mode reads live active `service_areas` dynamically;
-- Code-Point filters by live `admin_area_codes`;
-- Open UPRN uses live GeoJSON exactly and does not expand polygon-backed administrative areas using radius;
-- batches writes and records import-run counters;
-- `--complete-scope` cannot be used with `--max-rows`;
-- `--activate-source` requires complete scope;
-- **all national `scope=GB` writes are blocked unless `--allow-large-import` is explicitly supplied.**
+## New-work server gates
 
-Never use the large-import override on the current Free database merely to bypass capacity safety.
+### Quote
 
-## Capacity/scaling rule
+The original quote implementation has been preserved byte-for-byte as `api/quote-core.js`.
 
-Production DB is ~16 MB, but the current Free database limit is 500 MB. OS Open UPRN is roughly 40 million locations, so the current project is for a controlled service-area pilot, not a nationwide UPRN warehouse.
+New `api/quote.js` wrapper:
+- parses requested service;
+- loads service status server-side;
+- returns 400 for unknown service;
+- returns 409 with a status-specific message for planned/coming-soon/paused/retired;
+- delegates to the original quote engine only for `live`.
 
-Before nationwide scale:
-- move/upgrade the data store deliberately;
-- size tables + indexes + staging/headroom;
-- use bulk-loading rather than REST batches;
-- benchmark query/update windows;
-- keep source/version/import-run provenance and OGL attribution.
+### Postcode/service coverage
 
-## Future Address API
+Original implementation preserved as `api/postcode-core.js`.
 
-`/api/address-data-v1` remains deliberately disabled by `ADDRESS_DATA_API_ENABLED`.
+New wrapper checks a supplied `service` query param and refuses non-live service checks before the existing geography/coverage logic runs. Postcode-only lookups without a service remain valid for address/profile workflows.
 
-Production smoke test after PR #34:
-- `kind=postcode` request returned HTTP 503 `Namdar Address API is not enabled.`
+### Recurring subscriptions
 
-Prepared future products:
-- `address-v1` → `address_distribution_eligible`;
-- `postcode-v1` → `postcode_distribution_eligible`;
-- `property-v1` → `property_distribution_eligible`.
+Original implementation preserved as `api/subscription-core.js`.
 
-Each client must explicitly be entitled to the requested product. Existing hashed API-key/quota/metering infrastructure remains. No API customer/key was created by PR #34.
+New wrapper blocks POST creation for non-live services. GET existing subscriptions and PATCH cancellation remain untouched.
 
-## Verification completed for PR #34
+### Existing commitments
 
-- CI passed new OS-data regression suite.
-- Exact-head preview READY/clean.
-- Production migrations applied successfully.
-- Disposable Code-Point + UPRN inserts proved registry count triggers; deletion returned both OS counts to zero.
-- Disposable QA import source proved normal and complete-scope finalization; all QA artifacts deleted.
-- Supabase performance advisor initially identified three new missing import-run FK indexes; follow-up migration added:
-  - `postcode_points_import_run_idx`
-  - `property_entities_import_run_idx`
-  - `property_field_observations_import_run_idx`
-- Re-run performance advisor no longer reports those three unindexed FKs.
-- Security advisor reports expected `RLS enabled, no policy` INFO on the service-role-only new tables, plus the existing leaked-password-protection warning. RLS lint reference: `https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy`. Password protection reference: `https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection`.
-- Final clean state: 0 postcode points, 0 property entities, 0 OS import runs, 0 postcode/property eligible rows.
+Do NOT add a blanket live-status check to existing accepted quotes/bookings. A later pause is meant to stop **new work**, not break work Namdar already agreed with customers.
 
-## Immediate next milestone
+## Public-data behaviour
 
-Run a controlled **official Code-Point Open service-area pilot**:
-1. obtain/extract current official Code-Point CSV;
-2. dry-run the importer against current service-area filters;
-3. inspect selected row count, coordinates and administrative district codes;
-4. if plausible, run a complete intended service-area write without truncation;
-5. verify `address_dataset_health`, imported coverage and DB size/headroom;
-6. activate `code-point-open` only after the complete intended-scope import is verified;
-7. keep the paid API disabled.
+`api/public-data.js` now loads the catalog first.
 
-Then prepare a suitably provisioned runner to stream/filter the much larger Open UPRN source for the same service-area scope. Do not load Britain-wide UPRN into the current Free project.
+It returns safe service objects containing status/stage/public/quotable flags.
+
+Only live services expose:
+- public `pricing_rules` rows;
+- published portfolio jobs on the public surfaces.
+
+For public service-area output:
+- explicit area `service_keys` are intersected with live services;
+- empty area `service_keys` means all currently live services.
+
+This fixes the previous public label “All services” while only Window Cleaning is actually offered.
+
+## Homepage behaviour
+
+`conversion.js` now owns availability presentation without requiring the large static `index.html` to be rebuilt every stage.
+
+It applies a synchronous safe default before any network response:
+- Windows card + quote choice available;
+- all future-service cards/quote choices hidden/disabled.
+
+After `/api/public-data` returns:
+- live: card + quote option available;
+- coming_soon: card visible with status, quote action disabled;
+- paused: card visible with status, quote action disabled;
+- planned/retired: hidden.
+
+The 3D homepage nav/section follows service status. When Window Cleaning is the sole live service, visible homepage wording, mobile CTA, footer and document metadata are adjusted toward Window Cleaning.
+
+## Static service pages
+
+All future `services/*.html` pages stay built in the repo.
+
+`seo-page.js` maps the current slug to catalog status.
+
+For non-live services it:
+- applies `noindex,follow` dynamically;
+- adds a clear Planned / Coming soon / Paused / Retired notice;
+- changes quote CTAs to the currently live Window Cleaning quote journey;
+- hides related planned/retired service links;
+- updates mobile CTA/footer wording.
+
+When Admin later sets a service to `live`, normal content/quote behaviour is restored from the same page structure without creating a new page.
+
+## Customer portal
+
+`account-service-availability.js` is loaded after the existing account scripts.
+
+It:
+- immediately falls back to Window Cleaning only;
+- rebuilds the recurring-service dropdown from live catalog services;
+- disables new subscription submission if no live service exists;
+- suppresses 3D-specific portal/ticket wording while 3D is not live.
+
+This closes the existing account-side bypass where Gutter and Jet Washing were statically selectable.
+
+## Search/indexing
+
+`api/sitemap.js` is now catalog driven.
+
+Only live service slugs are included. Published job URLs are only added when their `service_key` is live. Future service pages remain in source control but are no longer intentionally advertised in the sitemap before launch.
+
+## Admin launch controls
+
+New endpoint: `api/admin-services.js`.
+New UI module: `admin-services.js`, loaded by `admin.js` into the existing Pricing tab.
+
+Security:
+- `requireStaff(req,'settings')` → existing AAL2/MFA wrapper still applies;
+- status changes are audit logged.
+
+Readiness check before `live`:
+1. matching `pricing_rules` row must exist;
+2. at least one active `service_areas` row must support it (empty `service_keys` counts as supporting all configured services).
+
+Admin UI shows stage, current status, pricing readiness, coverage readiness and active area names. Entering or leaving `live` requires an explicit confirmation.
+
+## Tests / CI candidate
+
+`scripts/service-catalog.test.mjs` verifies:
+- fallback is Window-only live;
+- database status overrides merge safely;
+- migration seeds one live + five planned;
+- quote/postcode/subscription entrypoints all call the live-status gate;
+- public data hides dormant pricing;
+- sitemap is live-service-driven;
+- Admin requires pricing + coverage before live;
+- homepage/account fail safe Window-only;
+- future service pages are noindex/unquotable.
+
+CI workflow syntax-checks all new wrapper/core/UI/helper files and runs the service-catalog test.
+
+## Required release workflow
+
+1. Keep all three handoff docs updated in the feature branch.
+2. Compare branch to main and open PR.
+3. Require GitHub CI success.
+4. Require exact-head Vercel preview READY / clean build.
+5. Apply `service_catalog_activation` migration only after those gates.
+6. Verify table rows, status values, RLS and direct grants.
+7. Verify public-data has exactly one live service, one public pricing row, and service-area service_keys resolve to windows.
+8. Verify sitemap has Window Cleaning and excludes five future service pages.
+9. Verify Admin endpoint unauthenticated/AAL1 behaviour remains protected; privileged interactive testing may still require user MFA.
+10. Verify direct planned-service POST/new-work paths are blocked where a runnable HTTP client is available; unit tests are mandatory regardless.
+11. Run Supabase security and performance advisors; fix any new finding caused by this schema.
+12. Merge PR and verify production deployment/aliases.
+13. Verify production public-data, sitemap and visible homepage/service-page state.
+14. Create docs-only live-state sync if exact deployment/migration IDs changed after the product PR.
+
+## Parked address-data platform
+
+PR #34 remains production-live with:
+- `postcode_points`
+- `property_entities`
+- `property_field_observations`
+- `open_data_import_runs`
+- rights-filtered postcode/property distribution views
+
+No official OS rows are imported. Future Address API remains disabled. Current Free project is not suitable for Britain-wide UPRN.
+
+GetAddress automated harvesting remains prohibited under current provider terms and Namdar policy. Automatic is OFF; do not restore the old cron/harvest roadmap without explicit written rights.
 
 ## Non-negotiable rules
 
-- Data storage does not create redistribution rights.
-- New/unreviewed sources fail closed.
-- Paid surfaces query rights-filtered views only.
-- No GetAddress automated harvesting unless explicit written permission changes policy.
-- No national OS OpenData import into the current Free database without a deliberate capacity migration/upgrade.
-- No provider/API/Supabase/TOTP/SMTP/GitHub secrets in source/docs/chat.
-- Support tickets remain customer-only; public inbound email remains Admin Email inbox.
+- Window Cleaning only remains the current offer until an Admin status is deliberately moved to live.
+- Never rely only on hidden DOM/CSS for service availability.
+- Live activation must pass pricing + service-area readiness.
+- Existing accepted work survives service pauses.
+- Keep future service assets/code rather than deleting them.
 - Privileged staff access requires AAL2/MFA.
+- Support tickets remain customer-only; public inbound email stays Admin Email inbox.
+- Never commit or expose Supabase/provider/SMTP/Turnstile/GitHub/cron/API secrets.
