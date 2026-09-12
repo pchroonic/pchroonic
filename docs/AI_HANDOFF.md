@@ -4,137 +4,129 @@ Last verified: 2026-09-12 UTC
 
 Read `docs/AI_START.md` first.
 
-## Production source of truth
-- Repo `pchroonic/pchroonic`, default `main`.
-- Window performance product release: PR #42, merged as `5249e2b4d2ed0c108a15facac01258d66bf4dece`.
-- PR #42 exact head: `ba6e03376364ae571429b5fbded7bc681271aaac`.
-- GitHub CI `34716653998`: SUCCESS.
-- Exact-head preview `dpl_6nBDUseeU7xSAefFzNQQLk6N9n6Y`: READY / clean errors-only build.
-- Production `dpl_5f1vCtVuo2LTFFPzWrqdfXLp8CbV`: READY on `https://namdar.co.uk`, no alias error.
-- Supabase `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
-- Only `windows` is live; gutters/jetwash/roof/handyman/tour3d remain planned.
-- Privileged staff requires AAL2/MFA.
+## Source of truth
+- Repo: `pchroonic/pchroonic`
+- Default branch: `main`
+- Current production main before this change: `1748f3949237cadc4b414b46c1a05b31f1d23e12`
+- Working branch: `feat/window-post-job-followup-20260912`
+- Vercel project: `namdar-website-starter-1`
+- Supabase project: `namdar-production` (`qjigldxjcpnrlyxgmlqq`)
+- Canonical production: `https://namdar.co.uk`
+- Only `windows` is live; all other service-catalog rows remain planned.
+- Address-data work is parked.
+- Staff/Admin privileged API access requires AAL2/MFA.
 
-## Window Stage 1 performance — LIVE
-Purpose: measure whether Window Cleaning Stage 1 is working before considering another service.
+## Live Window Stage 1 baseline
+The live product already has:
+- Window-specific quote inputs and server-side quote/live-service gating;
+- one-off and 4/8/12-week guide pricing;
+- server-enforced booking operations and postcode-area route density;
+- staff On my way / Start / Complete lifecycle with before/after photos and notes;
+- immediate completion email plus a queued 24-hour follow-up;
+- consent-aware postcode → quote acquisition tracking;
+- completed-job actual timing and direct-contribution reporting.
 
-### Existing timestamps reused
-Do not duplicate downstream state in analytics tables:
-- `quotes.created_at` = guide quote request;
-- `quotes.sent_at` = final quote sent;
-- `quotes.customer_response/customer_responded_at` = accepted/declined;
-- non-cancelled `bookings` = booked;
-- `bookings.started_at/completed_at` = actual field work timing/completion.
+Performance reporting uses:
+- `started_at → completed_at` for actual work time;
+- `booking_job_costs` only when a direct-cost review exists;
+- direct contribution, never “net profit”.
 
-The new analytics layer supplies the missing covered-postcode → quote acquisition link.
+## Post-job workflow change in this branch
 
-### Consent-aware postcode linkage
-`conversion.js` creates a session-only anonymous visitor ID only when `localStorage.namdar_cookie_choice === 'marketing'`. Non-consenting visitors quote/book normally and are not included in the acquisition cohort.
+### Staff close-out
+New `staff-closeout.js` augments completed Window jobs in the existing Staff app without rewriting `staff-original.js`.
 
-On successful Window postcode checks it posts `/api/funnel-event`. The server stores only postcode-area letters, e.g. `SE`/`SW`; full postcodes are not stored in `conversion_events`.
+`api/staff-jobs.js` now returns the assigned job's existing `booking_job_costs` row as `economics`.
 
-When the same consented visitor submits `/api/quote`, the existing quote wrapper receives `visitorId`. `api/quote.js` preserves live-service gating and Window input normalization, then links the successful quote ID to the visitor in `quote_funnel_links`. Funnel-link write failure is fail-open for quoting.
+`api/staff-job-action.js` accepts `action='economics'` only when:
+- the booking is assigned to the authenticated staff member;
+- the job is completed;
+- the linked quote is `service_key='windows'`.
 
-`api/funnel-event.js` is now deliberately Window-only:
-- POST only;
-- `eventType=postcode_checked` only;
-- `serviceKey=windows` only;
-- validates UUID/anonymous ID;
-- derives postcode area server-side;
-- de-duplicates identical visitor/area/coverage events for 30 minutes.
+Values use the same bounds as Admin job economics:
+- consumables / parking / travel / other direct cost: non-negative, max £100,000;
+- travel minutes: 0–1440;
+- travel miles: 0–10,000;
+- note: max 1500 chars.
 
-### Funnel semantics
-`api/admin-window-performance.js` requires Analytics permission/AAL2 and reports a consistent consented visitor cohort for 30d/90d/YTD/all-time:
-1. covered postcode check;
-2. guide quote requested;
-3. final quote sent;
-4. final quote accepted;
-5. appointment booked;
-6. job completed.
+The action upserts `booking_job_costs`, sets `updated_by`, and writes `booking.economics` to the audit log.
 
-Every funnel stage uses unique anonymous visitors from the covered-postcode cohort. Historical quotes/bookings are not retroactively invented into the acquisition funnel.
+### Neutral 24-hour follow-up
+Existing completion paths continue to call `scheduleBookingFollowUp()`, so no scheduling behavior or schema changes are needed.
 
-### Completed-job economics
-Economics are independent of acquisition consent and include all completed Window jobs in the selected period:
-- job value = invoice total, falling back to final quote then guide estimate;
-- collected revenue = linked payments less refunds;
-- actual work hours = valid `started_at → completed_at` duration;
-- job value per actual work hour;
-- direct cost only when a `booking_job_costs` review exists;
-- direct contribution = reviewed job value − reviewed direct costs;
-- direct margin = direct contribution / reviewed job value.
+New `lib/post-job-followup.js` processes due `booking_notifications.notification_type='follow_up'` before the legacy generic worker:
+- verifies booking still exists and is completed;
+- validates the existing follow-up event key against the completion event;
+- ensures the existing secure `booking_feedback` invite;
+- sends a neutral email asking for private feedback;
+- includes an optional “Leave an honest Google review” CTA only if `site_settings.reviews.value.public_review_url` is configured;
+- explicitly welcomes positive, neutral or negative experience and says no review rewards are offered;
+- archives the message in My Namdar.
 
-Jobs without cost review are excluded from direct contribution/margin instead of being assumed to cost £0. Jobs without valid start/completion timestamps are excluded from actual-time productivity metrics.
+`api/booking-notifications.js` processes 10 post-job follow-ups first, then 10 generic booking notifications and 10 business follow-ups. Stage 1 capacity is max 3 jobs/day, so this keeps normal throughput while reducing the previous 100+100 sequential timeout risk.
 
-**Direct contribution is not net profit.** It excludes labour, overheads, tax and other business costs.
+### Review gating removed
+Previous `api/feedback.js` behavior exposed the public-review URL only after private status `positive`. That is being removed.
 
-### Job-cost capture
-`api/admin-job-economics.js` requires Bookings permission/AAL2. It now verifies the booking's quote is `service_key='windows'`, then allows bounded entry of:
-- consumables;
-- parking;
-- travel cost;
-- other direct cost;
-- travel minutes;
-- travel miles;
-- note.
+New behavior:
+- GET returns configured public review availability regardless of rating/status;
+- `public_review_click` does not require a positive rating;
+- duplicate and newly submitted feedback responses return the configured review URL regardless of rating;
+- 1–3 ratings still create/escalate private support work;
+- the client displays the same optional honest-review CTA after either positive or needs-attention private feedback.
 
-It upserts `booking_job_costs` and audit logs the change. Analytics-only staff can view performance but cannot edit job economics.
+Do not restore positive-only review links.
 
-### Database/security
-Committed migrations:
-- `supabase/migrations/20260912204000_window_stage1_conversion_profitability.sql`;
-- `supabase/migrations/20260912204500_window_stage1_costs_updated_by_index.sql`.
+### Admin review settings
+New:
+- `api/admin-review-settings.js`
+- `admin-post-job-followup.js`
 
-Server-only tables:
-1. `conversion_events`
-2. `quote_funnel_links`
-3. `booking_job_costs`
+Admin → Bookings can view the setting with Bookings access; editing requires Settings permission/AAL2.
 
-Production verification after release:
-- RLS true on all three;
-- direct `anon`/`authenticated` grants: none;
-- all three row counts at verification: 0.
+Only HTTPS Google-owned review URLs are accepted (`google.com` subdomains, `g.page`, `goo.gl` / subdomains). Empty value disables Google review requests.
 
-Migration history also contains the later idempotent `window_funnel_profitability_foundation` migration from superseded PR #43. It only re-asserted the same empty-table/RLS/index foundation. PR #43 is closed and must not be merged/revived.
+Production currently has no `site_settings` key `reviews`; therefore this release does not invent or enable a Google review URL.
 
-### Admin UI
-`admin-window-performance.js` is live under Admin → Reporting and follows the existing report range selector. It renders:
-- consented six-stage funnel;
-- tracking/data-quality notice;
-- completed jobs;
-- total/average job value;
-- collected revenue;
-- actual work hours;
-- value per work hour;
-- reviewed direct costs;
-- direct contribution/direct margin;
-- completed-job direct-cost/travel editor where permitted.
+### Database
+No migration is required. Reused tables:
+- `bookings`
+- `booking_notifications`
+- `booking_feedback`
+- `booking_job_costs`
+- `site_settings`
 
-`admin.js` includes the Window performance module after booking operations.
+At implementation inspection, production `booking_notifications` had only two historical sent rows: one confirmation and one 24h reminder; no synthetic completion/follow-up rows were created.
 
-### Tests / release history
-`scripts/window-performance.test.mjs` covers RLS/server-only posture, privacy-safe funnel events, consent-aware session tracking, quote linkage, six funnel stages, direct contribution, permission/audit rules and Window-only state.
+## Regression coverage
+`scripts/post-job-followup.test.mjs` checks:
+- completed Window-only staff cost capture;
+- direct-contribution wording;
+- neutral post-job email;
+- public review no longer gated on positive private feedback;
+- Google-only/audited admin settings;
+- bounded cron batch order;
+- Admin/Staff module loading.
 
-One initial PR #42 CI run failed because a test regex expected the literal session key directly in `sessionStorage.getItem(...)`; production code correctly used a `key` variable. The brittle assertion was fixed, not the correct consent code. The final exact-head CI `34716653998` succeeded.
+The GitHub workflow also syntax-checks all new/changed modules.
 
-## Production smoke checks
-- `/api/admin-window-performance?range=30d` unauthenticated → 401;
-- GET `/api/funnel-event` → 405;
-- `/conversion.js` live contains marketing-consent gate and session-only ID;
-- product deployment `dpl_5f1vCtVuo2LTFFPzWrqdfXLp8CbV` READY with `namdar.co.uk` alias and no alias error;
-- service catalog still Window live, five planned.
-
-## Booking operations remain live
-21-day horizon, 24h notice, Mon–Sat, 08–11 / 11–14 / 14–17, max 3 jobs/day, postcode-area route density. These remain stored in `site_settings.booking_operations` and editable from MFA-protected Admin.
-
-## Next recommended work
-Collect real Window Cleaning data before changing price/service scope. Ensure every completed job gets Start/Complete timestamps and a direct-cost review. Then use value/work-hour, travel, direct contribution and funnel drop-off to calibrate pricing/capacity. Add genuine before/after proof and reviews. Do not activate Stage 2 until the evidence supports it.
+## After product merge
+Update all three continuity docs with:
+- PR number;
+- exact feature head;
+- final GitHub Actions run;
+- exact-head Vercel preview deployment;
+- merge commit;
+- production deployment and alias status;
+- production smoke checks;
+- whether a Google review link remains unconfigured or has been deliberately entered.
 
 ## Non-negotiables
-- Do not activate another service without deliberate user decision.
-- Do not resume address-data work automatically.
-- Existing accepted work survives service pause.
-- Service and booking restrictions remain server-side enforced.
-- Privileged access remains AAL2/MFA protected.
-- Support tickets stay customer-only.
+- Window Cleaning only until deliberate Stage 2 decision.
+- No address-data work unless deliberately resumed.
+- Existing accepted work survives later pauses.
+- Service/booking rules remain server-side enforced.
+- Staff remains AAL2/MFA protected.
+- Review requests must remain neutral and equally available.
+- Support tickets remain customer-only.
 - Never expose secrets.

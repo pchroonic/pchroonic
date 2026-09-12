@@ -36,14 +36,20 @@ jobs:
           node --check admin-address-harvest.js
           node --check admin-services.js
           node --check admin-booking-operations.js
+          node --check admin-post-job-followup.js
           node --check admin-window-performance.js
           node --check api/address-harvest-cron.js
           node --check api/admin-address-harvest.js
           node --check api/admin-address-harvest-export.js
           node --check api/admin-services.js
           node --check api/admin-booking-operations.js
+          node --check api/admin-review-settings.js
           node --check api/admin-window-performance.js
           node --check api/admin-job-economics.js
+          node --check api/staff-job-action.js
+          node --check api/staff-jobs.js
+          node --check api/feedback.js
+          node --check api/booking-notifications.js
           node --check api/funnel-event.js
           node --check api/address-data-v1.js
           node --check api/quote.js
@@ -68,6 +74,7 @@ jobs:
           node --check lib/os-open-data.js
           node --check lib/service-catalog.js
           node --check lib/booking-operations.js
+          node --check lib/post-job-followup.js
           node --check scripts/os-open-data-import.mjs
           node --test scripts/address-harvest-priority.test.mjs
           node --test scripts/address-commercial-foundation.test.mjs
@@ -76,13 +83,16 @@ jobs:
           node --test scripts/window-stage1.test.mjs
           node --test scripts/booking-operations.test.mjs
           node --test scripts/window-performance.test.mjs
+          node --test scripts/post-job-followup.test.mjs
           node --check lib/server.js
           node --check lib/server-original.js
           node --check staff.js
           node --check staff-original.js
+          node --check staff-closeout.js
           node --check staff-mfa-guard.js
           node --check staff-sw.js
           node --check conversion.js
+          node --check feedback.js
           node --check seo-page.js
 
       - name: Require current AI handoff documentation

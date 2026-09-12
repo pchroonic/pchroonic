@@ -2,105 +2,73 @@
 
 Last updated: 2026-09-12 UTC
 
-## Baseline
-- Source: `pchroonic/pchroonic`, default `main`.
-- Current product main before this docs sync: `5249e2b4d2ed0c108a15facac01258d66bf4dece` from PR #42.
-- Product production deployment: `dpl_5f1vCtVuo2LTFFPzWrqdfXLp8CbV`, READY on `https://namdar.co.uk`, no alias error.
+## Production baseline
+- Repo: `pchroonic/pchroonic`, default `main`.
+- Current production main before this change: `1748f3949237cadc4b414b46c1a05b31f1d23e12`.
+- Canonical production: `https://namdar.co.uk`.
 - Supabase: `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
 - Window Cleaning is the only live/quotable/bookable service.
-- Five future services remain planned.
-- Address-data imports remain parked.
+- Gutter Cleaning, Patio & Jet Washing, Roof Cleaning, Handyman Services and 3D Property Tours remain planned.
+- Address-data work remains parked.
 
 ## Window Cleaning Stage 1 — LIVE
-PR #38: Window-specific quote/recurring journey and quote-gate hardening.
-PR #40: operational customer booking rules and postcode-area route density.
-PR #42: consent-aware conversion funnel and completed-job direct-contribution reporting.
+Live:
+- Window-only quote and recurring journey;
+- server-side service/quote gating;
+- route-aware customer booking;
+- Staff field-job lifecycle;
+- consent-aware acquisition funnel;
+- actual work-time/productivity reporting;
+- reviewed direct-cost/direct-contribution reporting.
 
-Live booking defaults: 21 days, 24h notice, Mon–Sat, 08–11 / 11–14 / 14–17, max 3 jobs/day, route density enabled.
+Live booking defaults: 21 days, 24h notice, Mon–Sat, 08–11 / 11–14 / 14–17, max 3 jobs/day, postcode-area route density.
 
-## Conversion funnel — LIVE
-Admin → Reporting now measures consented visitors through:
-1. covered postcode check;
-2. guide quote request;
-3. final quote sent;
-4. accepted quote;
-5. booked appointment;
-6. completed job.
+Direct contribution is **not net profit**. Labour, overheads, tax and other business costs are outside the Stage 1 metric. Jobs without cost review are excluded instead of being assumed £0-cost.
 
-Existing business timestamps remain authoritative for quote/acceptance/booking/completion. New tracking only supplies the missing covered-postcode → quote link.
+## In progress — completed-job close-out + honest review workflow
+Branch: `feat/window-post-job-followup-20260912`.
 
-Tracking is consent-aware: only visitors with Namdar's existing `marketing` cookie choice receive a session-only anonymous ID. Analytics stores postcode area letters only, not full postcode. Non-consenting customers quote/book normally and are not included in acquisition-cohort reporting.
+Scope:
+- Staff completed Window jobs get direct-cost/travel close-out using existing `booking_job_costs`;
+- staff cost edits are assigned-job-only, completed-job-only, Window-only, bounded and audit logged;
+- immediate completion email remains;
+- 24-hour follow-up becomes a neutral request for private feedback plus optional honest Google review;
+- positive-only public-review gating is removed;
+- low private ratings still alert support without suppressing the public-review option;
+- Admin gets a Settings-protected official Google review URL control;
+- notification cron work is reduced from large 100-item batches to bounded 10-item stages to reduce timeout risk;
+- no schema migration or synthetic data is needed.
 
-Historical Window quotes/bookings are not falsely retro-linked to old postcode checks.
+Production currently has no `site_settings.reviews` row, so Google review requests remain disabled until the official Business Profile review link is deliberately entered.
 
-## Direct-contribution / productivity reporting — LIVE
-Completed Window jobs report:
-- total and average job value;
-- payments collected net of refunds;
-- actual work hours from Start → Complete;
-- job value per actual work hour;
-- reviewed consumables/parking/travel/other direct costs;
-- travel minutes/miles;
-- direct contribution and direct margin for reviewed jobs.
-
-Direct contribution is explicitly **not net profit**; labour, overheads, tax and other business costs are outside this Stage 1 metric.
-
-Jobs without cost review are excluded from contribution/margin rather than treated as £0 cost. Jobs without valid actual timing are excluded from work-hour productivity calculations.
-
-`api/admin-job-economics.js` is AAL2/Bookings protected, Window-only and audit logged.
+## Review integrity rule
+Never selectively solicit only positive reviews. Never offer incentives or ask for a particular star rating. The same Google review choice must be available to completed customers regardless of their private rating.
 
 ## Database/security
-Committed migrations:
-- `20260912204000_window_stage1_conversion_profitability.sql`;
-- `20260912204500_window_stage1_costs_updated_by_index.sql`.
+Existing Stage 1 internal tables:
+- `conversion_events`
+- `quote_funnel_links`
+- `booking_job_costs`
 
-Internal tables:
-- `conversion_events`;
-- `quote_funnel_links`;
-- `booking_job_costs`.
+They remain RLS-protected and server-only.
 
-Production verification:
-- RLS enabled on all three;
-- no direct anon/authenticated grants;
-- 0 rows in all three at release verification (no fabricated analytics/cost data).
+The post-job release reuses:
+- `booking_notifications`
+- `booking_feedback`
+- `booking_job_costs`
+- `site_settings`
 
-Migration history also contains idempotent `window_funnel_profitability_foundation` from closed/unmerged duplicate PR #43. It re-asserted the same empty-table security/index foundation and is not the product implementation. Do not revive PR #43.
+No new table is planned.
 
-## Release verification — PR #42
-- [x] production Stage 1 schema migrations applied
-- [x] dedicated regression suite in CI
-- [x] exact head `ba6e03376364ae571429b5fbded7bc681271aaac`
-- [x] final GitHub CI `34716653998` SUCCESS
-- [x] exact-head preview `dpl_6nBDUseeU7xSAefFzNQQLk6N9n6Y` READY / clean build
-- [x] merged PR #42 as `5249e2b4d2ed0c108a15facac01258d66bf4dece`
-- [x] production `dpl_5f1vCtVuo2LTFFPzWrqdfXLp8CbV` READY on `namdar.co.uk`, no alias error
-- [x] unauthenticated Admin performance endpoint returns 401
-- [x] funnel endpoint rejects GET with 405
-- [x] live conversion script has marketing-consent + session-only tracking
-- [x] analytics tables RLS/grants rechecked
-- [x] service catalog rechecked: Window live, five planned
-- [x] duplicate PR #43 closed unmerged
-
-## Current live service stages
-1. Window Cleaning — LIVE
-2. Gutter Cleaning — planned
-3. Patio & Jet Washing — planned
-4. Roof Cleaning — planned
-5. Handyman Services — planned
-6. 3D Property Tours — planned
-
-Do not activate Stage 2 simply because technical readiness exists. Use Stage 1 evidence and completed jobs first.
-
-## Immediate next work
-1. collect real Window Cleaning funnel/job data;
-2. ensure completed jobs record Start/Complete and direct-cost review consistently;
-3. use value/work-hour, travel and direct contribution to calibrate pricing/capacity;
-4. add genuine before/after work and customer reviews;
+## Immediate next work after release
+1. enter the official Google review-request link if/when the Google Business Profile is ready;
+2. use Start → Complete → direct-cost review for each real Window job;
+3. collect genuine before/after photos and reviews;
+4. calibrate price, capacity and route rules from real value/work-hour, travel and direct contribution;
 5. assess Stage 2 only after enough evidence exists.
 
 ## Other open work
 - fresh privileged password/CAPTCHA/MFA completion pending;
-- `/api/booking-notifications` 504 investigation remains separate;
 - Stripe, SMS, legal and remaining launch checks;
 - address-data pilot remains parked.
 
