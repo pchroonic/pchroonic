@@ -2,178 +2,172 @@
 
 Last verified: 2026-09-12 UTC
 
-Read `docs/AI_START.md` first. For the commercial address/property-data design read `docs/ADDRESS_DATA_PRODUCT.md`.
+Read `docs/AI_START.md` first. For commercial architecture read `docs/ADDRESS_DATA_PRODUCT.md`; for imports read `docs/OS_OPEN_DATA_IMPORT.md`.
 
 ## Production source of truth
 
 - Product: Namdar UK property services platform.
 - Repository: `pchroonic/pchroonic`, default `main`.
-- Current verified production product commit: `6c898735b58c03922d6ce24b97598af466242e85` from PR #32.
-- Production Vercel: `dpl_81uZqzB2LA1efMcSXMXv4hs1kSHN`, READY on `https://namdar.co.uk`.
+- Latest product release: PR #34 `Add OS Open UPRN and Code-Point property data foundation`.
+- Product merge: `c5d2d33cda10bf1d80ecdf6229e7f352146b4b55`.
+- PR #34 final head: `c8fa029ba0ea18174aace2f15c87a43008a57980`.
+- Final GitHub workflow: `34709973230`, success.
+- Final exact-head Vercel preview: `dpl_892iE2LPJ5bCpjQAXrMChrTRkK5L`, READY.
+- Production Vercel deployment: `dpl_9DUfnUNbuENpdWZypq4uYiMjVFwe`, READY on `https://namdar.co.uk`, no alias error.
 - Supabase: `namdar-production` (`qjigldxjcpnrlyxgmlqq`), Free plan.
-- Production migration: `20260912173038 address_data_rights_and_distribution_guard`.
-- Current DB size checked 2026-09-12: ~16 MB. Free database limit is 500 MB.
-- Future Address API deployed but disabled; 0 API clients, 0 API keys, 0 rights-eligible rows.
+- Production DB after release: about 16 MB.
+- Production migrations now include:
+  - `20260912173038 address_data_rights_and_distribution_guard`
+  - `20260912175957 os_open_property_foundation`
+  - `20260912180242 os_open_import_fk_indexes`
 
 ## GetAddress remains operational-only
 
-Do not run the old one-postcode/background harvest. Current GetAddress terms require human-initiated Autocomplete/Typeahead and restrict automated extraction/resale. The Vercel harvest schedule is removed; Admin/provider export/worker paths fail closed from rights metadata.
+Do not resume the old postcode/background harvesting plan. Current GetAddress terms require human-initiated Autocomplete/Typeahead and restrict automated extraction/resale. Vercel has no scheduled GetAddress harvest; Admin/export/worker paths fail closed from rights metadata.
 
-Production remains Automatic OFF, zero runs, zero queue rows, zero GetAddress cache rows.
+Verified production state remains:
+- Automatic OFF;
+- zero harvest runs;
+- zero harvest queue rows;
+- zero `getaddress-daily-cache` rows.
 
-## Current candidate branch
+## OS Open UPRN + Code-Point foundation — LIVE
 
-`feat/os-open-uprn-codepoint-foundation-20260912`
+The schema/import framework is production-live, but **no official OS dataset rows have been imported yet**.
 
-Candidate migration:
-`supabase/migrations/20260912190000_os_open_property_foundation.sql`
+### Data model
 
-Not yet applied to production. Apply only after candidate PR CI + exact-head Vercel preview are clean.
+Do not put OS Open UPRN into `master_addresses`. It is property-identifier/location data, not complete postal-address text.
 
-### Why the data model is split
-
-Do not put OS Open UPRN rows into `master_addresses`. Open UPRN is a stable property identifier/location dataset, not a complete postal-address text product. Likewise Code-Point Open is postcode-unit geospatial/admin intelligence.
-
-Candidate storage:
-- existing `master_addresses` → address observations such as future licensed full-address data;
-- `postcode_points` → Code-Point Open postcode-unit coordinates/admin codes;
-- `property_entities` → UPRN-keyed OS Open UPRN locations;
-- `property_field_observations` → sparse later enrichment facts with source/version/confidence/provenance;
-- `open_data_import_runs` → upstream version/scope/checksum/row counters/status.
+Live stores:
+- `master_addresses` — source-specific address observations, including future separately licensed full-address data;
+- `postcode_points` — Code-Point Open postcode-unit coordinates and administrative codes;
+- `property_entities` — UPRN-keyed OS Open UPRN property locations;
+- `property_field_observations` — sparse future enrichment facts with source/version/confidence/provenance;
+- `open_data_import_runs` — upstream version/scope/checksum/row counters/status.
 
 ### Registry/count model
 
-`address_dataset_registry` candidate additions:
-- `record_store` (`master_addresses`, `postcode_points`, `property_entities`, `external`);
+`address_dataset_registry` now includes:
+- `record_store`;
 - `upstream_product_id`;
 - `expected_refresh_days`;
 - `last_checked_at`;
 - `last_available_version`.
 
-Mappings:
+Live mappings:
 - GetAddress + OSM → `master_addresses`;
-- `os-open-uprn` → `property_entities`, upstream `OpenUPRN`, target refresh ~42 days;
-- `code-point-open` → `postcode_points`, upstream `CodePointOpen`, target refresh ~92 days.
+- `os-open-uprn` → `property_entities`, upstream `OpenUPRN`, expected refresh ~42 days;
+- `code-point-open` → `postcode_points`, upstream `CodePointOpen`, expected refresh ~92 days.
 
-`refresh_address_dataset_registry_count()` is replaced so exact counts are calculated from each source's record store. Statement-level insert/update/delete triggers keep counts in sync for all three stores.
+`refresh_address_dataset_registry_count()` resolves the correct record store, and statement-level insert/update/delete triggers keep counts synchronized. `address_dataset_health` reports actual/active counts and count drift across all stores.
 
-Existing `address_dataset_health` must be dropped/recreated rather than replaced because the registry gains columns; the migration already handles this PostgreSQL view-column-order issue.
+### Rights/security boundary
 
-### New service-role-only tables/views
+New tables are RLS-enabled, browser roles have no grants/policies, and server service role is the intended access path.
 
-Tables:
-- `open_data_import_runs`
-- `postcode_points`
-- `property_entities`
-- `property_field_observations`
+Service-role-only rights-filtered views:
+- `postcode_distribution_eligible`;
+- `property_distribution_eligible`;
+- `property_field_distribution_eligible`.
 
-RLS is enabled; anon/auth revoked; service_role granted.
+Rows only qualify when row/source are active and the source explicitly allows both commercial redistribution and subscription API use.
 
-Commercial distribution views remain rights-gated and service-role-only:
-- `postcode_distribution_eligible`
-- `property_distribution_eligible`
-- `property_field_distribution_eligible`
+Both OS registry sources remain inactive and currently contain zero rows, so these commercial views return zero rows.
 
-All require active row/source + `commercial_redistribution_allowed=true` + `subscription_api_allowed=true`.
+### Import finalizer
 
-`open_data_import_latest` gives latest run per source/scope.
+`finalize_open_data_import(run_id, complete_scope, activate_source)` is live and verified:
+- requires a running import;
+- deactivates older rows only when the caller explicitly declares the same source/scope complete;
+- never treats a truncated sample as complete automatically;
+- refreshes exact source count;
+- updates dataset/version/check/import metadata;
+- activates the source only when explicitly requested.
 
-### Import finalization
+Disposable QA verification showed complete-scope refresh deactivates old same-scope rows while preserving the current run. All QA source/rows/runs were removed afterward.
 
-`finalize_open_data_import(run_id, complete_scope, activate_source)`:
-- requires a running import run;
-- only deactivates rows not seen in this run if caller explicitly marks the scope complete;
-- deactivation is limited to the same source + coverage scope;
-- refreshes exact registry count;
-- records dataset version/check time/import time;
-- activates source only when explicitly requested;
-- marks run completed and returns a JSON summary.
+## Streaming importer — LIVE IN SOURCE
 
-This prevents a truncated/pilot import from deleting previous scope data or being silently presented as complete.
-
-## Streaming importer
-
-`lib/os-open-data.js`:
+`lib/os-open-data.js` provides:
 - dependency-free CSV parsing;
-- Code-Point field normalisation;
-- Open UPRN header-driven parsing;
+- Code-Point field mapping;
+- header-driven Open UPRN parsing;
 - British National Grid EPSG:27700 → WGS84 conversion;
-- Polygon/MultiPolygon/Feature GeoJSON filtering with holes;
-- haversine radius fallback only if an area has no GeoJSON;
-- OS product metadata/version helpers.
+- Polygon/MultiPolygon/Feature GeoJSON filtering including holes;
+- radius fallback only when a service area has no geometry;
+- OS product IDs/download endpoint constants and product-version helpers.
 
 `scripts/os-open-data-import.mjs`:
 - `--dataset=codepoint|uprn`;
-- accepts one CSV or a directory of extracted CSVs;
-- defaults to dry-run and `active-service-areas` scope;
-- discovers upstream product version if `--version` is omitted;
-- write mode requires `SUPABASE_URL` + server service key at runtime only;
-- checks source rights and expected `record_store` before writing;
-- write mode reads live active `service_areas`;
+- file or recursive directory input;
+- dry-run default;
+- default `active-service-areas` scope;
+- upstream version discovery if `--version` omitted;
+- write mode needs server-only Supabase credentials at runtime;
+- checks source rights + expected `record_store` before writing;
+- write mode reads live active `service_areas` dynamically;
 - Code-Point filters by live `admin_area_codes`;
-- Open UPRN filters by live GeoJSON exactly; radius is only for areas without geometry;
-- batches upserts (500 rows);
-- writes import-run counters and calls finalizer;
-- `--complete-scope` cannot be used with a truncated `--max-rows` sample;
+- Open UPRN uses live GeoJSON exactly and does not expand polygon-backed administrative areas using radius;
+- batches writes and records import-run counters;
+- `--complete-scope` cannot be used with `--max-rows`;
 - `--activate-source` requires complete scope;
-- **all `scope=GB` writes are blocked unless `--allow-large-import` is explicitly supplied.**
+- **all national `scope=GB` writes are blocked unless `--allow-large-import` is explicitly supplied.**
 
-The importer never embeds service-area borough codes in source. Production currently has one active administrative service area covering five London boroughs; dynamic DB settings remain authoritative.
+Never use the large-import override on the current Free database merely to bypass capacity safety.
 
 ## Capacity/scaling rule
 
-The current Supabase Free project cannot safely store nationwide Open UPRN (~40m locations), and full Code-Point should also not be casually dumped into it. Service-area-first is mandatory while this capacity constraint remains.
+Production DB is ~16 MB, but the current Free database limit is 500 MB. OS Open UPRN is roughly 40 million locations, so the current project is for a controlled service-area pilot, not a nationwide UPRN warehouse.
 
-For nationwide commercial scale, upgrade/move the data layer deliberately (e.g. larger Postgres/data warehouse/object-storage + staged bulk load) before using `--allow-large-import`.
+Before nationwide scale:
+- move/upgrade the data store deliberately;
+- size tables + indexes + staging/headroom;
+- use bulk-loading rather than REST batches;
+- benchmark query/update windows;
+- keep source/version/import-run provenance and OGL attribution.
 
-Do not interpret the existence of the override as approval to use it on the current project.
+## Future Address API
 
-## API contract candidate
+`/api/address-data-v1` remains deliberately disabled by `ADDRESS_DATA_API_ENABLED`.
 
-`/api/address-data-v1` remains disabled by `ADDRESS_DATA_API_ENABLED`.
+Production smoke test after PR #34:
+- `kind=postcode` request returned HTTP 503 `Namdar Address API is not enabled.`
 
-Candidate splits entitlements/data surfaces:
-- `kind=address` / `address-v1` / `address_distribution_eligible`;
-- `kind=postcode` / `postcode-v1` / `postcode_distribution_eligible`;
-- `kind=property` / `property-v1` / `property_distribution_eligible`.
+Prepared future products:
+- `address-v1` → `address_distribution_eligible`;
+- `postcode-v1` → `postcode_distribution_eligible`;
+- `property-v1` → `property_distribution_eligible`.
 
-Each future API client must explicitly include the corresponding product entitlement. Existing hashed-key/quota/metering foundation remains unchanged. No API customer/key is created by this candidate.
+Each client must explicitly be entitled to the requested product. Existing hashed API-key/quota/metering infrastructure remains. No API customer/key was created by PR #34.
 
-## Candidate regression suite
+## Verification completed for PR #34
 
-New `scripts/os-open-data-foundation.test.mjs` covers:
-- quoted CSV parsing;
-- UK postcode normalisation;
-- official Code-Point 10-field example;
-- BNG → WGS84 result within a small tolerance of authoritative transform;
-- PQI 90 no-coordinate behaviour;
-- header-driven Open UPRN parsing;
-- Polygon/MultiPolygon/hole filtering;
-- no radius fallback when GeoJSON exists;
-- OS product IDs/download endpoint constants;
-- postcode/property public serializers;
-- migration tables/RLS/rights-filtered views/finalizer;
-- importer dry-run default, rights check, large-import block and activation safety;
-- disabled API product split.
+- CI passed new OS-data regression suite.
+- Exact-head preview READY/clean.
+- Production migrations applied successfully.
+- Disposable Code-Point + UPRN inserts proved registry count triggers; deletion returned both OS counts to zero.
+- Disposable QA import source proved normal and complete-scope finalization; all QA artifacts deleted.
+- Supabase performance advisor initially identified three new missing import-run FK indexes; follow-up migration added:
+  - `postcode_points_import_run_idx`
+  - `property_entities_import_run_idx`
+  - `property_field_observations_import_run_idx`
+- Re-run performance advisor no longer reports those three unindexed FKs.
+- Security advisor reports expected `RLS enabled, no policy` INFO on the service-role-only new tables, plus the existing leaked-password-protection warning. RLS lint reference: `https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy`. Password protection reference: `https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection`.
+- Final clean state: 0 postcode points, 0 property entities, 0 OS import runs, 0 postcode/property eligible rows.
 
-CI candidate adds syntax checks for `lib/os-open-data.js`, importer script, and this test file.
+## Immediate next milestone
 
-A local git clone/test attempt from the model container could not run because that runtime has no outbound DNS; do not record it as a code failure. GitHub CI is the authoritative executable check.
+Run a controlled **official Code-Point Open service-area pilot**:
+1. obtain/extract current official Code-Point CSV;
+2. dry-run the importer against current service-area filters;
+3. inspect selected row count, coordinates and administrative district codes;
+4. if plausible, run a complete intended service-area write without truncation;
+5. verify `address_dataset_health`, imported coverage and DB size/headroom;
+6. activate `code-point-open` only after the complete intended-scope import is verified;
+7. keep the paid API disabled.
 
-## Required next workflow
-
-1. Finish handoff/product docs in candidate branch.
-2. Compare branch to main and open PR.
-3. Require GitHub CI success including new tests.
-4. Require exact-head Vercel preview READY/clean build.
-5. Review candidate migration once more, then apply to production.
-6. Verify schema/RLS/grants and registry `record_store` mappings.
-7. Transactionally test Code-Point/property insert/update/delete count triggers and import finalizer; rollback test data.
-8. Verify rights-filtered views stay empty while OS sources remain inactive/empty.
-9. Run Supabase security + performance advisors.
-10. Verify GetAddress state still untouched and DB size safe.
-11. Merge PR, verify production Vercel and API still returns disabled 503.
-12. Then run controlled **official-data service-area pilots**. Do not activate from a truncated sample.
+Then prepare a suitably provisioned runner to stream/filter the much larger Open UPRN source for the same service-area scope. Do not load Britain-wide UPRN into the current Free project.
 
 ## Non-negotiable rules
 
@@ -181,7 +175,7 @@ A local git clone/test attempt from the model container could not run because th
 - New/unreviewed sources fail closed.
 - Paid surfaces query rights-filtered views only.
 - No GetAddress automated harvesting unless explicit written permission changes policy.
-- No national OpenData import into the current Free database without deliberate capacity migration/upgrade.
+- No national OS OpenData import into the current Free database without a deliberate capacity migration/upgrade.
 - No provider/API/Supabase/TOTP/SMTP/GitHub secrets in source/docs/chat.
 - Support tickets remain customer-only; public inbound email remains Admin Email inbox.
-- Privileged staff access requires AAL2.
+- Privileged staff access requires AAL2/MFA.
