@@ -56,16 +56,34 @@ Before this feature production contained only a handful of address records, so d
 
 ## GetAddress daily harvest — FEATURE IMPLEMENTATION
 
-Feature branch: `feature/getaddress-daily-harvest-20260912`.
+Feature branch: `feature/getaddress-daily-harvest-20260912`, PR #24.
 
 ### Provider strategy
 
 Official GetAddress behavior used by the design:
-- Typeahead postcode queries are rate-limited but do not increase lookup usage.
-- Autocomplete query containing only a postcode with `all=true` counts as one lookup and returns all suggestions for that postcode.
+- Typeahead postcode search is used for candidate discovery without spending address lookup allowance.
+- Autocomplete query containing only a postcode with `all=true` counts as one lookup and can return all suggestions for that postcode.
 - GetAddress says returned address data may be cached/saved.
 
 Therefore one daily credit can save many addresses. Namdar targets up to 20 **postcodes** per day, not merely 20 individual addresses.
+
+### Service-area-first priority
+
+The user explicitly requested that GetAddress usage be maximised and that Namdar search covered areas first.
+
+Implementation:
+- `lib/address-harvest-priority.js` is the priority layer used by both manual and cron harvesting.
+- It reads active `service_areas` at runtime. Do not replace this with a hard-coded borough list.
+- Current production coverage is one administrative service area containing Lewisham, Southwark, Lambeth, Wandsworth and Greenwich.
+- For administrative areas, free Typeahead postcode searches use provider `district` filters to discover valid full postcodes within each selected borough/council.
+- For future service-area modes, verified `postcode_directory` records are evaluated against include/exclude rules, administrative codes/names, polygon geometry or radius as applicable.
+- Covered candidates are queued with the oldest queue timestamps so existing `lib/address-harvest.js` consumes them before generic fallback candidates. Metadata also records `priority_score`, `coverage_label`, `outcode` and `expected_yield`.
+- Yield learning uses previously harvested `address_count` by outward code. New covered candidates in historically higher-yield outward codes are ordered earlier among equal-priority candidates.
+- Queue discovery aims to stay several times deeper than the paid daily cap so a full 20-credit day is not blocked by a thin candidate list.
+- If service-area candidates are unavailable, the existing fallback order still prioritises London/surrounding postcode areas before wider UK discovery.
+- Admin setting `prioritize_service_areas` defaults ON and can be switched off independently. The overall automatic harvest `enabled` setting still defaults OFF.
+- Admin shows covered-area queue depth, covered postcodes harvested and covered addresses saved.
+- Run history records `service_area_postcodes_harvested` and `service_area_addresses_collected`.
 
 ### Server-side secrets
 
@@ -79,26 +97,28 @@ Therefore one daily credit can save many addresses. Namdar targets up to 20 **po
 Applied production migrations:
 - `20260912121339 address_harvest_automation`
 - `20260912121442 address_harvest_run_guard`
+- `20260912123809 address_harvest_service_area_priority`
 
-Created:
-- `address_harvest_settings`: singleton ON/OFF, cap 1–20, postcode seed cursor, provider usage snapshots, last run/success/error.
-- `address_harvest_runs`: operational run history/status/counters and backup paths.
-- `address_harvest_postcodes`: candidate queue and retry state.
+Created/extended:
+- `address_harvest_settings`: singleton ON/OFF, cap 1–20, generic seed cursor, service seed cursor, service-area priority toggle, provider usage snapshots, last run/success/error.
+- `address_harvest_runs`: operational run history/status/counters, covered-area counters and backup paths.
+- `address_harvest_postcodes`: candidate queue/retry state plus priority score, coverage label, outward code and learned expected yield.
 - `address_harvest_snapshots`: raw provider JSON per run/postcode.
 - private Storage bucket `address-harvest-backups` accepting JSON/CSV.
 - dataset registry row `getaddress-daily-cache`.
 - partial unique index allows only one `running` harvest per UTC day; code releases stale >30-minute runs before starting another.
+- priority queue index supports service-area/yield ordering metadata.
 
 All new public-schema operational tables have RLS enabled, no anon/authenticated privileges, and service-role access only. Backup bucket is private.
 
 ### Worker behavior
 
-`lib/address-harvest.js`:
+`lib/address-harvest.js` remains the base lookup/storage worker:
 - Never runs without server API key.
 - Automatic cron respects `enabled`; manual Run once can operate while automatic is OFF.
 - Local UTC-day usage is always counted so Namdar cannot exceed its configured daily cap even without admin usage key.
 - If admin usage key exists, provider remaining allowance also constrains the run.
-- Seeds verified `postcode_directory` first, then rotating UK postcode-area/district Typeahead terms, prioritising London/surrounding areas.
+- Seeds verified `postcode_directory` and rotating UK Typeahead fallback terms.
 - Each selected postcode is looked up once with Autocomplete `all=true` and a structured template.
 - Suggestions normalize into existing `master_addresses`, source `getaddress-daily-cache`; suggestion ID is source record ID.
 - Raw response is preserved in snapshots.
@@ -106,23 +126,40 @@ All new public-schema operational tables have RLS enabled, no anon/authenticated
 - Provider 429 stops remaining work and leaves current postcode pending rather than spending blindly.
 - Old transient errors can retry after 24h up to 3 attempts.
 
+`lib/address-harvest-priority.js` runs first when service-area priority is ON:
+- uses Typeahead search + service-area filters to prefill covered candidates without consuming paid lookup allowance;
+- follows live service coverage rather than a fixed list;
+- records priority/yield metadata;
+- annotates completed run metrics for covered-area postcodes/addresses;
+- falls back to the base worker safely if service priority is disabled, automatic mode is disabled, or the GetAddress key is absent.
+
 ### API/admin surface
 
-- `api/address-harvest-cron.js`: CRON_SECRET-protected scheduled GET.
-- `api/admin-address-harvest.js`: AAL2/settings staff only; status, toggle/cap settings and manual run.
+- `api/address-harvest-cron.js`: CRON_SECRET-protected scheduled GET; uses priority worker.
+- `api/admin-address-harvest.js`: AAL2/settings staff only; status, automatic toggle, service-area priority toggle, cap settings and manual run.
 - `api/admin-address-harvest-export.js`: AAL2/settings staff only; full current dataset CSV/JSON or private per-run backup download.
-- `admin-address-harvest.js`: dynamically injects management panel into existing Service Areas beside master-address tools. Shows ON/OFF, cap, key configured booleans, usage/remaining, total cached rows, last run/error, recent runs, Run once, and secure downloads.
+- `admin-address-harvest.js`: dynamically injects management panel into existing Service Areas beside master-address tools. Shows ON/OFF, priority ON/OFF, cap, key configured booleans, usage/remaining, total cached rows, covered queue/counters, last run/error, recent runs, Run once, and secure downloads.
 - `admin.js` loader adds the extension rather than modifying large `admin-original.js`.
-- CI syntax checks include all new JS.
+- CI syntax checks include all new JS, including `lib/address-harvest-priority.js`.
 - `vercel.json` schedules `/api/address-harvest-cron` at `30 3 * * *` UTC.
+
+### Verification so far
+
+- Automatic harvesting remains OFF in production DB.
+- No GetAddress paid lookup has been made by the migrations or this implementation work.
+- Production schema was inspected before priority DDL.
+- Supabase migration `20260912123809 address_harvest_service_area_priority` is applied and exact SQL is source-controlled.
+- Latest priority-layer GitHub CI completed successfully on branch head before final documentation sync.
+- Latest priority-layer Vercel preview reached READY before final documentation sync.
+- A real provider-key controlled manual run is still required before claiming end-to-end behavior.
 
 ### Safe enablement sequence
 
-1. Merge/deploy with automation OFF.
+1. Merge/deploy with automatic harvesting OFF.
 2. Owner adds `GETADDRESS_API_KEY` directly in Vercel Production env. Optional `GETADDRESS_ADMIN_KEY` may also be added; never paste keys into chat.
 3. Redeploy if Vercel requires it for env changes.
-4. Open Admin → Service areas → Daily address database growth. Confirm key status configured and Automatic OFF.
-5. Run once manually. Verify run counters, master sample, CSV/JSON private backups and full export.
+4. Open Admin → Service areas → Daily address database growth. Confirm key configured, Automatic OFF, Service-area priority ON and active coverage names shown.
+5. Run once manually. Verify covered-area queue/counters, run counters, master sample, CSV/JSON private backups and full export.
 6. Check GetAddress provider usage independently if desired.
 7. Only after successful test switch Automatic daily harvest ON.
 
@@ -135,10 +172,11 @@ All new public-schema operational tables have RLS enabled, no anon/authenticated
 - `20260911230055 require_aal2_for_staff_permissions`
 - `20260912121339 address_harvest_automation`
 - `20260912121442 address_harvest_run_guard`
+- `20260912123809 address_harvest_service_area_priority`
 
 ## Remaining launch work
 
-- Finish GetAddress PR, preview, production deployment and controlled manual run, then enable only with owner approval.
+- Finish GetAddress PR #24, final CI/preview, production deployment and controlled manual run, then enable only with owner approval.
 - Apply/test remaining branded Auth templates and Magic Link flow.
 - Resume DMARC/BIMI sender-avatar work; no `_dmarc` record has been added.
 - Same-iPhone overflow confirmation.
