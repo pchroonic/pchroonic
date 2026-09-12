@@ -8,7 +8,7 @@ For fast continuation, read `docs/AI_START.md` first. This file is the broader r
 
 - Release documented in `README.md`: v6.4.16.
 - Source: GitHub `main` in `pchroonic/pchroonic`.
-- Current live product commit: `b1c1eb4e29cd03056799e5fbb1af47cf04fec2b1`.
+- Current live product commit before the all-width overflow fix: `b1c1eb4e29cd03056799e5fbb1af47cf04fec2b1`.
 - Delivery: Vercel project `namdar-website-starter-1`, canonical domain `namdar.co.uk`.
 - Data/auth/storage: Supabase `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
 - Supabase organization plan: **Free**.
@@ -27,7 +27,7 @@ CI requires all three files to change whenever product-source files change.
 
 | Area | Status |
 | --- | --- |
-| Public website | Live; second-stage iPhone horizontal-overflow fix deployed, same-device confirmation pending |
+| Public website | Live; cross-device homepage horizontal-overflow fix in verification |
 | Customer portal | Session fix + optional customer MFA live |
 | Admin workspace | Inbox Security v2 + mandatory privileged MFA/AAL2 live and user smoke-tested |
 | Staff PWA | Mandatory privileged MFA/AAL2 live; AAL2 required for offline cached session |
@@ -38,7 +38,7 @@ CI requires all three files to change whenever product-source files change.
 
 ### MFA Stage 2 — LIVE AND VERIFIED
 
-MFA Stage 2 is live at browser/Admin/Staff, central Vercel API and Supabase RLS layers. The admin sign-out/sign-in/authenticator/Admin Inbox production smoke test passed on 2026-09-12. Do not repeat unless a future auth change requires regression testing.
+MFA Stage 2 is live at browser/Admin/Staff, central Vercel API and Supabase RLS layers. The admin sign-out/sign-in/authenticator/Admin Inbox production smoke test passed on 2026-09-12. Do not repeat unless a future auth change needs regression testing.
 
 References:
 - PR #8;
@@ -47,45 +47,54 @@ References:
 - main Stage 2 code SHA `ece88931bd5e05b26173b25ff7fa75c46b6b4e63`;
 - production `dpl_Jkb8ZavhqrBD6PLpqjAPnEdiGAsW`: READY.
 
-## Mobile homepage overflow — SECOND-STAGE FIX LIVE, IPHONE CONFIRMATION PENDING
+## Homepage horizontal overflow — CROSS-DEVICE FIX IN VERIFICATION
 
-The first production fix (PR #12) removed the visible right-side white strip, but the owner's follow-up iPhone screenshot still showed the entire homepage shifted sideways with left-side clipping of the logo, eyebrow, headline and paragraph. The regression therefore remained open.
+The regression was initially treated as mobile/iPhone-specific. PR #12 improved quote/grid containment and PR #14 moved containment into the `<head>` plus added mobile scroll-position reset. However, the owner then reproduced the same document-level failure on Windows/Edge desktop on 2026-09-12.
 
-The second-stage fix is now deployed:
-- PR #14: `Harden iPhone homepage horizontal containment`;
-- feature SHA `6ae3563725ca280cade0ee6df46d7ed21315c0db`;
-- GitHub CI run `34686101782`: success;
-- exact preview `dpl_Z3Cas7PhEMoLmz5KVa7RM3p4VPXH`: READY on exact feature SHA with no alias error;
-- main merge SHA `b1c1eb4e29cd03056799e5fbb1af47cf04fec2b1`;
-- production deployment `dpl_EqLFLD2VK6QMcN8o7YKz4AKvYAuM`: READY on exact merge SHA with `namdar.co.uk` and no alias error.
+The desktop screenshot showed:
+- a full-page horizontal scrollbar;
+- the scrollbar already shifted to the right;
+- left-side header/hero content missing off-screen;
+- a large blank area on the right.
 
-Second-stage scope:
-- load `mobile-overflow-fix.css?v=20260912b` directly in the homepage `<head>` before layout/restoration;
-- load cache-busted `conversion.js?v=20260912b`;
-- apply mobile root/body `overflow-x:hidden`, `width:100%`, `min-width:0`, and `max-width:100%`;
-- constrain header, hero, quote and footer containers/children to viewport width;
-- preserve local horizontal scrollers;
-- retain quote-grid and native-file-input shrink containment;
-- reset any restored mobile horizontal scroll position to x=0 initially, on `pageshow`, and after orientation changes.
+The issue is therefore a cross-device homepage document-width / horizontal scroll-restoration problem, not just an iPhone bug.
 
-Canonical production verification after deployment:
-- `/` returned HTTP 200 and includes the mobile stylesheet in `<head>`;
-- `/conversion.js?v=20260912b` returned HTTP 200 and includes the x=0 reset logic;
-- `/mobile-overflow-fix.css?v=20260912b` returned HTTP 200 and includes the stronger mobile root containment.
+Current branch: `fix/homepage-horizontal-overflow-all-widths-20260912`.
 
-No database, Auth, provider, environment-variable or customer-data change was part of this fix.
+Current fix scope:
+- homepage root/body width containment and `overflow-x:hidden` at all viewport widths;
+- explicit viewport bounds for header/main/footer/hero/quote containers;
+- shrink-safe desktop hero columns using `minmax(0,...)`;
+- `min-width:0` on key flex/grid children;
+- quote-grid and native-file-input containment retained;
+- intentional nested horizontal scrollers preserved locally;
+- homepage horizontal position reset to x=0 at all widths on initial load, `pageshow`, resize and orientation change.
 
-**Remaining:** same-iPhone confirmation is required before closing the regression. Confirm the page starts flush at the true left edge, text/logo are not clipped, and the document cannot be dragged horizontally.
+No database, Auth, provider, environment-variable or customer-data change is involved.
 
-### First-fix history
+Verification status:
+- runtime code changes exist on the branch;
+- all three continuity files are updated on the same branch;
+- PR/CI/exact Vercel preview/production promotion remain pending;
+- final closure requires owner confirmation on both Windows desktop and the same iPhone after deployment.
 
-- PR #12: `Fix mobile quote horizontal overflow`;
+### Prior overflow-fix history
+
+PR #12:
 - feature SHA `febd6bbaacee5c08273e4ba7b70d8749dc160313`;
 - CI `34685321573`: success;
 - preview `dpl_8vbLRZdTAUttgXjhfRw2LBtb8sXq`: READY;
-- main merge `285b7c3da8215dc24e543f9a6143e565d10e61a7`;
+- production merge `285b7c3da8215dc24e543f9a6143e565d10e61a7`;
 - production `dpl_CkWNqBc8JkMuWh77BWYJXkXwP3oA`: READY;
-- real iPhone follow-up showed remaining left clipping, so PR #12 was only a partial fix.
+- iPhone follow-up proved remaining left clipping.
+
+PR #14:
+- feature SHA `6ae3563725ca280cade0ee6df46d7ed21315c0db`;
+- CI `34686101782`: success;
+- preview `dpl_Z3Cas7PhEMoLmz5KVa7RM3p4VPXH`: READY;
+- production merge `b1c1eb4e29cd03056799e5fbb1af47cf04fec2b1`;
+- production `dpl_EqLFLD2VK6QMcN8o7YKz4AKvYAuM`: READY;
+- later Windows/Edge screenshot proved desktop document overflow remained.
 
 ## Database/Auth verification
 
@@ -116,7 +125,7 @@ Namdar is on Supabase Free and leaked-password protection requires Pro or above,
 
 ## Outstanding work
 
-1. Obtain same-iPhone confirmation for the live second-stage horizontal-overflow fix; if confirmed, mark the regression closed.
+1. Complete the all-width homepage overflow PR/CI/preview/production flow and obtain desktop + iPhone confirmation.
 2. Confirm Supabase Auth Site URL is `https://namdar.co.uk` and review redirect allowlist for stale/unintended URLs.
 3. Complete provider launch readiness for Stripe, Turnstile, OAuth, SMS, Resend and legal configuration.
 4. Verify production cron jobs and intended double-booking protections.

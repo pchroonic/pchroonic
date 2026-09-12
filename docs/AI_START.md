@@ -11,7 +11,7 @@ This is the first file every AI/developer should read. It is intentionally short
 ## Current live baseline
 
 - Repository: `pchroonic/pchroonic`, branch `main`.
-- Current live product commit: `b1c1eb4e29cd03056799e5fbb1af47cf04fec2b1`.
+- Current live product commit before the all-width overflow fix: `b1c1eb4e29cd03056799e5fbb1af47cf04fec2b1`.
 - Production: `https://namdar.co.uk` on Vercel project `namdar-website-starter-1`.
 - Backend/Auth: Supabase `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
 - Supabase organization plan: **Free**.
@@ -20,43 +20,37 @@ This is the first file every AI/developer should read. It is intentionally short
 - Applied MFA migration: `20260911230055 require_aal2_for_staff_permissions`.
 - Customer support tickets remain customer-only; public inbound email remains Admin Email inbox.
 
-## Mobile horizontal overflow — SECOND FIX LIVE, SAME-IPHONE CONFIRMATION PENDING
+## Homepage horizontal overflow — ALL-WIDTH FIX IN VERIFICATION
 
-The first mobile containment patch (PR #12) removed the visible right-side white gap, but the owner's second iPhone screenshot showed the whole homepage still shifted sideways with the logo, eyebrow, headline and paragraph clipped on the left. PR #12 was therefore only a partial fix.
+The owner first reported the homepage shifting horizontally on iPhone. PR #12 and PR #14 improved mobile containment, but on 2026-09-12 the owner supplied a Windows/Edge desktop screenshot showing the same document-level problem at desktop width: a horizontal page scrollbar was present, the page had been scrolled to the right, left-side header/hero content was missing, and a large blank area appeared on the right.
 
-Second-stage fix is now live:
-- PR #14: `Harden iPhone homepage horizontal containment`;
-- feature/PR head: `6ae3563725ca280cade0ee6df46d7ed21315c0db`;
-- GitHub CI run `34686101782`: success;
-- exact Vercel preview: `dpl_Z3Cas7PhEMoLmz5KVa7RM3p4VPXH`, READY, no alias error;
-- production merge SHA: `b1c1eb4e29cd03056799e5fbb1af47cf04fec2b1`;
-- production deployment: `dpl_EqLFLD2VK6QMcN8o7YKz4AKvYAuM`, READY with `namdar.co.uk`, no alias error;
-- live homepage returned HTTP 200 and includes `/mobile-overflow-fix.css?v=20260912b` directly in the document `<head>`;
-- live `conversion.js?v=20260912b` returned HTTP 200 and contains the x=0 Safari restoration reset;
-- live `mobile-overflow-fix.css?v=20260912b` returned HTTP 200 and contains explicit mobile root `overflow-x:hidden` plus width/min/max containment.
+This proves the bug is not iPhone-only. Treat it as one cross-device homepage overflow/scroll-restoration regression.
 
-Second-stage implementation:
-- containment CSS loads in `<head>` before Safari layout/scroll restoration;
-- mobile `html` and homepage body use `overflow-x:hidden`, `width:100%`, `min-width:0`, and `max-width:100%`;
-- header, hero, quote and footer containers/items are constrained to viewport width;
-- quote grid/file-input shrink rules remain;
-- `conversion.js` resets restored horizontal scroll position to x=0 immediately, on `pageshow`, and after orientation changes;
-- stylesheet and JS are cache-busted so the iPhone does not retain the old late-loading fix.
+Current fix branch: `fix/homepage-horizontal-overflow-all-widths-20260912`.
 
-No database, Auth, environment-variable, provider or customer-data change was involved.
+Changes on the branch:
+- homepage `html` and `body.conversion-home` now use width/min/max containment and `overflow-x:hidden` at **all viewport widths**;
+- top-level homepage header/main/footer/hero/quote containers are capped to the viewport;
+- desktop hero grid now uses shrink-safe `minmax(0, ...)` columns and key grid/flex children get `min-width:0`;
+- quote-grid/native-file-input containment remains;
+- intentionally horizontally scrollable inner components remain local scroll containers;
+- `conversion.js` now resets homepage horizontal scroll position to x=0 on all viewport widths, including initial load, `pageshow`, resize and orientation change.
 
-**Do not mark the regression fully closed until the owner retests on the same iPhone and confirms the page starts flush at the left edge and cannot slide sideways.**
+No database, Auth, environment-variable, provider or customer-data change is involved.
+
+**Status:** code exists on the branch. PR/CI/exact Vercel preview/production verification and owner rechecks on desktop + iPhone are still required before closing the regression.
 
 ## Plan-blocked security item
 
-Supabase Security Advisor reports **Leaked Password Protection is disabled**, but the Namdar Supabase organization is on the **Free plan** and the feature requires Pro or above. Treat this as optional/plan-blocked. Do not upgrade without explicit owner approval.
+Supabase Security Advisor reports **Leaked Password Protection is disabled**, but Namdar is on the Supabase **Free plan** and the feature requires Pro or above. Treat it as optional/plan-blocked. Do not upgrade without explicit owner approval.
 
 ## Immediate next action
 
-1. Ask the owner to fully close/reopen or refresh `namdar.co.uk` on the same iPhone.
-2. Confirm the homepage starts at the true left edge: logo/headline/text are not clipped and the page cannot be dragged horizontally.
-3. If confirmed, mark the mobile regression closed in all three continuity files.
-4. Then resume Supabase Auth Site URL / redirect allowlist verification.
+1. Complete the all-width overflow fix workflow: PR → CI → exact Vercel preview → merge → production verification.
+2. Ask the owner to refresh/reopen `namdar.co.uk` on the same Windows desktop and same iPhone.
+3. Confirm there is no document-level horizontal scrollbar/drag, the page begins at the true left edge, and no large blank right-side area appears.
+4. Only after both checks pass, mark the regression closed in all three continuity files.
+5. Then resume Supabase Auth Site URL / redirect allowlist verification.
 
 ## After that
 
@@ -64,7 +58,8 @@ Continue launch-readiness checks for Stripe, Turnstile, OAuth, SMS, Resend, lega
 
 ## Do not repeat
 
-- Do not claim PR #12 fully fixed the iPhone issue; the follow-up screenshot proved left-side clipping remained.
+- Do not describe this as iPhone-only; the owner reproduced document-level horizontal overflow on Windows desktop too.
+- Do not claim PR #12 or PR #14 fully closed the overflow regression.
 - Do not repeat the MFA Stage 2 smoke test unless a future auth change requires regression testing.
 - Do not rebuild MFA Stage 1/2; it is already live.
 - Do not reapply migration `20260911230055`.
@@ -84,7 +79,7 @@ For any substantial production/code/database/security change:
 1. Read this file.
 2. Read `docs/AI_HANDOFF.md` and `docs/PROJECT_STATUS.md` completely.
 3. Read `AGENTS.md` and relevant README/code.
-4. Use branch → PR → CI → preview/testing → merge → production verification.
+4. Use branch → PR → CI → Vercel preview/testing → merge → production verification.
 
 ## Automatic continuity rule
 

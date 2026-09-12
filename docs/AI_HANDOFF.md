@@ -45,58 +45,75 @@ Stage 2 references:
 - main code SHA `ece88931bd5e05b26173b25ff7fa75c46b6b4e63`;
 - production `dpl_Jkb8ZavhqrBD6PLpqjAPnEdiGAsW`: READY with `namdar.co.uk`.
 
-## Mobile homepage horizontal-overflow regression — SECOND FIX LIVE, SAME-IPHONE CONFIRMATION PENDING
+## Homepage document-level horizontal overflow — CROSS-DEVICE REGRESSION
 
-### History
+### Reproduction history
 
-The owner first reported an iPhone screenshot where the homepage could be panned horizontally and a blank strip appeared on the right. PR #12 added shrink-safe quote grids/file-input containment plus a dynamically loaded mobile viewport guard. That production deployment removed the visible right-side blank strip, but a second real-iPhone screenshot showed the entire document still shifted sideways: the logo, eyebrow, headline and paragraph were clipped on the left. PR #12 must therefore be treated as a partial fix, not final resolution.
+The owner first reported the public homepage shifting sideways on iPhone, with a blank strip visible on the right. PR #12 added shrink-safe quote-form grids/native file-input containment and a mobile viewport guard. That removed the visible right-side strip, but a follow-up iPhone screenshot still showed the whole document offset horizontally, with left-side brand/headline/body content clipped.
 
-### Second-stage cause/remediation
+PR #14 moved the containment stylesheet into the document `<head>`, strengthened mobile root containment and added a mobile x=0 scroll-restoration reset. It deployed successfully, but on 2026-09-12 the owner then supplied a Windows/Edge desktop screenshot of `namdar.co.uk` showing the same class of failure at desktop width:
+- a document-level horizontal scrollbar was visible at the bottom;
+- the scrollbar was already positioned to the right;
+- the left portion of the header and hero was off-screen;
+- a large blank region appeared on the right side of the viewport.
 
-The first containment stylesheet was injected by `conversion.js` at the end of the document. iOS Safari can restore an old horizontal scroll position before that late stylesheet arrives. The second-stage fix removes that timing window and also explicitly resets any restored x offset.
+Therefore the regression is **not iPhone-only** and PR #14 must not be treated as final closure. Treat this as one cross-device homepage document-width / horizontal scroll-restoration bug.
 
-Implementation now live:
-- `index.html` links `/mobile-overflow-fix.css?v=20260912b` directly in `<head>` immediately after the main stylesheet;
-- `index.html` loads cache-busted `conversion.js?v=20260912b`;
-- `mobile-overflow-fix.css` uses `overflow-x:hidden` on both `html` and `body.conversion-home` for mobile widths;
-- mobile root/body use explicit `width:100%`, `min-width:0`, `max-width:100%`, and horizontal overscroll containment;
-- header, main, footer, hero, hero copy/panel/visual, quote section/form/result and key children are constrained to viewport width;
-- mobile header brand/menu/actions receive shrink-safe flex constraints;
-- quote grid shrink rules and iOS native file-input containment remain;
-- local intentionally scrollable strips remain local scroll containers rather than being globally disabled;
-- `conversion.js` no longer dynamically creates the stylesheet;
-- `conversion.js` adds `resetHorizontalViewport()` to force x=0 while preserving y, on initial execution, next animation frame, `pageshow`, and after orientation changes.
+### Current all-width fix branch
 
-No database migration, Auth change, environment variable, provider configuration or customer-data change was involved.
+`fix/homepage-horizontal-overflow-all-widths-20260912`
 
-### Second-stage verification and production promotion
+### Current implementation
 
-- PR #14: `Harden iPhone homepage horizontal containment`.
-- Feature/PR head: `6ae3563725ca280cade0ee6df46d7ed21315c0db`.
-- GitHub CI run `34686101782`: completed success.
-- Exact Vercel preview: `dpl_Z3Cas7PhEMoLmz5KVa7RM3p4VPXH`, READY on exact feature SHA, `aliasError: null`.
-- Production merge SHA: `b1c1eb4e29cd03056799e5fbb1af47cf04fec2b1`.
-- Production deployment: `dpl_EqLFLD2VK6QMcN8o7YKz4AKvYAuM`, READY on exact merge SHA, target production, aliases include `namdar.co.uk`, `aliasError: null`.
-- Canonical `https://namdar.co.uk/` returned HTTP 200 and contains `/mobile-overflow-fix.css?v=20260912b` in the document `<head>` plus `conversion.js?v=20260912b` at the end of the page.
-- Canonical `https://namdar.co.uk/conversion.js?v=20260912b` returned HTTP 200 and contains the mobile x=0 restoration reset.
-- Canonical `https://namdar.co.uk/mobile-overflow-fix.css?v=20260912b` returned HTTP 200 and contains the stronger mobile root `overflow-x:hidden` and width/min/max containment.
+`mobile-overflow-fix.css` is being broadened from mobile-only root containment to homepage containment at all viewport widths:
+- `html` and `body.conversion-home` receive `width:100%`, `min-width:0`, `max-width:100%`, `overflow-x:hidden`, and `overscroll-behavior-x:none` globally;
+- top-level homepage `site-header`, `main`, `footer`, `hero` and quote containers are bounded by the viewport;
+- desktop hero grid columns are now `minmax(0, 1.05fr) minmax(0, .95fr)` rather than plain fractional tracks, preventing intrinsic child width from widening the grid;
+- direct children of key homepage flex/grid containers get `min-width:0`;
+- images/video/canvas/svg are capped at `max-width:100%` on the public homepage;
+- quote shell/field rows/service choices/progress retain shrink-safe `minmax(0,...)` tracks;
+- native file-input containment remains;
+- intentional nested horizontal scrollers such as proof strips remain local and are capped to the viewport rather than disabled.
 
-### Remaining verification
+`conversion.js` now resets the homepage horizontal viewport position to x=0 **at all viewport widths**, not only below 700px:
+- immediately on execution;
+- on the next animation frame;
+- on `pageshow`;
+- after resize;
+- after orientation change;
+while preserving the current vertical scroll position.
 
-Do **not** mark this regression fully closed until the owner retests on the same iPhone and confirms:
-- the page starts flush at the true left edge;
-- the brand/headline/body text are no longer clipped;
-- the page cannot be dragged horizontally to reveal a gap.
+No database migration, Auth change, environment variable, provider configuration or customer-data change is involved.
 
-### First-fix history for reference
+### Verification status for all-width fix
 
+At this handoff update:
+- source changes are on branch `fix/homepage-horizontal-overflow-all-widths-20260912`;
+- changed runtime files: `mobile-overflow-fix.css`, `conversion.js`;
+- all three continuity files are being updated in the same branch;
+- PR, GitHub CI, exact Vercel preview, production promotion and live canonical verification are still pending;
+- owner must recheck both Windows desktop and the same iPhone after deployment before the regression can be closed.
+
+### Prior fix history
+
+First fix:
 - PR #12: `Fix mobile quote horizontal overflow`;
 - feature SHA `febd6bbaacee5c08273e4ba7b70d8749dc160313`;
 - CI `34685321573`: success;
 - preview `dpl_8vbLRZdTAUttgXjhfRw2LBtb8sXq`: READY;
 - production merge `285b7c3da8215dc24e543f9a6143e565d10e61a7`;
 - production deployment `dpl_CkWNqBc8JkMuWh77BWYJXkXwP3oA`: READY;
-- real iPhone follow-up proved left-side clipping remained afterward.
+- real iPhone follow-up proved left-side clipping remained.
+
+Second fix:
+- PR #14: `Harden iPhone homepage horizontal containment`;
+- feature SHA `6ae3563725ca280cade0ee6df46d7ed21315c0db`;
+- CI `34686101782`: success;
+- preview `dpl_Z3Cas7PhEMoLmz5KVa7RM3p4VPXH`: READY;
+- production merge `b1c1eb4e29cd03056799e5fbb1af47cf04fec2b1`;
+- production deployment `dpl_EqLFLD2VK6QMcN8o7YKz4AKvYAuM`: READY with `namdar.co.uk`, no alias error;
+- canonical homepage/JS/CSS all returned HTTP 200 after deployment;
+- later Windows/Edge screenshot proved document-level horizontal overflow still existed at desktop width.
 
 ## Security advisor state
 
@@ -116,7 +133,7 @@ Namdar is on Supabase Free and leaked-password protection requires Pro or above.
 
 ## Remaining launch work
 
-1. Obtain same-iPhone owner confirmation for the second-stage overflow fix; if confirmed, mark the regression closed in all three continuity files.
+1. Complete the all-width homepage overflow fix through PR → CI → exact Vercel preview → merge → production verification, then obtain owner confirmation on Windows desktop and iPhone.
 2. Verify Supabase Auth Site URL is `https://namdar.co.uk` and review redirect allowlist for stale/unintended URLs.
 3. Finish launch checks for Stripe, Turnstile, OAuth providers, SMS provider, Resend and legal configuration.
 4. Verify booking-notification/account-purge cron jobs and intended double-booking protection.
@@ -135,4 +152,4 @@ Namdar is on Supabase Free and leaked-password protection requires Pro or above.
 
 ## Next recommended step
 
-Get the owner's same-iPhone confirmation for the live second-stage overflow fix. If confirmed, close the regression in continuity, then resume Supabase Auth Site URL / redirect allowlist verification and the remaining provider launch-readiness checklist.
+Complete the all-width homepage overflow promotion and live verification. Do not close the regression until both desktop and iPhone checks pass. Then resume Supabase Auth Site URL / redirect allowlist verification and the remaining launch-readiness checklist.

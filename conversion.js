@@ -1,6 +1,6 @@
 (()=>{
   const resetHorizontalViewport=()=>{
-    if(!document.body?.classList.contains('conversion-home')||!window.matchMedia('(max-width:700px)').matches)return;
+    if(!document.body?.classList.contains('conversion-home'))return;
     const y=window.scrollY||document.documentElement.scrollTop||0;
     document.documentElement.scrollLeft=0;
     document.body.scrollLeft=0;
@@ -9,6 +9,7 @@
   resetHorizontalViewport();
   requestAnimationFrame(resetHorizontalViewport);
   window.addEventListener('pageshow',()=>requestAnimationFrame(resetHorizontalViewport));
+  window.addEventListener('resize',()=>requestAnimationFrame(resetHorizontalViewport),{passive:true});
   window.addEventListener('orientationchange',()=>setTimeout(resetHorizontalViewport,120),{passive:true});
 
   const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
