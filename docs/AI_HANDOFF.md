@@ -134,14 +134,75 @@ Keep these Stage 1 rules:
 
 Closed duplicate PR #43 remains superseded. Do not revive it.
 
+## Current candidate — `/api/booking-notifications` 504 resilience
+Branch: `fix/booking-notification-504-20260912`.
+
+### Evidence / diagnosis
+Vercel production runtime errors for the last 7 days show 21 `Gateway Timeout` errors on `/api/booking-notifications`, first seen 2026-09-09 and last seen 2026-09-12 21:00 UTC. The current-production stack identifies Supabase REST calls from:
+- `queueBusinessNotification()` called by `scanBusinessFollowUps()`;
+- `processDueBusinessNotifications()` in one sample.
+
+The runtime failure is therefore in business-notification DB access, not in the new review/feedback processor.
+
+Production scale at investigation time is tiny:
+- pending final quotes: 1;
+- overdue invoices: 0;
+- upcoming unassigned bookings (24h): 0;
+- stale scheduled bookings: 1;
+- `business_notifications`: 4 sent rows, no pending backlog.
+
+Database checks also confirmed existing indexes are appropriate:
+- pending due index on `(status, due_at)`;
+- entity index on `(entity_type, entity_id, created_at desc)`;
+- unique event index on `(notification_type, entity_type, entity_id, event_key)`.
+
+Do not add another index for this issue unless new evidence shows a slow query. Current evidence points to the number/shape of REST round trips and transient gateway behavior.
+
+### Candidate implementation
+New `lib/business-followup-batched.js` replaces per-candidate scan queueing in the cron path. It:
+- preserves the current quote reminder stages (2 and 7 days);
+- preserves invoice reminder stages (1, 8, 15 and 29 days overdue);
+- preserves upcoming-unassigned and stale-scheduled booking alerts;
+- bulk-loads invoice quote context once;
+- builds candidates in memory and de-duplicates by the existing unique event identity;
+- inserts candidates in conflict-ignore batches (50 by default, max 100);
+- retries one 502/503/504 only for the idempotent conflict-ignore batch insert;
+- does not revive already sent/failed/cancelled duplicate event rows;
+- records partial source or queue failures as degraded results instead of throwing away healthy sources.
+
+Current Supabase docs/changelog were checked before implementation. Bulk upsert/ignore-duplicates remains supported, and there is no relevant hosted-platform breaking change for this pattern as of 2026-09-12.
+
+### Cron stage isolation
+Candidate `api/booking-notifications.js` no longer calls the old combined `processBusinessFollowUps()` path. It runs four isolated stages:
+1. post-job follow-up delivery (10);
+2. generic booking notification delivery (10);
+3. batched business reminder scan;
+4. due business notification delivery (10).
+
+Each stage returns `ok/data` or `ok:false/error`. One stage's transient DB failure is logged and marks the cron response `degraded`, but the remaining stages continue. HTTP 503 is returned only if all four stages fail.
+
+This prevents a transient business scan/delivery gateway error from blocking unrelated post-job and booking notifications in the same hourly run.
+
+### Tests / release gate
+New `scripts/booking-notification-resilience.test.mjs` covers:
+- in-memory event de-duplication;
+- conflict-ignore batch insert behavior;
+- one transient 504 retry for idempotent batch insert;
+- one bulk invoice-quote context fetch / one queue batch rather than per-event queue lookups;
+- partial source failure reported as degraded without throwing.
+
+Local candidate checks: 5/5 tests passed and both new/changed JS files passed `node --check` before push.
+
+No database migration is required. Release still requires exact-head CI, exact-head Vercel preview/build verification, merge, production deployment and real authenticated cron observation before the 504 issue can be marked resolved.
+
 ## Next recommended work
-Use the release on real jobs before adding more systems:
-1. enter the official Google Business Profile review URL when available;
-2. complete every field job with Start → Complete;
-3. save the direct-cost/travel review, including genuine £0-cost jobs;
-4. collect authentic before/after evidence and feedback;
-5. calibrate price/capacity/route rules from real results;
-6. consider Stage 2 only after the user deliberately decides the Window evidence supports it.
+1. finish release verification for the 504 resilience candidate and observe real cron health;
+2. enter the official Google Business Profile review URL when available;
+3. complete every field job with Start → Complete;
+4. save the direct-cost/travel review, including genuine £0-cost jobs;
+5. collect authentic before/after evidence and feedback;
+6. calibrate price/capacity/route rules from real results;
+7. consider Stage 2 only after the user deliberately decides the Window evidence supports it.
 
 ## Non-negotiables
 - Window Cleaning remains the only current commercial service.
