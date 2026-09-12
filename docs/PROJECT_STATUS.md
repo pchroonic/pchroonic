@@ -26,7 +26,7 @@ CI requires all three files to change whenever product-source files change, redu
 
 | Area | Status |
 | --- | --- |
-| Public website | Live |
+| Public website | Live; mobile quote horizontal-overflow hotfix in verification |
 | Customer portal | Session fix + optional customer MFA live |
 | Admin workspace | Inbox Security v2 + mandatory privileged MFA/AAL2 live and user smoke-tested |
 | Staff PWA | Mandatory privileged MFA/AAL2 live; AAL2 required for offline cached session |
@@ -58,8 +58,23 @@ Passed on 2026-09-12:
 
 This smoke test is complete and should not be repeated unless a future auth change needs regression testing.
 
+## Mobile homepage overflow hotfix — IN VERIFICATION
+
+The owner reported on 2026-09-12 that the homepage quote form on iPhone could slide horizontally and show a blank white gap on the right. The screenshot showed the left edge clipped by a similar amount, confirming document-level horizontal overflow/panning rather than ordinary right padding.
+
+Branch: `fix/mobile-quote-overflow-20260912`.
+
+Current patch:
+- new `mobile-overflow-fix.css` with shrink-safe quote grid tracks (`minmax(0,1fr)`), `min-width:0` on quote containers/items, and max-width constraints on controls;
+- explicit iOS/native file-input containment;
+- homepage-only mobile `overflow-x:clip` / horizontal overscroll guard with a hidden fallback for older engines;
+- `conversion.js` loads the isolated CSS on the homepage, preserving existing conversion interactions and intentionally scrollable components.
+
+The exact Safari/iPhone issue was not reproduced in Chromium, so final verification requires PR/CI/Vercel preview plus the owner's real-device recheck after production deployment. No database, Auth, provider, environment or customer-data change is part of this patch.
+
 ## Deployment verification
 
+MFA Stage 2:
 - Stage 2 feature SHA: `d203c64d9e5da3cca049bcb43e988f7432e2864c`.
 - PR #8.
 - GitHub CI run `34656209581`: success.
@@ -68,6 +83,9 @@ This smoke test is complete and should not be repeated unless a future auth chan
 - Production deployment: `dpl_Jkb8ZavhqrBD6PLpqjAPnEdiGAsW`, READY with `namdar.co.uk` and no alias error.
 - Live `admin.js` serves `6.4.16-security-mfa-2`.
 - Live Admin MFA guard contains no `Continue for now` bypass.
+
+Mobile overflow hotfix:
+- branch implementation exists; PR/CI/Vercel preview/production IDs are still pending at this point in the workflow.
 
 ## Database/Auth verification
 
@@ -100,12 +118,13 @@ Supabase documentation states leaked-password protection is available on **Pro p
 
 ## Outstanding work
 
-1. Confirm Supabase Auth Site URL is `https://namdar.co.uk` and review the redirect allowlist for stale/unintended URLs.
-2. Complete provider launch readiness for Stripe, Turnstile, OAuth, SMS, Resend and legal configuration.
-3. Verify production cron jobs and intended double-booking protections.
-4. Run safe recognized-mailbox/unknown-alias inbound behavior test.
-5. Complete controlled customer-support ticket journey when a safe eligible test customer is available.
-6. Optional/plan-blocked: enable Leaked Password Protection only if the owner later chooses Supabase Pro or above.
+1. Finish mobile quote overflow hotfix PR/preview/production verification and obtain the owner's iPhone confirmation.
+2. Confirm Supabase Auth Site URL is `https://namdar.co.uk` and review the redirect allowlist for stale/unintended URLs.
+3. Complete provider launch readiness for Stripe, Turnstile, OAuth, SMS, Resend and legal configuration.
+4. Verify production cron jobs and intended double-booking protections.
+5. Run safe recognized-mailbox/unknown-alias inbound behavior test.
+6. Complete controlled customer-support ticket journey when a safe eligible test customer is available.
+7. Optional/plan-blocked: enable Leaked Password Protection only if the owner later chooses Supabase Pro or above.
 
 ## Handoff maintenance rule
 

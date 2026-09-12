@@ -1,4 +1,12 @@
 (()=>{
+  /* Load the homepage-only mobile viewport guard before conversion interactions start. */
+  if(!document.querySelector('link[data-namdar-mobile-overflow-fix]')){
+    const link=document.createElement('link');
+    link.rel='stylesheet';
+    link.href='/mobile-overflow-fix.css?v=20260912';
+    link.dataset.namdarMobileOverflowFix='1';
+    document.head.appendChild(link);
+  }
   const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
   const progress=$('#quoteProgress'), labels=$$('#quoteForm .step-label[data-quote-step]');
   if(progress&&labels.length){

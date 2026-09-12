@@ -67,6 +67,29 @@ Stage 2 is enforced in three layers:
 - Controlled database test using the same active admin identity internally: `aal1` denied, `aal2` allowed.
 - **User production smoke test passed on 2026-09-12:** full Admin sign-out, fresh sign-in, authenticator challenge completed, and Admin → Inbox loaded normally. Do not repeat unless a future auth change needs regression testing.
 
+## Mobile homepage horizontal-overflow regression — ACTIVE HOTFIX
+
+On 2026-09-12 the owner supplied an iPhone screenshot of the homepage quote form showing a blank strip on the right. The screenshot also showed the left edge of the page clipped by a similar amount, indicating the whole document had been horizontally panned rather than the quote section simply having extra right padding.
+
+Likely cause is an intrinsic-width mobile form/grid child on iOS Safari. The quote UI used plain `1fr` CSS grid tracks and includes a native multi-file input; native file controls can retain a min-content width that pushes the document beyond the visual viewport on Safari even when the control has `width:100%`.
+
+Fix branch: `fix/mobile-quote-overflow-20260912`.
+
+Implementation:
+- new `mobile-overflow-fix.css` contains the isolated homepage/quote containment rules;
+- quote shell, field rows, service choices and progress grid use shrink-safe `minmax(0,1fr)` tracks;
+- grid items and quote controls get `min-width:0`, and controls are capped at `max-width:100%`;
+- the native file input is explicitly constrained and clipped inside the form;
+- on mobile, `html` and `body.conversion-home` use `overflow-x:clip` plus `overscroll-behavior-x:none`, with `overflow-x:hidden` fallback for engines without `clip`;
+- the viewport guard is scoped to the public homepage so internal Admin/Staff table scrolling is not affected;
+- existing intentionally horizontally scrollable strips remain locally scrollable;
+- existing homepage-only `conversion.js` loads `/mobile-overflow-fix.css?v=20260912` before conversion interactions start.
+
+Verification status at time of this handoff update:
+- the exact Safari symptom was not reproducible in container Chromium; a 390px synthetic Chromium check stayed at `scrollWidth === innerWidth`, so do not claim Safari-specific reproduction;
+- implementation/PR/CI/Vercel preview and real iPhone regression recheck are still required before calling the fix live/complete;
+- no database migration, Auth change, environment variable or customer-data change is involved.
+
 ## Migration history note
 
 The branch originally contained a pre-named migration file `20260911231500_require_aal2_for_staff_permissions.sql`. Supabase assigned the actual applied migration version `20260911230055`; repository filename is aligned to `20260911230055_require_aal2_for_staff_permissions.sql` so source history matches production.
@@ -95,12 +118,13 @@ The currently connected Supabase tools also do not expose hosted Auth configurat
 
 ## Remaining launch work
 
-1. Verify Supabase Auth Site URL is `https://namdar.co.uk` and review the redirect allowlist for stale/unintended URLs.
-2. Finish launch checks for Stripe, Turnstile, OAuth providers, SMS provider, Resend and legal configuration.
-3. Verify booking-notification/account-purge cron jobs and intended double-booking protection.
-4. Run safe recognized-mailbox/unknown-alias inbound behavior test.
-5. Complete controlled authenticated customer-support ticket test when a safe test customer is available.
-6. Optional/plan-blocked: enable Supabase Leaked Password Protection only if the owner later chooses a Pro-or-above plan.
+1. Finish and verify the mobile homepage horizontal-overflow hotfix, then obtain the owner's real iPhone confirmation.
+2. Verify Supabase Auth Site URL is `https://namdar.co.uk` and review the redirect allowlist for stale/unintended URLs.
+3. Finish launch checks for Stripe, Turnstile, OAuth providers, SMS provider, Resend and legal configuration.
+4. Verify booking-notification/account-purge cron jobs and intended double-booking protection.
+5. Run safe recognized-mailbox/unknown-alias inbound behavior test.
+6. Complete controlled authenticated customer-support ticket test when a safe test customer is available.
+7. Optional/plan-blocked: enable Supabase Leaked Password Protection only if the owner later chooses a Pro-or-above plan.
 
 ## Required workflow
 
@@ -114,4 +138,4 @@ The currently connected Supabase tools also do not expose hosted Auth configurat
 
 ## Next recommended step
 
-Verify Supabase Auth Site URL and redirect allowlist for the production domain, then continue the provider launch-readiness checklist. Leaked Password Protection remains optional and plan-blocked while Supabase is on Free.
+Complete the mobile overflow hotfix promotion and real iPhone recheck. Then resume Supabase Auth Site URL / redirect allowlist verification and the remaining provider launch-readiness checklist. Leaked Password Protection remains optional and plan-blocked while Supabase is on Free.

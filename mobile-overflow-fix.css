@@ -1,0 +1,113 @@
+/* Namdar mobile viewport containment — 2026-09-12 */
+/* Keep quote/grid children shrinkable on narrow mobile browsers, including iOS native controls. */
+.quote-shell,
+.quote-shell > *,
+.quote-form,
+.quote-result,
+.quote-form .field-row,
+.quote-form .field-row > *,
+.quote-form .choice-grid,
+.quote-form .choice-grid > *,
+.quote-form .quote-progress,
+.quote-form .quote-progress > * {
+  min-width: 0;
+}
+
+.quote-shell {
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, .65fr);
+}
+
+.quote-form .field-row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.quote-form .choice-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.quote-form .quote-progress {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.quote-form input,
+.quote-form select,
+.quote-form textarea {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* iOS/Safari file controls can otherwise keep an intrinsic width wider than the form. */
+.quote-form input[type="file"] {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 10px;
+}
+
+.quote-form input[type="file"]::file-selector-button {
+  max-width: 100%;
+  margin-right: 8px;
+}
+
+@media (max-width: 1000px) {
+  .quote-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .quote-form .quote-progress {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  html,
+  body.conversion-home {
+    max-width: 100%;
+    overflow-x: clip;
+    overscroll-behavior-x: none;
+  }
+
+  .conversion-home .site-header,
+  .conversion-home main,
+  .conversion-home .section-pad,
+  .conversion-home .quote-section,
+  .conversion-home .quote-shell,
+  .conversion-home .quote-form,
+  .conversion-home .quote-result {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .quote-form .field-row,
+  .quote-form .choice-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .quote-form .quote-progress {
+    width: 100%;
+    max-width: 100%;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .quote-form .quote-progress a {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .chat-launcher {
+    max-width: calc(100vw - 24px);
+  }
+}
+
+/* Fallback for older engines without overflow: clip. */
+@supports not (overflow: clip) {
+  @media (max-width: 700px) {
+    html,
+    body.conversion-home {
+      overflow-x: hidden;
+    }
+  }
+}
