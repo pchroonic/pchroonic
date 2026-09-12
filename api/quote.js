@@ -26,7 +26,7 @@ module.exports=async function handler(req,res){
       if(!service)return json(res,400,{ok:false,error:'Choose a valid Namdar service.'});
       if(!isLive(service))return json(res,409,{ok:false,error:unavailableMessage(service),service:{serviceKey:service.service_key,status:service.status,name:service.name}});
       visitor=safeVisitor(body.visitorId);
-      req.body=key==='windows'?normaliseWindowInputs(body):body;
+      if(key==='windows')req.body=normaliseWindowInputs(body);else req.body=body;
       if(visitor){
         originalEnd=res.end.bind(res);
         res.end=(chunk,...args)=>{if(chunk!=null)captured+=Buffer.isBuffer(chunk)?chunk.toString('utf8'):String(chunk);return originalEnd(chunk,...args)};
