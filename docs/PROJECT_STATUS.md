@@ -4,51 +4,54 @@ Last updated: 2026-09-12 UTC
 
 ## Baseline
 - Source: `pchroonic/pchroonic`, default `main`.
-- Current main after docs PR #37: `80faf13d5ebbc7e00034300bd7eee15af9cb9538`.
-- Production: `https://namdar.co.uk` on Vercel.
+- Current product merge: `f026803056f07d17ed1c257f1bd1094268a1cb08` from PR #38.
+- Production deployment: `dpl_EMqepbY1Aw8yqL6hBn2V6RtzJ2MG`, READY on `https://namdar.co.uk`, no alias error.
 - Supabase: `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
 - Window Cleaning is the only live/quotable service.
 - Future services are prepared but planned.
 - Address-data imports remain parked.
 
-## Active candidate — Window Cleaning Stage 1 optimisation
-Branch: `feat/window-cleaning-stage1-optimisation-20260912`.
-No migration required.
+## Window Cleaning Stage 1 optimisation — LIVE
+
+PR #38 is released. No database migration was required.
 
 ### Customer journey
-- Homepage becomes more specifically Window Cleaning focused.
+- Homepage is specifically Window Cleaning focused while it is the sole live service.
 - Quote asks for window count/style, current condition, access detail and extra glass.
 - Recurrence choices: one-off / 4 weeks / 8 weeks / 12 weeks.
 - Quote notes include a structured Window-details summary for Admin review.
 - Service page explains inclusions, recurrence, quote factors, access/photos and estimate-vs-final-quote flow.
 
 ### Pricing / recurring model
-Existing guide-price curve is retained and renamed for practical Window Cleaning cycles:
+Current guide-price frequency multipliers:
 - one-off 1.00
 - 4-weekly .86
 - 8-weekly .90
 - 12-weekly .94
 
-Final price still requires Namdar review before booking.
+The final price still requires Namdar review before booking.
 
 ### Security hardening
-A bug was found in the live quote availability wrapper: it checked `body.service` while the actual form sends `serviceKey`. Candidate fixes the gate to inspect the submitted service key and normalises Window complexity multipliers server-side.
+The quote availability wrapper bug is fixed: it now evaluates the actual submitted `serviceKey` rather than incorrectly defaulting a missing `body.service` to Window Cleaning.
 
-This is important because UI hiding is not the business-rule boundary.
+Window detail/extra/frequency multipliers are also normalised server-side, so client requests cannot supply arbitrary lower values.
 
 ### My Namdar
-Recurring Window Cleaning requests now offer 4/8/12-week cycles and default to 8-weekly. Namdar still confirms price/schedule before activation.
+Recurring Window Cleaning requests offer 4/8/12-week cycles and default to 8-weekly. Namdar confirms price, first-clean requirements and schedule before activation.
 
-## Candidate verification checklist
-- [ ] all three handoff docs updated
-- [ ] PR opened
-- [ ] CI passes including `scripts/window-stage1.test.mjs`
-- [ ] exact-head Vercel preview READY / clean
-- [ ] preview homepage/service-page smoke checked
-- [ ] future-service quote gate confirmed fixed by tests and, where possible, HTTP smoke
-- [ ] merged to main
-- [ ] production deployment READY on `namdar.co.uk`
-- [ ] final live-state handoff sync completed if IDs change
+## Release verification
+- [x] all three candidate handoff docs updated
+- [x] PR #38 opened
+- [x] exact-head CI `34712880930` passed including `scripts/window-stage1.test.mjs`
+- [x] exact-head preview `dpl_EJMytimDT1XQtcSW8a4wNLMnWCUP` READY / clean
+- [x] PR #38 merged as `f026803056f07d17ed1c257f1bd1094268a1cb08`
+- [x] production `dpl_EMqepbY1Aw8yqL6hBn2V6RtzJ2MG` READY on `namdar.co.uk`
+- [x] production Window service page returns new Stage 1 content
+- [x] public data still exposes Window Cleaning only and Window pricing only
+- [x] Gutter postcode/service request still returns HTTP 409
+- [x] Window postcode/service request still returns HTTP 200 in covered area
+- [x] Supabase service catalog rechecked: Window live, five future services planned
+- [x] no schema migration or DDL introduced by this release
 
 ## Current live service stages
 1. Window Cleaning — LIVE
@@ -60,14 +63,16 @@ Recurring Window Cleaning requests now offer 4/8/12-week cycles and default to 8
 
 Do not activate the next service simply because technical readiness exists.
 
+## Immediate next work
+1. define operational booking days, capacity and route-density rules for Window Cleaning;
+2. add/verify conversion measurement from postcode check through completed job;
+3. calibrate pricing from real Window Cleaning job duration/cost/margin once enough data exists;
+4. publish genuine before/after portfolio proof and reviews once real jobs are completed.
+
 ## Other open work
-- pricing calibration from real Window Cleaning jobs once data exists;
-- operational booking-slot rules and route density;
-- genuine before/after portfolio proof once jobs complete;
-- conversion/funnel measurement;
-- fresh privileged password/CAPTCHA/MFA completion;
+- fresh privileged password/CAPTCHA/MFA completion pending;
 - `/api/booking-notifications` 504 investigation;
-- Stripe, SMS, legal and launch checks;
+- Stripe, SMS, legal and remaining launch checks;
 - address-data pilot remains parked.
 
 ## Handoff rule

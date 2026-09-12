@@ -6,57 +6,60 @@ Read `docs/AI_START.md` first.
 
 ## Production source of truth
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current main after docs PR #37: `80faf13d5ebbc7e00034300bd7eee15af9cb9538`.
-- Window-only staged-service release is live from PR #36.
-- Canonical production: `https://namdar.co.uk`.
+- Current product merge: `f026803056f07d17ed1c257f1bd1094268a1cb08` from PR #38.
+- PR #38 exact head: `1fad0ab7a7f6edd39d0afb0dbd9a04dfc70a622a`.
+- GitHub CI `34712880930`: SUCCESS.
+- Exact-head preview `dpl_EJMytimDT1XQtcSW8a4wNLMnWCUP`: READY / clean build.
+- Production `dpl_EMqepbY1Aw8yqL6hBn2V6RtzJ2MG`: READY on `https://namdar.co.uk`, no alias error.
+- No database migration was required for PR #38.
 - Supabase: `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
 - Only `windows` is live; gutters/jetwash/roof/handyman/tour3d remain planned.
 - Privileged staff requires AAL2/MFA.
 
-## Current candidate
-Branch: `feat/window-cleaning-stage1-optimisation-20260912`.
-No database migration is required.
+## Window Cleaning Stage 1 — LIVE
+
+PR #38 improved the Window Cleaning journey and fixed a service-gate weakness without activating any future service.
 
 ### Critical quote-gate fix
-`api/quote.js` previously checked `body.service` even though the customer quote form sends `serviceKey`. Because the old wrapper defaulted missing `service` to `windows`, a crafted request could pass the outer live-service check and reach `quote-core.js` with another service key.
+Before PR #38, `api/quote.js` checked `body.service` although the real customer form sends `serviceKey`. The wrapper also defaulted a missing service to `windows`, so a crafted request could pass the outer live-service gate and reach the legacy core with another service key.
 
-Candidate fix:
-- resolve the gate from `body.serviceKey || body.service`;
-- reject missing/unknown keys;
-- keep non-live response HTTP 409;
-- normalise Window detail/extra/frequency values server-side before delegating to the legacy core.
+Live fix:
+- gate resolves `body.serviceKey || body.service`;
+- missing/unknown keys are rejected;
+- non-live services return HTTP 409;
+- Window detail/extra/frequency values are normalised server-side before delegation.
 
-Window allowed guide-price inputs are now constrained to known UI values rather than trusting arbitrary client multipliers.
+This closes the direct future-service quote bypass and prevents arbitrary client-supplied lower Window multipliers.
 
 ### Window quote UX
-`conversion.js` keeps Window Cleaning as the sole live service and enhances the quote UI after `app.js` loads:
+`conversion.js` keeps Window Cleaning as the sole live service and now asks:
 - exterior-window count;
 - window style;
 - current condition: maintenance / first Namdar clean / heavy build-up;
 - access detail: clear / gated / extension-conservatory / mixed complications;
-- extra glass choices tailored to doors, roof lights, conservatories, unusual glass;
-- recurrence choices: one-off, 4-weekly, 8-weekly, 12-weekly;
-- structured `[Window details]` summary appended to submitted notes for Admin review, then customer textarea restored locally.
+- extra glass: doors, roof lights, conservatories, unusual glass;
+- recurrence: one-off, 4-weekly, 8-weekly, 12-weekly.
 
-The generic pricing engine still produces a guide estimate; the final quote remains reviewed manually before booking.
+A structured `[Window details]` block is submitted in quote notes for Admin review. The generic pricing engine still produces only a guide estimate; the final quote remains deliberately reviewed before booking.
 
 ### Recurring pricing mapping
-`quote-core.js` keeps the prior discount curve and adds Stage 1 names:
+`quote-core.js` supports:
 - one-off `1.00`;
-- 4-weekly `.86` (same as legacy monthly);
-- 8-weekly `.90` midpoint;
-- 12-weekly `.94` (same as legacy quarterly).
-Legacy monthly/quarterly keys remain accepted for compatibility.
+- 4-weekly `.86`;
+- 8-weekly `.90`;
+- 12-weekly `.94`.
+
+The 4- and 12-week multipliers preserve the old monthly/quarterly pricing curve; 8-weekly is the midpoint. Legacy monthly/quarterly keys remain accepted for compatibility.
 
 ### My Namdar subscriptions
 `subscription-core.js` accepts `4_weekly`, `8_weekly`, `12_weekly` and defaults new recurring requests to `8_weekly`.
-`account-service-availability.js` rebuilds the Window-only frequency selector to 4/8/12 weeks and explains that Namdar confirms regular price, first-clean requirements and schedule before activation.
+`account-service-availability.js` shows those three Window-only frequencies and explains that Namdar confirms regular price, first-clean requirements and schedule before activation.
 
 ### Window Cleaning service page
-`services/window-cleaning.html` now focuses on the actual Stage 1 offer:
+`services/window-cleaning.html` now describes the actual live Stage 1 offer:
 - exterior glass, frames and exterior sills;
 - one-off and 4/8/12-week requests;
-- what affects the final quote;
+- factors affecting the final quote;
 - first-clean/heavy-build-up review;
 - access, extension/conservatory and extra-glass guidance;
 - optional private photos;
@@ -64,8 +67,8 @@ Legacy monthly/quarterly keys remain accepted for compatibility.
 
 No unsupported insurance, guarantee, equipment or result claims were added.
 
-## Tests
-New `scripts/window-stage1.test.mjs` verifies:
+## Tests / verification
+`scripts/window-stage1.test.mjs` is live in CI and verifies:
 - quote gate evaluates `serviceKey`;
 - Window input multipliers are normalised server-side;
 - 4/8/12-week guide-price keys exist;
@@ -73,18 +76,27 @@ New `scripts/window-stage1.test.mjs` verifies:
 - My Namdar recurrence options match;
 - Window service page documents inclusions and reviewed flow.
 
-CI workflow now runs this suite and syntax-checks all touched JS.
+Release verification:
+- CI `34712880930` succeeded on exact head `1fad0ab...`.
+- Exact-head preview `dpl_EJMytimDT1XQtcSW8a4wNLMnWCUP` READY; errors-only build clean.
+- Product PR #38 merged as `f026803056f07d17ed1c257f1bd1094268a1cb08`.
+- Production `dpl_EMqepbY1Aw8yqL6hBn2V6RtzJ2MG` READY and aliased to `namdar.co.uk`; alias error null.
+- Production Window service page returns 200 with new Stage 1 content.
+- Production `/api/public-data` still shows Window Cleaning only as live/quotable/public and only Window pricing.
+- Production Gutter postcode/service request returns 409 planned/unavailable.
+- Equivalent Window postcode request returns 200 covered.
+- Supabase catalog rechecked: Windows live; five future services planned.
 
-## Release workflow
-1. PR from candidate branch.
-2. GitHub CI must pass.
-3. Exact-head Vercel preview must be READY/clean.
-4. Verify preview service page and homepage assets.
-5. Merge only after gates pass.
-6. Verify production deployment/aliases and key public endpoints.
-7. Sync handoff to exact live commit/deployment IDs if necessary.
+The direct crafted quote path is covered by CI regression tests. Current fetch tooling does not provide a convenient arbitrary POST smoke without creating a real quote record in production.
 
-## Parked work / non-negotiables
+## Next recommended Stage 1 milestone
+Focus on operational profitability rather than adding another service:
+1. define booking availability / operating days / route-density rules;
+2. measure the funnel: postcode → guide estimate → final quote → accepted → booked → completed;
+3. calibrate pricing from actual completed job duration/cost/margin once enough real jobs exist;
+4. add genuine before/after work and reviews as evidence accumulates.
+
+## Parked / non-negotiables
 - Do not activate another service.
 - Do not resume Code-Point/Open UPRN/GetAddress work automatically.
 - Existing accepted work survives service pause.
