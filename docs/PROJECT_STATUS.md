@@ -4,8 +4,11 @@ Last updated: 2026-09-12 UTC
 
 ## Production baseline
 - Repo: `pchroonic/pchroonic`, default `main`.
-- Latest product release: PR #45, merge `f1e813866c0c854ca3b14b73c4c867ea00475e64`.
-- Product production: `dpl_6QT2rxS8epuMFvCq2t1EwMTjfWg8`, READY on `https://namdar.co.uk`, no alias error.
+- Latest product release: PR #47, merge `43f2db200463083cd9736485700c27a3d80974b8`.
+- Exact PR #47 head: `437ab7e56b8e74f4c68d92fe096b646110018b95`.
+- CI `34719427324`: SUCCESS.
+- Exact-head preview `dpl_7QMQLeXV8rEF1qBcyS7d2FyLeLKX`: READY / clean build.
+- Production `dpl_7UXKtKqyitKF5xiGADPcwN9MwgZk`: READY on `https://namdar.co.uk`, no alias error.
 - Supabase: `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
 - Window Cleaning is the only live/quotable/bookable service.
 - Gutter Cleaning, Patio & Jet Washing, Roof Cleaning, Handyman Services and 3D Property Tours remain planned.
@@ -17,8 +20,9 @@ Product sequence:
 - PR #40: operational customer booking rules and postcode-area route density.
 - PR #42: consent-aware acquisition funnel + completed-job direct-contribution reporting.
 - PR #45: field close-out + neutral post-job feedback/Google-review workflow.
+- PR #47: booking-notification cron resilience and business-reminder batching.
 
-Live booking defaults: 21 days, 24h notice, Mon–Sat, 08–11 / 11–14 / 14–17, max 3 jobs/day, postcode-area route density.
+Live booking defaults remain 21 days, 24h notice, Mon–Sat, 08–11 / 11–14 / 14–17, max 3 jobs/day, postcode-area route density.
 
 ## Post-job workflow — LIVE
 For real Window jobs:
@@ -31,7 +35,7 @@ For real Window jobs:
 7. If the official Google review URL is configured, the same optional honest public-review choice is available regardless of private rating.
 8. Low private ratings still alert support privately.
 
-Production currently has no `site_settings.reviews` row, so Google review CTAs are disabled until the official Google Business Profile review-request link is deliberately entered.
+Production has no `site_settings.reviews` row at the latest verification, so Google review CTAs remain disabled until the official Google Business Profile review-request URL is deliberately entered.
 
 ## Review integrity rule
 Do not selectively solicit only positive reviews. Do not discourage negative reviews, request a particular star rating, or offer incentives. Private support escalation may coexist with the same neutral public-review option.
@@ -50,7 +54,41 @@ Admin → Reporting measures:
 
 **Direct contribution is not net profit.** Labour, overheads, tax and other business costs are excluded. Missing cost reviews are excluded from contribution/margin rather than assumed £0.
 
-Production `booking_job_costs` contained 0 rows at PR #45 release verification; no synthetic job-cost data was inserted.
+## Notification 504 resilience — LIVE, observation pending
+Before PR #47, Vercel recorded 21 `/api/booking-notifications` `Gateway Timeout` errors from 9–12 September 2026. Runtime stacks pointed to Supabase REST calls inside business reminder scan/queue work and one due-business-delivery path.
+
+The issue was not explained by current volume or missing indexes. Investigation-time production state was:
+- 1 pending final quote;
+- 0 overdue invoices;
+- 0 upcoming unassigned bookings in 24h;
+- 1 stale scheduled booking;
+- 4 sent `business_notifications` rows and no pending backlog.
+
+Existing indexes already covered pending due rows, entity lookup and unique event identity.
+
+PR #47 changed the runtime access pattern without changing schema:
+- business reminder candidates are built and de-duplicated in memory;
+- invoice quote context is bulk-loaded once;
+- candidates are inserted in conflict-ignore batches against the existing unique event constraint;
+- the idempotent batch insert retries once on transient 502/503/504;
+- source/queue failures are reported as degraded while healthy sources continue;
+- the cron isolates post-job delivery, generic booking delivery, business scan and business delivery so one transient stage failure does not block all notification work;
+- HTTP 503 is reserved for all four stages failing.
+
+### PR #47 release verification
+- exact head `437ab7e56b8e74f4c68d92fe096b646110018b95`;
+- final CI `34719427324` SUCCESS;
+- exact-head preview `dpl_7QMQLeXV8rEF1qBcyS7d2FyLeLKX` READY / clean build / no alias error;
+- merge `43f2db200463083cd9736485700c27a3d80974b8`;
+- production `dpl_7UXKtKqyitKF5xiGADPcwN9MwgZk` READY with canonical alias and no alias error;
+- production build clean;
+- unauthenticated cron endpoint still rejects with 401;
+- runtime-error check from the new production deployment time found no `/api/booking-notifications` errors at smoke-check time;
+- `business_notifications` still contained only the four previously sent rows; no synthetic queue rows were created;
+- service catalog remained Window live, five planned;
+- no database migration required.
+
+The resilience fix is live, but do **not** mark the historical 504 permanently resolved until at least one real authenticated scheduled cron run on the new deployment is observed healthy.
 
 ## Database/security
 Server-only Stage 1 tables remain:
@@ -58,59 +96,13 @@ Server-only Stage 1 tables remain:
 - `quote_funnel_links`;
 - `booking_job_costs`.
 
-They remain RLS-protected with no direct anon/authenticated table access.
-
-PR #45 required no schema migration and reused:
-- `booking_notifications`;
-- `booking_feedback`;
-- `booking_job_costs`;
-- `site_settings`.
-
-## PR #45 release verification
-- exact head `6c87352fcbd1ee04215096ef4cdc41b70b53fb64`;
-- CI `34718136246` SUCCESS;
-- exact-head preview `dpl_HZyaGdp8zWN48TuL9n2ZntPeDRt7` READY / clean build;
-- merge `f1e813866c0c854ca3b14b73c4c867ea00475e64`;
-- production `dpl_6QT2rxS8epuMFvCq2t1EwMTjfWg8` READY with canonical alias and no alias error;
-- unauthenticated review-settings endpoint 401;
-- cron endpoint without secret 401;
-- invalid feedback token 400;
-- live Admin/Staff entrypoints load the new modules;
-- service catalog: Window live, five planned;
-- no review URL invented and no synthetic job-cost records created.
-
-## Notification 504 — active issue / fix candidate
-Production Vercel runtime evidence now shows 21 `/api/booking-notifications` `Gateway Timeout` errors from 9–12 September 2026, including on the latest PR #45 production deployment. The stack points to Supabase REST calls inside business reminder scanning/queueing and due business delivery.
-
-This is not caused by current business volume. Investigation-time production counts were:
-- 1 pending final quote;
-- 0 overdue invoices;
-- 0 upcoming unassigned bookings in 24h;
-- 1 stale scheduled booking;
-- 4 sent `business_notifications` rows and no pending backlog.
-
-Existing database indexes already cover pending due rows, entity lookup and unique business event identity. No new index or schema change is proposed.
-
-Candidate branch: `fix/booking-notification-504-20260912`.
-
-Candidate changes:
-- new `lib/business-followup-batched.js` batches reminder candidate inserts instead of calling the old per-candidate queue lookup path;
-- invoice quote context is bulk-loaded once;
-- duplicate event candidates are de-duplicated in memory and inserted with conflict-ignore semantics against the existing unique constraint;
-- idempotent batch insert retries once on transient 502/503/504;
-- source/queue failures are reported as degraded while healthy scan sources continue;
-- `/api/booking-notifications` isolates post-job, booking delivery, business scan and business delivery stages so one transient stage failure does not block the others;
-- HTTP 503 is reserved for all four stages failing.
-
-Local regression checks for the candidate: 5/5 passed; changed/new JS syntax checks passed.
-
-Do not mark the 504 resolved until candidate CI/preview pass, it is merged/deployed, and real authenticated hourly cron executions remain healthy.
+They remain RLS-protected with no direct anon/authenticated table access. PR #47 introduced no migration or new table/index.
 
 ## Immediate next work
-1. Complete and release the `/api/booking-notifications` resilience candidate; observe real cron health.
+1. Observe the next real authenticated `/api/booking-notifications` cron execution; confirm no new 504 and inspect any degraded stage response/logging.
 2. Add the official Google Business Profile review-request URL in Admin → Bookings when available.
 3. Use the complete Staff lifecycle and direct-cost close-out on every real Window job.
-4. Collect genuine before/after photos and customer feedback/reviews.
+4. Collect genuine before/after photos and authentic customer feedback/reviews.
 5. Calibrate Window pricing/capacity/route rules from real conversion, work time, travel and direct contribution.
 6. Assess Stage 2 only after enough evidence exists and the user deliberately chooses to proceed.
 
