@@ -38,12 +38,16 @@ Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PR
 User requested an automatic system that spends up to 20 GetAddress lookups/day to grow Namdar's address database, preserves backups, can be switched on/off, monitored, manually run, and exported.
 
 Design:
-- GetAddress Typeahead is used only to discover postcode candidates; official docs say Typeahead does not consume lookup usage.
-- Each paid lookup is a postcode-only Autocomplete query with `all=true`; official docs say that counts as one lookup and returns all suggestions for that postcode.
+- GetAddress Typeahead is used only to discover postcode candidates; official docs say these search queries do not consume lookup usage.
+- Each paid lookup is a postcode-only Autocomplete query with `all=true`; official docs say that counts as one lookup and can return all suggestions for that postcode.
+- **Active Namdar Service Areas are prioritised first.** The worker reads live `service_areas` at runtime rather than hard-coding boroughs. Current production coverage is administrative coverage for Lewisham, Southwark, Lambeth, Wandsworth and Greenwich.
+- Service-area Typeahead uses provider district filters to build a deep covered-postcode queue before paid lookups. Nearby/London & South-East candidates are fallback, with wider UK only after local priority is unavailable.
+- `prioritize_service_areas` is an Admin-controlled switch, default ON. Automatic harvesting itself remains default OFF.
+- Queue metadata includes coverage label, priority score, outward code and learned expected yield. Previously harvested address counts teach the worker which outward codes tend to return more addresses per paid lookup.
 - Normalized results are stored in existing `master_addresses` as source `getaddress-daily-cache`.
 - Raw provider snapshots and run history are stored server-side.
 - Every successful run writes JSON + CSV copies to private Supabase Storage bucket `address-harvest-backups`.
-- Admin Service Areas gets ON/OFF, daily cap (max 20), usage/status, Run once now, recent runs, per-run backups, and full CSV/JSON export.
+- Admin Service Areas gets ON/OFF, service-area priority ON/OFF, daily cap (max 20), usage/status, covered-area queue/counters, Run once now, recent runs, per-run backups, and full CSV/JSON export.
 - Vercel daily cron target: `/api/address-harvest-cron` at `03:30 UTC`, protected by existing `CRON_SECRET`.
 - Required secret: `GETADDRESS_API_KEY`. Optional `GETADDRESS_ADMIN_KEY` improves authoritative usage/remaining display. Never paste either into chat or commit them.
 - Automation defaults **OFF** so migrations/deployment cannot spend credits by themselves.
@@ -51,14 +55,15 @@ Design:
 Production DB migrations already applied safely:
 - `20260912121339 address_harvest_automation`
 - `20260912121442 address_harvest_run_guard`
+- `20260912123809 address_harvest_service_area_priority`
 
-They created server-only RLS tables and a private backup bucket; no GetAddress request is made by the migrations.
+They created/extended server-only RLS operational state and a private backup bucket; no GetAddress lookup is made by the migrations.
 
-Feature branch: `feature/getaddress-daily-harvest-20260912`.
+Feature branch: `feature/getaddress-daily-harvest-20260912`, PR #24.
 
 ## Immediate next action
 
-Finish code + docs on the GetAddress branch → PR → CI/Vercel preview → verify disabled/no-key behavior → merge/deploy. Then have the owner add `GETADDRESS_API_KEY` directly in Vercel Environment Variables, optionally `GETADDRESS_ADMIN_KEY`, test one manual run, inspect addresses/backups, and only then turn automatic daily harvesting ON.
+Finish priority code + docs on PR #24 → CI/Vercel preview → verify disabled/no-key behavior → merge/deploy. Then have the owner add `GETADDRESS_API_KEY` directly in Vercel Environment Variables, optionally `GETADDRESS_ADMIN_KEY`, test one manual run, inspect covered-area queue, addresses and backups, and only then turn automatic daily harvesting ON.
 
 ## Other open items
 
@@ -75,3 +80,4 @@ Finish code + docs on the GetAddress branch → PR → CI/Vercel preview → ver
 - Do not move production back to Netlify.
 - Do not call GetAddress from browser/client code; API key stays server-side.
 - Do not let manual + cron runs exceed the configured/local daily cap.
+- Do not bypass live `service_areas` when service-area priority is enabled.
