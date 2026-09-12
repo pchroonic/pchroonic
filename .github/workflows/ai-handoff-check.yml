@@ -30,8 +30,13 @@ jobs:
           node --check admin-original.js
           node --check admin-inbox-safety.js
           node --check admin-mfa-guard.js
+          node --check admin-address-harvest.js
+          node --check api/address-harvest-cron.js
+          node --check api/admin-address-harvest.js
+          node --check api/admin-address-harvest-export.js
           node --check api/support-inbox.js
           node --check api/resend-inbound.js
+          node --check lib/address-harvest.js
           node --check lib/server.js
           node --check lib/server-original.js
           node --check staff.js
