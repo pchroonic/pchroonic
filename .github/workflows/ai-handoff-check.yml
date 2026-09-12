@@ -44,8 +44,11 @@ jobs:
           node --check lib/address-harvest-compliance.js
           node --check lib/address-policy.js
           node --check lib/address-data-api.js
+          node --check lib/os-open-data.js
+          node --check scripts/os-open-data-import.mjs
           node --test scripts/address-harvest-priority.test.mjs
           node --test scripts/address-commercial-foundation.test.mjs
+          node --test scripts/os-open-data-foundation.test.mjs
           node --check lib/server.js
           node --check lib/server-original.js
           node --check staff.js
