@@ -55,7 +55,7 @@ test('notification cron keeps post-job first while isolating bounded delivery an
   const api=read('api/booking-notifications.js');
   const post=api.indexOf('processPostJobFollowUps(10)');
   const generic=api.indexOf('processDueBookingNotifications(10)');
-  const scan=api.indexOf('scanBusinessFollowUpsBatched');
+  const scan=api.indexOf('scanBusinessFollowUpsBatched({db,env,isManagedInboxAddress})');
   const business=api.indexOf('processDueBusinessNotifications(10)');
   assert.ok(post>=0&&generic>post&&scan>generic&&business>scan);
   assert.doesNotMatch(api,/processBusinessFollowUps\(10\)/);
