@@ -45,6 +45,38 @@
     const badge=document.createElement('span');badge.dataset.serviceStatusBadge='1';badge.className='mini-label';badge.textContent=statusText[status];
     card.prepend(badge);
   }
+  function windowQuoteEnhancements(){
+    const form=$('#quoteForm'),dynamic=$('#dynamicFields'),frequency=$('#frequency'),extra=$('#extra'),notes=$('#quoteNotes');
+    if(!form||!dynamic||!frequency||!extra||!notes)return;
+    if(!dynamic.dataset.windowStage1){
+      dynamic.innerHTML=`<div class="field-row"><label>Number of exterior windows<input id="units" type="number" min="1" max="5000" value="12"></label><label>Window style<select id="detail"><option value="1">Mostly standard windows</option><option value="1.15">Several large / bay windows</option><option value="1.28">Mixed shapes / difficult windows</option></select></label></div><div class="field-row"><label>Current condition<select id="windowCleanCondition"><option value="maintenance">Regularly cleaned / maintenance clean</option><option value="first_clean" selected>First clean with Namdar</option><option value="heavy">Not cleaned for a long time / heavy build-up</option></select></label><label>Access at the property<select id="windowAccessDetail"><option value="clear">Clear access around the windows</option><option value="gate">Side gate / locked access</option><option value="extension">Conservatory / extension below windows</option><option value="mixed">Several access complications</option></select></label></div>`;
+      dynamic.dataset.windowStage1='1';
+    }
+    frequency.innerHTML='<option value="once">One-off / first clean</option><option value="4_weekly">Regular every 4 weeks</option><option value="8_weekly">Regular every 8 weeks</option><option value="12_weekly">Regular every 12 weeks</option>';
+    extra.innerHTML='<option value="1">No additional glass</option><option value="1.12">Doors / a few extra glass panels</option><option value="1.28">Conservatory sides / roof lights / several extras</option><option value="1.5">Large conservatory or unusual extra glass</option>';
+    const frequencyLabel=frequency.closest('label');if(frequencyLabel)frequencyLabel.childNodes[0].textContent='How often?';
+    const extraLabel=extra.closest('label');if(extraLabel)extraLabel.childNodes[0].textContent='Extra glass to include';
+    notes.placeholder='Parking or gate access, fragile areas, windows above conservatories/extensions, preferred days, anything else we should know...';
+    let help=$('#windowQuoteHelp');
+    if(!help){help=document.createElement('small');help.id='windowQuoteHelp';help.className='lookup-status';help.textContent='Frames and exterior sills are included in the request. First cleans, heavy build-up and unusual access are reviewed before the final price is confirmed.';notes.parentElement.insertBefore(help,notes);}
+    const serviceStep=$('#quote-step-1');if(serviceStep)serviceStep.innerHTML='<span>01</span> Window cleaning';
+    const serviceChoices=$('#serviceChoices');if(serviceChoices)serviceChoices.setAttribute('aria-label','Window Cleaning selected');
+  }
+  function appendWindowOperationsToNotes(){
+    if(document.querySelector('input[name="service"]:checked')?.value!=='windows')return;
+    const notes=$('#quoteNotes');if(!notes)return;
+    const base=(notes.dataset.customerText??notes.value).replace(/\n?\[Window details\][\s\S]*$/,'').trim();
+    notes.dataset.customerText=base;
+    const condition=$('#windowCleanCondition')?.selectedOptions?.[0]?.textContent||'';
+    const access=$('#windowAccessDetail')?.selectedOptions?.[0]?.textContent||'';
+    const extra=$('#extra')?.selectedOptions?.[0]?.textContent||'';
+    const frequency=$('#frequency')?.selectedOptions?.[0]?.textContent||'';
+    const summary=`[Window details]\nCondition: ${condition}\nProperty access: ${access}\nFrequency: ${frequency}\nExtra glass: ${extra}`;
+    notes.value=base?`${base}\n\n${summary}`:summary;
+    setTimeout(()=>{if(notes.dataset.customerText!==undefined)notes.value=notes.dataset.customerText;},0);
+  }
+  $('#quoteForm')?.addEventListener('submit',appendWindowOperationsToNotes,true);
+
   function applyServiceAvailability(services){
     const map=statusMap(services),live=[];
     for(const key of serviceKeys){
@@ -72,12 +104,16 @@
     const head=document.querySelector('#services .section-head h2'),copy=document.querySelector('#services .section-head > p');
     if(live.length===1&&live[0]==='windows'){
       if(head)head.textContent='Window cleaning is available now.';
-      if(copy)copy.textContent='Namdar is starting with one service and building carefully. Future services are already prepared and will appear here when each stage is ready.';
+      if(copy)copy.textContent='Exterior glass, frames and sills with one-off or regular cleaning. Future Namdar services will appear here only when each stage is ready.';
+      const heroEyebrow=document.querySelector('.hero .eyebrow');if(heroEyebrow)heroEyebrow.textContent='Window cleaning without the back-and-forth.';
+      const heroTitle=document.querySelector('.hero h1');if(heroTitle)heroTitle.innerHTML='Clear windows.<br><em>A clearer booking process.</em>';
+      const heroCopy=document.querySelector('.hero-copy > p');if(heroCopy)heroCopy.textContent='Check your postcode, get a guide estimate for exterior window cleaning, then receive a reviewed final quote before choosing an appointment.';
       const footer=document.querySelector('footer p');if(footer)footer.textContent='Window cleaning · More Namdar services will launch in stages';
       const mobileStrong=document.querySelector('#mobileConversionBar strong'),mobileText=document.querySelector('#mobileConversionBar span');
-      if(mobileStrong)mobileStrong.textContent='Need window cleaning?';if(mobileText)mobileText.textContent='Start with a guide estimate.';
+      if(mobileStrong)mobileStrong.textContent='Need window cleaning?';if(mobileText)mobileText.textContent='Check your postcode and get a guide estimate.';
       document.title='Namdar | Window Cleaning in London — Quote Online';
-      const meta=document.querySelector('meta[name="description"]');if(meta)meta.content='Get a guide estimate for professional window cleaning in Namdar service areas. Final quotes are reviewed before customers book online.';
+      const meta=document.querySelector('meta[name="description"]');if(meta)meta.content='Get a guide estimate for exterior window cleaning in Namdar service areas. Frames and exterior sills included in the request; final quotes are reviewed before booking.';
+      windowQuoteEnhancements();
     }
     if(resultBadge){const active=document.querySelector('input[name="service"]:checked');if(active)resultBadge.textContent=`${serviceLabels[active.value]||'Namdar'} · GUIDE ESTIMATE`;}
     document.documentElement.dataset.liveServices=live.join(',');
