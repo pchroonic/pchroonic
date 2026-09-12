@@ -2,109 +2,76 @@
 
 Last verified: 2026-09-12 UTC
 
-Read this first. It is the compact current-state/next-action record; use `docs/AI_HANDOFF.md` for technical detail.
+Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PROJECT_STATUS.md` for the roadmap.
 
 ## Current phase
 
 **Phase 7 — Launch Security & Readiness**
 
-## Current live baseline
+## Production baseline
 
 - Repository: `pchroonic/pchroonic`, default branch `main`.
-- Current `main` before the branded-email branch: `f9192284d2f2844d3b2940408fb3cda363758b9c`.
-- Current live product code baseline: `72d52d06a09852de8ee5c329adf57f5934e5dcc1`.
+- Main before the GetAddress harvest feature: `bd2b9e56d5f50a7eac2d19c3e98cb8976374449e`.
 - Production: `https://namdar.co.uk` on Vercel project `namdar-website-starter-1`.
 - Supabase: `namdar-production` (`qjigldxjcpnrlyxgmlqq`), Free plan.
-- Resend domain `namdar.co.uk`: verified, sending and receiving enabled.
-- MFA Stage 2 is live and owner-verified; privileged Admin/Staff browser, API and RLS access require AAL2.
-- Customer support tickets remain customer-only; public inbound email remains Admin Email inbox.
+- Resend: `namdar.co.uk` verified for sending/receiving.
+- MFA Stage 2 is live; privileged Admin/Staff browser, API and RLS access require AAL2.
+- Customer support tickets remain customer-only; public inbound email stays in Admin Email inbox.
 
-## Auth URLs / providers — COMPLETE
+## Auth/security state
 
-- Site URL: `https://namdar.co.uk`
-- Redirect allowlist: `https://namdar.co.uk/**`
-- Email and Google are intentionally enabled.
-- Confirm email + signup enabled.
-- Phone, anonymous sign-in, manual linking and other shown providers disabled.
+- Supabase Site URL: `https://namdar.co.uk`; redirect allowlist: `https://namdar.co.uk/**`.
+- Email + Google sign-in intentionally enabled. Do not disable Google: at least one customer identity depends on it.
+- Supabase CAPTCHA is ON using Cloudflare Turnstile. Customer login and password-reset request passed production smoke tests.
+- Leaked Password Protection remains plan-blocked on Supabase Free.
 
-Do not disable Google: at least one current customer identity relies on Google without a separate password identity.
+## Auth email branding
 
-## Supabase CAPTCHA / Turnstile — ENABLED, TESTING IN PROGRESS
+- Six branded Auth templates are source-controlled under `supabase/email-templates/` from merged commit `bd2b9e56d5f50a7eac2d19c3e98cb8976374449e`.
+- **Reset password is LIVE and verified in Gmail** with subject `Reset your Namdar password` and branded Namdar HTML.
+- Supabase SMTP sender remains `accounts@namdar.co.uk`; owner changed display name from `namdar` to `Namdar`. A post-change delivery has not yet independently verified the casing.
+- Magic Link and the other prepared Auth templates are not yet confirmed live.
+- Gmail sender avatar is separate BIMI/DMARC work. No `_dmarc` DNS record has been added yet; DMARC work is paused while the address-harvest feature is implemented.
 
-Hosted Supabase CAPTCHA is owner-confirmed ON using the existing Cloudflare Turnstile widget/secret entered directly in Supabase. No secret was shared or stored.
+## GetAddress daily database growth — IN PROGRESS
 
-Readiness code is live from PR #19 and passes Turnstile tokens for password login, Magic Link, Google login, signup, password reset and confirmation resend.
+User requested an automatic system that spends up to 20 GetAddress lookups/day to grow Namdar's address database, preserves backups, can be switched on/off, monitored, manually run, and exported.
 
-### Production smoke tests
+Design:
+- GetAddress Typeahead is used only to discover postcode candidates; official docs say Typeahead does not consume lookup usage.
+- Each paid lookup is a postcode-only Autocomplete query with `all=true`; official docs say that counts as one lookup and returns all suggestions for that postcode.
+- Normalized results are stored in existing `master_addresses` as source `getaddress-daily-cache`.
+- Raw provider snapshots and run history are stored server-side.
+- Every successful run writes JSON + CSV copies to private Supabase Storage bucket `address-harvest-backups`.
+- Admin Service Areas gets ON/OFF, daily cap (max 20), usage/status, Run once now, recent runs, per-run backups, and full CSV/JSON export.
+- Vercel daily cron target: `/api/address-harvest-cron` at `03:30 UTC`, protected by existing `CRON_SECRET`.
+- Required secret: `GETADDRESS_API_KEY`. Optional `GETADDRESS_ADMIN_KEY` improves authoritative usage/remaining display. Never paste either into chat or commit them.
+- Automation defaults **OFF** so migrations/deployment cannot spend credits by themselves.
 
-Passed on 2026-09-12:
-- fresh/private-session real customer login after CAPTCHA enablement → portal opened normally;
-- password-reset request after CAPTCHA enablement → Resend delivered the reset email to the owner successfully.
+Production DB migrations already applied safely:
+- `20260912121339 address_harvest_automation`
+- `20260912121442 address_harvest_run_guard`
 
-The reset email delivery also exposed an email-branding issue: the hosted Supabase Auth template is still the plain default HTML and the SMTP sender display appears as lowercase `namdar` from `accounts@namdar.co.uk`.
+They created server-only RLS tables and a private backup bucket; no GetAddress request is made by the migrations.
 
-Magic Link delivery is still a separate pending test; do not mark it passed based on the password-reset screenshot.
-
-## Auth email branding — SOURCE PREPARED, NOT LIVE YET
-
-Feature branch: `feature/branded-auth-emails-20260912`.
-
-Source-controlled hosted-Supabase templates prepared under `supabase/email-templates/`:
-- `reset-password.html`
-- `magic-link.html`
-- `confirm-signup.html`
-- `change-email.html`
-- `reauthentication.html`
-- `invite.html`
-- `README.md` with subjects/apply workflow.
-
-Design uses Namdar dark green/lime/paper branding and an HTML-built `N / NAMDAR` lockup, so the brand remains visible even when remote images are blocked. It adds clearer security wording, consistent CTA buttons and `support@namdar.co.uk` / `namdar.co.uk` footer details.
-
-Recommended sender presentation when applying hosted SMTP settings:
-- display name: `Namdar`
-- sender: `accounts@namdar.co.uk`
-
-These source files do **not** automatically change hosted Supabase templates. Do not call them live until they are copied into Supabase → Authentication → Emails / Email Templates and a controlled delivered email is verified.
-
-## Gmail sender avatar / profile image — SEPARATE EMAIL-IDENTITY TASK
-
-The blank/generic Gmail sender avatar is not controlled by the HTML email body. A durable cross-client Namdar sender logo is a separate DMARC + BIMI/email-identity task; Gmail logo display may require an eligible brand certificate path such as CMC/VMC.
-
-Do not tighten DMARC to `quarantine` or `reject` until all legitimate Namdar senders are audited for SPF/DKIM alignment. Resend currently reports the Namdar sending domain verified with DKIM/SPF.
+Feature branch: `feature/getaddress-daily-harvest-20260912`.
 
 ## Immediate next action
 
-1. Finish branded-email branch review/CI/merge; this is source backup only and does not change hosted email yet.
-2. In Supabase hosted Email Templates, apply the branded **Reset password** subject + HTML first and change SMTP sender display name from `namdar` to `Namdar` if the dashboard still shows lowercase.
-3. Send one controlled password-reset test and verify the delivered rendering/sender in Gmail and Resend.
-4. If good, apply the same branded set to Magic Link, Confirm signup, Change email, Reauthentication and Invite.
-5. Then audit DMARC/current sender alignment before planning BIMI/Gmail brand-avatar setup.
-
-Never ask the owner for a Supabase access token, SMTP password or any one-time Auth link just to apply these templates; use the Dashboard manually if connected tooling cannot edit hosted Auth templates.
+Finish code + docs on the GetAddress branch → PR → CI/Vercel preview → verify disabled/no-key behavior → merge/deploy. Then have the owner add `GETADDRESS_API_KEY` directly in Vercel Environment Variables, optionally `GETADDRESS_ADMIN_KEY`, test one manual run, inspect addresses/backups, and only then turn automatic daily harvesting ON.
 
 ## Other open items
 
-- Magic Link CAPTCHA delivery test remains pending.
-- Windows/Edge homepage overflow: confirmed fixed. Same-iPhone final confirmation remains pending.
-- Leaked Password Protection: optional/plan-blocked because Supabase is Free and the feature requires Pro or above.
-- After email/CAPTCHA work: Stripe, SMS, Resend/legal configuration, cron jobs, double-booking protection, inbound alias behavior and remaining controlled customer-support journey.
+- Apply/test remaining branded Auth emails; Magic Link CAPTCHA test remains pending.
+- Continue DMARC/BIMI only after address-harvest work; no DMARC record added yet.
+- Same-iPhone homepage overflow confirmation pending; Windows/Edge desktop is fixed.
+- Stripe, SMS, remaining Resend/legal readiness, cron verification and controlled customer-support journey remain open.
 
-## Do not repeat / do not break
+## Do not break
 
-- Do not disable Google sign-in.
-- Do not ask for or store Turnstile/SMTP/Supabase secrets in chat/GitHub.
-- Do not store or quote live password-reset links/tokens from delivered emails.
-- Do not tell the owner to enable CAPTCHA again; it is owner-confirmed enabled.
-- Do not mark Magic Link passed from a reset-password delivery.
-- Do not redo MFA Stage 2 or migration `20260911230055` unless a later change requires regression work.
-- Do not upgrade Supabase without explicit owner approval.
+- Never expose GetAddress, Supabase, SMTP, Turnstile, GitHub or cron secrets.
+- Do not use or reproduce the previously exposed GitHub PAT.
 - Do not make support tickets public.
 - Do not move production back to Netlify.
-
-## Resume protocol
-
-For simple continuation: read this file, verify current `main` HEAD/live state, then inspect only relevant code/docs.
-
-For substantial production/security work: read `AGENTS.md`, this file, `docs/AI_HANDOFF.md`, `docs/PROJECT_STATUS.md` and relevant code; use branch → PR → CI → preview/testing → merge → production verification.
-
-Every substantial change must update all three continuity files: `docs/AI_START.md`, `docs/AI_HANDOFF.md`, and `docs/PROJECT_STATUS.md`.
+- Do not call GetAddress from browser/client code; API key stays server-side.
+- Do not let manual + cron runs exceed the configured/local daily cap.
