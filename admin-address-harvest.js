@@ -9,8 +9,9 @@
     anchor.insertAdjacentHTML('beforebegin',`<div class="admin-panel" id="${PANEL_ID}">
       <div class="panel-head"><div><h2>Daily address database growth</h2><p>Uses GetAddress postcode lookups to grow Namdar's private master address database automatically. Each paid postcode lookup can save many addresses, while free postcode discovery keeps the queue full.</p></div><span id="harvestState" class="crm-summary">Loading…</span></div>
       <div class="stat-grid"><div class="stat-card"><small>Cached addresses</small><strong id="harvestTotal">—</strong></div><div class="stat-card"><small>Today used</small><strong id="harvestUsed">—</strong></div><div class="stat-card"><small>Today remaining</small><strong id="harvestRemaining">—</strong></div><div class="stat-card"><small>Covered-area queue</small><strong id="harvestServiceQueue">—</strong></div><div class="stat-card"><small>Last success</small><strong id="harvestLast">—</strong></div></div>
-      <div class="admin-form-grid"><label>Automatic daily harvest<select id="harvestEnabled"><option value="false">Off</option><option value="true">On</option></select></label><label>Prioritise active service areas<select id="harvestPrioritize"><option value="true">On — recommended</option><option value="false">Off</option></select></label><label>Maximum postcode lookups per day<input id="harvestCap" type="number" min="1" max="20" step="1" value="20"></label></div>
+      <div class="admin-form-grid"><label>Automatic daily harvest<select id="harvestEnabled"><option value="false">Off</option><option value="true">On</option></select></label><label>Prioritise active service areas<select id="harvestPrioritize"><option value="true">On — recommended</option><option value="false">Off</option></select></label><label>Maximum postcode lookups per day<input id="harvestCap" type="number" min="1" max="20" step="1" value="20"></label><label>Manual run postcode limit<input id="harvestRunLimit" type="number" min="1" max="20" step="1" value="1"></label></div>
       <div class="admin-note"><strong>Priority order:</strong> active Namdar service areas first, then nearby/London & South-East expansion postcodes, then wider UK fallback only when paid lookup allowance remains. The priority follows the live Service Areas settings automatically.</div>
+      <div class="admin-note"><strong>Safe first run:</strong> leave the manual limit at 1 for the first live provider check. After the postcode, saved addresses and backups are verified, increase it to use more of today's remaining allowance. Manual runs can never exceed the daily cap or remaining allowance.</div>
       <div class="admin-actions"><button id="harvestSave" class="primary-btn" type="button">Save settings</button><button id="harvestRun" class="ghost-btn" type="button">Run once now</button><button id="harvestRefresh" class="ghost-btn" type="button">Refresh</button><button id="harvestDownloadCsv" class="ghost-btn" type="button">Download all CSV</button><button id="harvestDownloadJson" class="ghost-btn" type="button">Download all JSON</button></div>
       <p id="harvestConfig" class="admin-note"></p><p id="harvestPriorityInfo" class="admin-note"></p><p id="harvestMessage" class="admin-note" aria-live="polite"></p><div id="harvestRuns"></div>
     </div>`);
@@ -37,6 +38,8 @@
     document.getElementById('harvestEnabled').value=s.enabled?'true':'false';
     document.getElementById('harvestPrioritize').value=s.prioritize_service_areas===false?'false':'true';
     document.getElementById('harvestCap').value=s.daily_lookup_cap||20;
+    const manualLimit=document.getElementById('harvestRunLimit');
+    if(manualLimit)manualLimit.max=String(Math.max(1,Math.min(20,Number(s.daily_lookup_cap||20))));
     document.getElementById('harvestState').textContent=s.enabled?'Automatic: ON':'Automatic: OFF';
     document.getElementById('harvestTotal').textContent=Number(dataset.row_count||0).toLocaleString('en-GB');
     const providerUsed=provider?.usageToday,localUsed=Number(d.localUsedToday||0),used=Number.isFinite(providerUsed)?providerUsed:localUsed;
@@ -61,9 +64,12 @@
     try{const d=await api('/api/admin-address-harvest',{method:'POST',body:JSON.stringify({action:'settings',enabled:document.getElementById('harvestEnabled').value==='true',prioritizeServiceAreas:document.getElementById('harvestPrioritize').value==='true',dailyLookupCap:Number(document.getElementById('harvestCap').value)})});render(d);message('Settings saved ✓')}catch(e){message(e.message)}finally{btn.disabled=false}
   }
   async function runNow(){
-    const btn=document.getElementById('harvestRun');if(!confirm('Run the address harvest now? It will use only today\'s remaining GetAddress lookup allowance and will prioritise the active Namdar service areas when that option is on.'))return;
-    btn.disabled=true;message('Discovering covered postcodes, then harvesting new addresses…');
-    try{const d=await api('/api/admin-address-harvest',{method:'POST',body:JSON.stringify({action:'run-now'})});render(d);const r=d.result||{};message(r.skipped?`Skipped: ${r.reason||'no allowance'}`:`Run ${r.status||'finished'} · ${r.postcodesHarvested||0} postcodes · ${r.addressesCollected||0} addresses${r.serviceAreaPostcodesHarvested!=null?` · ${r.serviceAreaPostcodesHarvested} covered-area postcodes`:''}`)}catch(e){message(e.message)}finally{btn.disabled=false}
+    const btn=document.getElementById('harvestRun');
+    const input=document.getElementById('harvestRunLimit'),limit=Math.round(Number(input?.value||1)),max=Math.max(1,Number(input?.max||20));
+    if(!Number.isFinite(limit)||limit<1||limit>max){message(`Manual run limit must be between 1 and ${max}.`);input?.focus();return}
+    if(!confirm(`Run the address harvest now for up to ${limit} postcode${limit===1?'':'s'}? It will also respect today's remaining GetAddress allowance and prioritise active Namdar service areas when that option is on.`))return;
+    btn.disabled=true;message(`Discovering covered postcodes, then harvesting up to ${limit} postcode${limit===1?'':'s'}…`);
+    try{const d=await api('/api/admin-address-harvest',{method:'POST',body:JSON.stringify({action:'run-now',limit})});render(d);const r=d.result||{};message(r.skipped?`Skipped: ${r.reason||'no allowance'}`:`Run ${r.status||'finished'} · ${r.postcodesHarvested||0} postcodes · ${r.addressesCollected||0} addresses${r.serviceAreaPostcodesHarvested!=null?` · ${r.serviceAreaPostcodesHarvested} covered-area postcodes`:''}`)}catch(e){message(e.message)}finally{btn.disabled=false}
   }
   document.addEventListener('click',e=>{if(e.target?.matches?.('[data-tab="areas"]'))setTimeout(load,80)});
   const boot=()=>{inject();setTimeout(()=>{if(document.querySelector('[data-tab="areas"]')?.classList.contains('active'))load()},500)};
