@@ -5,12 +5,11 @@ Last updated: 2026-09-12 UTC
 ## Baseline
 
 - Source: `pchroonic/pchroonic`, default branch `main`.
-- Current verified product commit: `6c898735b58c03922d6ce24b97598af466242e85` from PR #32.
-- PR #32 CI `34708390739` passed.
-- PR #32 preview `dpl_GTEsv7CqMkqKgGqRMMXTVw68XPkg` READY.
+- Current verified production product commit: `6c898735b58c03922d6ce24b97598af466242e85` from PR #32.
 - Production deployment `dpl_81uZqzB2LA1efMcSXMXv4hs1kSHN` READY on `https://namdar.co.uk`.
-- Supabase production migration: `20260912173038 address_data_rights_and_distribution_guard`.
-- Supabase project: `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
+- Supabase project: `namdar-production` (`qjigldxjcpnrlyxgmlqq`), Free.
+- Rights migration live: `20260912173038 address_data_rights_and_distribution_guard`.
+- Production DB size checked at ~16 MB; current Free database limit is 500 MB.
 
 ## Main product areas
 
@@ -18,129 +17,103 @@ Last updated: 2026-09-12 UTC
 | --- | --- |
 | Public website | Live; Windows/Edge overflow fixed, same-iPhone final confirmation pending |
 | Customer portal | Email + Google auth, customer MFA option, Turnstile/Supabase CAPTCHA live |
-| Auth email branding | Reset Password live/verified; remaining templates pending |
 | Admin/Staff security | Mandatory AAL2/MFA live; fresh password + CAPTCHA + MFA completion still pending |
 | Email inbox | Spam controls + Inbox Security v2 live |
-| Address system | Rights-aware source registry, exact counts and commercial firewall LIVE; GetAddress automated harvesting BLOCKED |
-| Future Address API | Foundation LIVE but disabled; 0 clients, 0 keys, 0 eligible rows |
+| Address system | Rights-aware source registry/count firewall LIVE; GetAddress automated harvesting BLOCKED |
+| OS property/postcode data | UPRN + Code-Point storage/import candidate in progress on feature branch |
+| Future data API | Foundation LIVE but disabled; candidate split into address/postcode/property products |
 | Support tickets | Customer-only; public inbound email stays Admin Email inbox |
 
-## GetAddress audit outcome
+## GetAddress status
 
-The old harvesting roadmap is cancelled under current provider terms unless explicit written automation/resale permission is obtained.
+Old harvesting roadmap remains cancelled under current provider terms unless explicit written permission is obtained.
 
-Live protections:
-- scheduled GetAddress harvest removed from Vercel;
-- Admin cannot enable/run provider automation when source rights block it;
-- compliance guard runs before priority Typeahead/provider worker;
-- full provider cache/run-backup export blocked;
-- current GetAddress source is human-input-required, non-redistributable and non-subscription under machine-readable policy.
+Production remains Automatic OFF, zero harvest runs, zero queue rows, zero GetAddress master rows. Scheduled harvesting is absent from Vercel and restricted automation/export paths fail closed.
 
-Production state remains:
-- Automatic OFF;
-- zero harvest runs;
-- zero queue rows;
-- zero GetAddress cached rows;
-- no harvest lookup consumed.
+## Current candidate: OS Open UPRN + Code-Point Open
 
-## Bugs fixed in PR #32
+Branch: `feat/os-open-uprn-codepoint-foundation-20260912`.
 
-1. **Missing licence controls:** provider rights are now stored/checked in `address_dataset_registry`.
-2. **Unsafe full export:** source policy now gates provider cache/backups.
-3. **Too-late provider block:** compliance check now happens before Typeahead priority discovery.
-4. **Obsolete scheduled job:** `/api/address-harvest-cron` removed from Vercel cron config.
-5. **Registry row-count drift:** OSM registry said 0 while actual was 1; repaired to 1 and exact statement-level source count triggers now keep counts synced.
+Candidate migration: `20260912190000_os_open_property_foundation.sql` — **not applied yet**.
 
-All registered source counts currently report `count_in_sync=true`.
+### New property/postcode model
 
-## Live source-rights model
+- `postcode_points`: Code-Point postcode unit, PQI, grid coordinates, derived WGS84 and administrative codes.
+- `property_entities`: one row per UPRN with OS Open UPRN location/source/version.
+- `property_field_observations`: sparse future enrichment facts keyed to UPRN with source/version/confidence.
+- `open_data_import_runs`: source version, scope, metadata/checksum, row counters and completion state.
 
-- GetAddress: restricted provider; operational/human-triggered only; automation/redistribution/subscription/export false.
-- OpenStreetMap: ODbL/share-alike; operational true; excluded from proprietary subscription/export by default.
-- OS Open UPRN: inactive planned OGL source; eligible in principle after import/verification.
-- Code-Point Open: inactive planned OGL source; eligible in principle after import/verification.
+`master_addresses` remains the correct place for actual address observations. UPRN/location data is no longer forced into an address-shaped table.
 
-New/unreviewed sources fail closed.
+### Rights/count architecture
 
-## Commercial distribution boundary
+Registry candidate adds `record_store`, OS product ID, expected refresh cadence and version-check metadata.
 
-`address_distribution_eligible` is service-role-only and includes only active sources approved for both commercial redistribution and subscription API use.
+Source count tracking will work across:
+- address rows (`master_addresses`),
+- postcode rows (`postcode_points`),
+- property rows (`property_entities`).
 
-Current eligible rows: **0**.
+Rights-filtered service-role-only views:
+- `postcode_distribution_eligible`;
+- `property_distribution_eligible`;
+- `property_field_distribution_eligible`.
 
-This prevents restricted or share-alike observations from leaking into a proprietary paid product simply because the rows exist in `master_addresses`.
+Sources still need active + redistribution/API rights before rows can enter paid surfaces.
 
-## Future Address API foundation
+### Version/import safety
 
-Live server-only schema:
-- `address_api_clients`
-- `address_api_keys` — SHA-256 hash only
-- `address_api_usage_daily`
-- `consume_address_api_request(...)` quota/metering function
+Import finalizer supports complete-scope refreshes without treating samples as complete:
+- only a declared complete scope can deactivate old rows;
+- only an explicit activation can make a source commercially visible;
+- exact count/version/check timestamps update at finalization.
 
-Production verification:
-- 0 API clients;
-- 0 API keys;
-- 0 usage rows;
-- anon/auth cannot select API tables or distribution view;
-- anon/auth cannot execute quota function;
-- quota test at monthly limit 2 passed twice and blocked the third request.
+Streaming importer defaults to dry-run and current active service areas. It dynamically reads live service settings in write mode.
 
-`/api/address-data-v1` is deployed but disabled and returns HTTP 503. It must remain disabled until licence-safe datasets, customer/key tooling, billing/terms and security/load testing are ready.
+- Code-Point → filters by live administrative area codes.
+- Open UPRN → exact GeoJSON filtering; radius only for service areas without boundary geometry.
+- all national (`scope=GB`) writes require explicit `--allow-large-import`.
+- partial `--max-rows` samples cannot be complete or activated.
 
-## Commercial data roadmap
+### Capacity decision
 
-See `docs/ADDRESS_DATA_PRODUCT.md`.
+Do not load Britain-wide Open UPRN into the current Free Supabase database. OS Open UPRN is roughly 40 million locations and would vastly exceed the current project's safe capacity. Full Code-Point is also blocked by default for national writes.
 
-Next address milestone:
-1. Import OS Open UPRN with versioning/update metadata.
-2. Import Code-Point Open with versioning/update metadata.
-3. Build UPRN-keyed `property_entities`.
-4. Build source/field-level `property_field_observations` with confidence, freshness and rights.
-5. Add quality/coverage dashboard and contradiction detection.
-6. Offer licence-safe UPRN/postcode/serviceability/geospatial intelligence products first.
-7. Obtain an explicit redistribution licence before selling full postal-address text.
-8. Add API management/billing/rate limits/terms/SLA/enterprise delivery only after the data-rights layer is ready.
+Current plan:
+1. ship schema/importer safely;
+2. service-area Code-Point pilot;
+3. service-area UPRN pilot from a runner able to stream the large source file;
+4. move/upgrade the data layer before national scale.
 
-Do not use HMLR Price Paid address fields as a shortcut to full-address resale because third-party Royal Mail/OS rights apply. Treat OSM separately for ODbL share-alike compliance.
+### Future API products
 
-## GetAddress operational opportunities
+The API remains disabled but candidate contract separates:
+- `address-v1` — full address data only when separately licensed;
+- `postcode-v1` — rights-approved Code-Point intelligence;
+- `property-v1` — rights-approved UPRN/property location intelligence.
 
-GetAddress can still benefit Namdar where human input initiates the request:
-- Validate/correct customer-entered addresses;
-- postcode/address search while the customer types/selects;
-- Private Addresses to surface Namdar-specific verified addresses;
-- usage/cost monitoring and appropriate browser/domain-token patterns.
+Per-product client entitlements remain required; existing hashed API keys/quota metering remain.
 
-These are future operational enhancements, not data-harvesting/resale sources.
+## Candidate validation
 
-## Database/security verification
+New regression suite checks CSV parsing, official Code-Point mapping, BNG/WGS84 transform, UPRN parsing, polygon/hole filters, strict administrative boundaries, importer safety, rights-filtered views and API serializers/product split.
 
-- production migration live;
-- OSM registry count corrected to 1 and all counts synced;
-- exact insert/delete count triggers tested transactionally;
-- quota enforcement tested transactionally;
-- distribution view/API tables locked from anon/auth;
-- Supabase advisor has only expected server-only `RLS enabled, no policy` INFO for the new tables, no new exposed-data warning;
-- no new missing-FK-index warning from the address subscription schema.
+CI workflow is updated to syntax-check the new library/importer and run the new suite. GitHub CI/preview are still pending because the PR has not yet been opened.
 
-## Immediate next address work
+## Immediate next work
 
-Start the **OS Open UPRN + Code-Point Open import/versioning design**, not GetAddress harvesting.
-
-The future Address API stays disabled until enough licence-safe data and launch controls exist.
-
-## Auth/security
-
-- canonical Site URL/redirect allowlist hardened;
-- Email + Google intentionally enabled;
-- Cloudflare Turnstile/Supabase CAPTCHA live;
-- customer login/password-reset request smoke-tested;
-- privileged fresh password/CAPTCHA/MFA completion pending;
-- privileged browser/API/RLS access requires AAL2.
+1. Open candidate PR.
+2. Pass GitHub CI + exact-head Vercel preview.
+3. Apply migration only after those checks.
+4. Verify new RLS/grants/count triggers/import finalizer transactionally.
+5. Run Supabase advisors.
+6. Merge and verify production/API disabled state.
+7. Begin controlled official-data Code-Point service-area pilot.
+8. Prepare a suitably provisioned runner for the much larger Open UPRN service-area stream/filter pilot.
 
 ## Other open issues
 
+- privileged fresh password/CAPTCHA/MFA completion pending;
 - recurring `/api/booking-notifications` 504 investigation;
 - remaining Auth templates + Magic Link;
 - DMARC/BIMI;
@@ -149,4 +122,4 @@ The future Address API stays disabled until enough licence-safe data and launch 
 
 ## Handoff rule
 
-Every substantial provider/data-product change updates `docs/AI_START.md`, `docs/AI_HANDOFF.md`, and this file together. Never store credentials, raw API keys, customer secrets, TOTP codes or one-time Auth links. Data-source rights must be reviewed before automation or distribution.
+Every substantial provider/data-product change updates `docs/AI_START.md`, `docs/AI_HANDOFF.md`, and this file together. Never store credentials, raw API keys, customer secrets, TOTP codes or one-time Auth links. Dataset rights and capacity must be reviewed before enabling automation or distribution.
