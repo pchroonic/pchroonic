@@ -4,85 +4,82 @@ Last updated: 2026-09-12 UTC
 
 ## Baseline
 - Source: `pchroonic/pchroonic`, default `main`.
-- Current main before candidate: `6c4171258cd12553d3bd94cabc8d02fdcb5ec262`.
-- Production is READY on `https://namdar.co.uk`.
+- Current product main before this docs sync: `5249e2b4d2ed0c108a15facac01258d66bf4dece` from PR #42.
+- Product production deployment: `dpl_5f1vCtVuo2LTFFPzWrqdfXLp8CbV`, READY on `https://namdar.co.uk`, no alias error.
 - Supabase: `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
-- Window Cleaning is the only live/quotable service.
-- Future services remain planned.
+- Window Cleaning is the only live/quotable/bookable service.
+- Five future services remain planned.
 - Address-data imports remain parked.
 
-## Window Cleaning Stage 1 — LIVE foundation
+## Window Cleaning Stage 1 — LIVE
 PR #38: Window-specific quote/recurring journey and quote-gate hardening.
 PR #40: operational customer booking rules and postcode-area route density.
+PR #42: consent-aware conversion funnel and completed-job direct-contribution reporting.
 
 Live booking defaults: 21 days, 24h notice, Mon–Sat, 08–11 / 11–14 / 14–17, max 3 jobs/day, route density enabled.
 
-## Current candidate — conversion & profitability evidence
-Branch: `feat/window-conversion-profitability-20260912`.
-
-### Conversion funnel
-New reporting measures consented visitors through:
+## Conversion funnel — LIVE
+Admin → Reporting now measures consented visitors through:
 1. covered postcode check;
 2. guide quote request;
 3. final quote sent;
-4. accepted;
-5. booked;
-6. completed.
+4. accepted quote;
+5. booked appointment;
+6. completed job.
 
-Existing business timestamps remain the source for stages 2–6. New acquisition tracking is limited to the missing postcode-check linkage.
+Existing business timestamps remain authoritative for quote/acceptance/booking/completion. New tracking only supplies the missing covered-postcode → quote link.
 
-Tracking is consent-aware: only visitors who already chose Namdar's existing marketing/analytics consent receive a session-only anonymous ID. The funnel analytics database stores postcode area letters only, not the full postcode. Non-consenting customers are never blocked from quoting or booking.
+Tracking is consent-aware: only visitors with Namdar's existing `marketing` cookie choice receive a session-only anonymous ID. Analytics stores postcode area letters only, not full postcode. Non-consenting customers quote/book normally and are not included in acquisition-cohort reporting.
 
-Historical Window quotes/bookings remain visible in job economics but are not falsely retro-linked to old postcode checks.
+Historical Window quotes/bookings are not falsely retro-linked to old postcode checks.
 
-### Profitability calibration
-Completed-job reporting adds:
+## Direct-contribution / productivity reporting — LIVE
+Completed Window jobs report:
 - total and average job value;
-- collected payments net of refunds;
-- actual work time from start/completion timestamps;
+- payments collected net of refunds;
+- actual work hours from Start → Complete;
 - job value per actual work hour;
 - reviewed consumables/parking/travel/other direct costs;
 - travel minutes/miles;
-- direct contribution and direct margin.
+- direct contribution and direct margin for reviewed jobs.
 
-Direct contribution is explicitly **not net profit**. Labour, overhead, tax and other business costs are outside this Stage 1 metric.
+Direct contribution is explicitly **not net profit**; labour, overheads, tax and other business costs are outside this Stage 1 metric.
 
-Jobs with no cost review are excluded from contribution/margin totals rather than treated as zero cost. Jobs without valid start/completion timestamps are excluded from work-hour productivity calculations.
+Jobs without cost review are excluded from contribution/margin rather than treated as £0 cost. Jobs without valid actual timing are excluded from work-hour productivity calculations.
 
-### Database/security
-Migration already applied to production and committed as `20260912204000_window_stage1_conversion_profitability.sql`.
+`api/admin-job-economics.js` is AAL2/Bookings protected, Window-only and audit logged.
 
-New tables:
+## Database/security
+Committed migrations:
+- `20260912204000_window_stage1_conversion_profitability.sql`;
+- `20260912204500_window_stage1_costs_updated_by_index.sql`.
+
+Internal tables:
 - `conversion_events`;
 - `quote_funnel_links`;
 - `booking_job_costs`.
 
-All use RLS and revoke direct `anon`/`authenticated` access. APIs use the existing server role. Privileged reporting/cost editing remains behind AAL2/MFA permissions.
+Production verification:
+- RLS enabled on all three;
+- no direct anon/authenticated grants;
+- 0 rows in all three at release verification (no fabricated analytics/cost data).
 
-### Admin/API changes
-- `api/funnel-event.js` — privacy-safe postcode events with validation and 30-minute dedupe.
-- `api/quote.js` — links successful quotes to consented anonymous visitors without changing quote success/failure semantics.
-- `api/admin-window-performance.js` — analytics-permission Stage 1 reporting.
-- `api/admin-job-economics.js` — bookings-permission cost/travel capture with audit log.
-- `admin-window-performance.js` — injected into Admin → Reporting.
-- `admin.js` version `6.4.19-window-performance-1` loads the dashboard module.
+Migration history also contains idempotent `window_funnel_profitability_foundation` from closed/unmerged duplicate PR #43. It re-asserted the same empty-table security/index foundation and is not the product implementation. Do not revive PR #43.
 
-### Test coverage
-`scripts/window-performance.test.mjs` plus CI checks validate migration security, privacy rules, consent gating, quote linkage, full funnel stages, economics formulas, permissions/audit logging, wording and Window-only fallback state.
-
-## Release checklist for current candidate
-- [x] production migration applied
-- [x] migration committed to feature branch
-- [x] application/API/Admin implementation
-- [x] dedicated regression suite added to CI
-- [x] all three candidate handoff docs updated
-- [ ] PR opened
-- [ ] exact-head CI successful
-- [ ] exact-head Vercel preview READY / clean
-- [ ] preview/API security smoke checks
-- [ ] merge to main
-- [ ] production verification
-- [ ] final docs sync with exact live IDs
+## Release verification — PR #42
+- [x] production Stage 1 schema migrations applied
+- [x] dedicated regression suite in CI
+- [x] exact head `ba6e03376364ae571429b5fbded7bc681271aaac`
+- [x] final GitHub CI `34716653998` SUCCESS
+- [x] exact-head preview `dpl_6nBDUseeU7xSAefFzNQQLk6N9n6Y` READY / clean build
+- [x] merged PR #42 as `5249e2b4d2ed0c108a15facac01258d66bf4dece`
+- [x] production `dpl_5f1vCtVuo2LTFFPzWrqdfXLp8CbV` READY on `namdar.co.uk`, no alias error
+- [x] unauthenticated Admin performance endpoint returns 401
+- [x] funnel endpoint rejects GET with 405
+- [x] live conversion script has marketing-consent + session-only tracking
+- [x] analytics tables RLS/grants rechecked
+- [x] service catalog rechecked: Window live, five planned
+- [x] duplicate PR #43 closed unmerged
 
 ## Current live service stages
 1. Window Cleaning — LIVE
@@ -92,14 +89,14 @@ All use RLS and revoke direct `anon`/`authenticated` access. APIs use the existi
 5. Handyman Services — planned
 6. 3D Property Tours — planned
 
-Do not activate Stage 2 simply because technical readiness exists. Use Stage 1 measurements and real completed jobs first.
+Do not activate Stage 2 simply because technical readiness exists. Use Stage 1 evidence and completed jobs first.
 
-## Immediate work after release
+## Immediate next work
 1. collect real Window Cleaning funnel/job data;
-2. ensure completed jobs record Start/Complete and direct costs consistently;
-3. calibrate pricing only after enough real observations exist;
-4. publish genuine before/after work and reviews;
-5. then assess Stage 2.
+2. ensure completed jobs record Start/Complete and direct-cost review consistently;
+3. use value/work-hour, travel and direct contribution to calibrate pricing/capacity;
+4. add genuine before/after work and customer reviews;
+5. assess Stage 2 only after enough evidence exists.
 
 ## Other open work
 - fresh privileged password/CAPTCHA/MFA completion pending;
