@@ -168,7 +168,9 @@ Feature variables:
 - `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` — bot protection for Namdar forms
 - `OPENAI_API_KEY` and `OPENAI_MODEL` — advanced assistant responses; without these, editable FAQ fallback still works
 - `STRIPE_SECRET_KEY` — payments
-- `CRON_SECRET` — required; protects the hourly booking-reminder scheduler and daily account-purge cron endpoints
+- `CRON_SECRET` — required; protects the hourly booking-reminder scheduler, daily account-purge cron and daily address-harvest cron
+- `GETADDRESS_API_KEY` — optional until GetAddress database growth is activated; server-side only, required for real harvest runs
+- `GETADDRESS_ADMIN_KEY` — optional server-side GetAddress usage/daily-limit readback
 
 ## Supabase Auth dashboard settings still required
 
@@ -182,11 +184,11 @@ Some hosted Auth settings are not controlled by the database migration:
 
 ## Address system
 
-There is no paid address-lookup dependency. Namdar validates UK postcodes, caches verified postcode/location data privately in Supabase, auto-fills region/city/district/coordinates, checks service coverage, and shows an approximate postcode map. Customers can choose an approved Namdar address after postcode lookup. If an address is not listed, they can enter it manually; that exact address stays private/pending until Namdar staff reviews and approves it for future lookup.
+Namdar's customer address flow does not depend on a live paid lookup to function: it validates UK postcodes, searches the private `master_addresses` cache, merges approved Namdar/customer corrections, can use the OpenStreetMap fallback, and still allows manual address entry when needed. In addition, Namdar now has an **optional server-side GetAddress database-growth worker** that can use a controlled daily allowance to prefill reusable full addresses into `master_addresses`; GetAddress keys never go to browser code, and automatic harvesting remains off until a controlled provider run is verified.
 
 ## Account deletion
 
-A customer requests deletion, confirms by email, then enters a 30-day recovery period. `vercel.json` calls `/api/account-purge` daily. The same long random `CRON_SECRET` also secures the hourly `/api/booking-notifications` scheduler.
+A customer requests deletion, confirms by email, then enters a 30-day recovery period. `vercel.json` calls `/api/account-purge` daily. The same long random `CRON_SECRET` also secures the hourly `/api/booking-notifications` scheduler and daily address-harvest cron.
 
 ## Deploy
 
@@ -212,7 +214,7 @@ Before a public advertising launch, complete Stripe, Turnstile, OAuth, SMS, lega
 
 ## v4.1 Namdar-owned postcode/address flow
 
-This build removes the GetAddress.io requirement. Postcodes are validated by `/api/postcode`, cached in the private `postcode_directory` table, and used to auto-fill region/city/district/coordinates and check Namdar service coverage. Customers enter their exact house/flat/unit and street themselves. The site shows an approximate OpenStreetMap postcode map and stores structured address fields in the customer profile.
+The v4.1 customer flow removed the requirement for GetAddress.io. Postcodes are validated by `/api/postcode`, cached in the private `postcode_directory` table, and used to auto-fill region/city/district/coordinates and check Namdar service coverage. Customers can still enter their exact house/flat/unit and street themselves. Later releases added an optional server-side GetAddress cache-growth worker, but the customer-facing address flow still does not require a live GetAddress request.
 
 Production database migration: `production/v4-1-address-system.sql` (already applied if this package was supplied after the production upgrade).
 
