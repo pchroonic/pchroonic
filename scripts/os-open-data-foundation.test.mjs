@@ -7,6 +7,7 @@ const {
   parseCsvLine,cleanPostcode,bngToWgs84,codePointRecord,headerMap,openUprnRecord,
   pointInGeoJson,haversineKm,inServiceArea,OS_PRODUCTS
 }=require('../lib/os-open-data');
+const { publicPostcodeRow, publicPropertyRow }=require('../lib/address-data-api');
 
 test('CSV parser handles quoted commas and escaped quotes',()=>{
   assert.deepEqual(parseCsvLine('A,"B,C","D""E",F'),['A','B,C','D"E','F']);
@@ -78,10 +79,16 @@ test('Polygon and MultiPolygon filters include valid service points and exclude 
   assert.equal(pointInGeoJson(25,25,multi),false);
 });
 
-test('service-area fallback radius works when polygon is unavailable',()=>{
-  const areas=[{latitude:51.5,longitude:-0.1,radius_km:2}];
-  assert.equal(inServiceArea(51.501,-0.101,areas),true);
-  assert.equal(inServiceArea(51.6,-0.1,areas),false);
+test('service-area radius is only a fallback when there is no boundary geometry',()=>{
+  const radiusOnly=[{latitude:51.5,longitude:-0.1,radius_km:2}];
+  assert.equal(inServiceArea(51.501,-0.101,radiusOnly),true);
+  assert.equal(inServiceArea(51.6,-0.1,radiusOnly),false);
+  const polygonArea=[{
+    latitude:51.5,longitude:-0.1,radius_km:50,
+    geojson:{type:'Polygon',coordinates:[[[-0.2,51.4],[-0.05,51.4],[-0.05,51.55],[-0.2,51.55],[-0.2,51.4]]]}
+  }];
+  assert.equal(inServiceArea(51.45,-0.1,polygonArea),true);
+  assert.equal(inServiceArea(51.7,-0.1,polygonArea),false,'polygon-backed administrative area must not fall back to radius');
   assert.ok(haversineKm(51.5,-0.1,51.501,-0.101)<1);
 });
 
@@ -90,6 +97,17 @@ test('OS product identifiers and official download endpoints are explicit',()=>{
   assert.match(OS_PRODUCTS.uprn.downloadUrl,/OpenUPRN\/downloads/);
   assert.equal(OS_PRODUCTS.codepoint.productId,'CodePointOpen');
   assert.match(OS_PRODUCTS.codepoint.downloadUrl,/CodePointOpen\/downloads/);
+});
+
+test('postcode and property API serializers preserve rights metadata without internal IDs',()=>{
+  const postcode=publicPostcodeRow({postcode:'SW2 3HL',latitude:51.45,longitude:-0.1,source_dataset:'code-point-open',dataset_version:'2026-08',licence_name:'OGL',attribution_text:'OS attribution',internal:'secret'});
+  assert.equal(postcode.sourceDataset,'code-point-open');
+  assert.equal(postcode.attribution,'OS attribution');
+  assert.equal(Object.hasOwn(postcode,'internal'),false);
+  const property=publicPropertyRow({uprn:'100023336956',location_source_dataset:'os-open-uprn',dataset_version:'2026-09',licence_name:'OGL',internal:'secret'});
+  assert.equal(property.uprn,'100023336956');
+  assert.equal(property.sourceDataset,'os-open-uprn');
+  assert.equal(Object.hasOwn(property,'internal'),false);
 });
 
 test('migration separates postcode/property stores and locks commercial views to service role',()=>{
@@ -109,13 +127,23 @@ test('migration separates postcode/property stores and locks commercial views to
   assert.match(migration,/commercial_redistribution_allowed = true[\s\S]*subscription_api_allowed = true/);
 });
 
-test('streaming importer defaults safe and blocks accidental national UPRN write',()=>{
+test('streaming importer defaults safe and blocks accidental national writes',()=>{
   const importer=fs.readFileSync(new URL('./os-open-data-import.mjs',import.meta.url),'utf8');
   assert.match(importer,/write:false/);
   assert.match(importer,/scope:'active-service-areas'/);
   assert.match(importer,/allowLargeImport:false/);
-  assert.match(importer,/National OS Open UPRN writes are blocked by default/);
+  assert.match(importer,/National OS OpenData writes are blocked by default/);
   assert.match(importer,/automated_bulk_ingest_allowed/);
   assert.match(importer,/record_store/);
   assert.match(importer,/--activate-source requires --complete-scope/);
+});
+
+test('disabled API has separate future address postcode and property products',()=>{
+  const api=fs.readFileSync(new URL('../api/address-data-v1.js',import.meta.url),'utf8');
+  assert.match(api,/address-v1/);
+  assert.match(api,/postcode-v1/);
+  assert.match(api,/property-v1/);
+  assert.match(api,/postcode_distribution_eligible/);
+  assert.match(api,/property_distribution_eligible/);
+  assert.match(api,/Namdar Address API is not enabled/);
 });
