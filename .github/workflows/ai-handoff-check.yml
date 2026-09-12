@@ -26,6 +26,7 @@ jobs:
           node --check account-captcha-guard.js
           node --check account-auth-hotfix.js
           node --check account-mfa-guard.js
+          node --check account-service-availability.js
           node --check privileged-login-captcha.js
           node --test scripts/privileged-login-captcha.test.mjs
           node --check admin.js
@@ -33,10 +34,20 @@ jobs:
           node --check admin-inbox-safety.js
           node --check admin-mfa-guard.js
           node --check admin-address-harvest.js
+          node --check admin-services.js
           node --check api/address-harvest-cron.js
           node --check api/admin-address-harvest.js
           node --check api/admin-address-harvest-export.js
+          node --check api/admin-services.js
           node --check api/address-data-v1.js
+          node --check api/quote.js
+          node --check api/quote-core.js
+          node --check api/postcode.js
+          node --check api/postcode-core.js
+          node --check api/subscription.js
+          node --check api/subscription-core.js
+          node --check api/public-data.js
+          node --check api/sitemap.js
           node --check api/support-inbox.js
           node --check api/resend-inbound.js
           node --check lib/address-harvest.js
@@ -45,10 +56,12 @@ jobs:
           node --check lib/address-policy.js
           node --check lib/address-data-api.js
           node --check lib/os-open-data.js
+          node --check lib/service-catalog.js
           node --check scripts/os-open-data-import.mjs
           node --test scripts/address-harvest-priority.test.mjs
           node --test scripts/address-commercial-foundation.test.mjs
           node --test scripts/os-open-data-foundation.test.mjs
+          node --test scripts/service-catalog.test.mjs
           node --check lib/server.js
           node --check lib/server-original.js
           node --check staff.js
@@ -56,6 +69,7 @@ jobs:
           node --check staff-mfa-guard.js
           node --check staff-sw.js
           node --check conversion.js
+          node --check seo-page.js
 
       - name: Require current AI handoff documentation
         run: node scripts/check-ai-handoff.mjs
