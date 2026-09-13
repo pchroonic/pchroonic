@@ -42,6 +42,7 @@ jobs:
           node --check admin-payment-settings.js
           node --check admin-window-performance.js
           node --check admin-business-finance.js
+          node --check admin-business-finance-polish.js
           node --check api/address-harvest-cron.js
           node --check api/admin-address-harvest.js
           node --check api/admin-address-harvest-export.js
