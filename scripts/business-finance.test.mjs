@@ -16,12 +16,17 @@ test('public site settings never expose private finance settings',()=>{
   assert.doesNotMatch(source,/finance_private/);
 });
 
-test('finance dashboard uses cash ledger, private expenses and explicit estimate disclaimer',()=>{
+test('finance API uses cash ledger, private expenses and explicit estimate disclaimer',()=>{
   const source=read('api/admin-business-finance.js');
   assert.match(source,/payment_records\?/);
   assert.match(source,/business_expenses\?/);
   assert.match(source,/Management estimate only, not an HMRC assessment/);
+});
+
+test('finance UI warns that operational job-cost estimates are not tax expenses',()=>{
+  const source=read('admin-business-finance.js');
   assert.match(source,/operational job-cost estimates exist/);
+  assert.match(source,/not automatically treated as tax expenses/);
 });
 
 test('expense mutations require settings permission and reads require analytics',()=>{
