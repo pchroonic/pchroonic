@@ -4,97 +4,81 @@ Last verified: 2026-09-13 UTC
 
 Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PROJECT_STATUS.md` for roadmap/status.
 
-## Production baseline
+## Production baseline before Business Finance merge
 - Repository: `pchroonic/pchroonic`, default `main`.
-- Current product release: PR #57 `Pin lockless Supabase runtime for My Namdar auth`.
-- PR #57 merge: `52979eab757db23bed21416c9ec5a520b57c72c2`; production deployment `dpl_AFyzoBkodBAZD5qqLjx2z73yHTvg` READY on `https://namdar.co.uk`.
-- PR #58 is docs-only and records the completed signed-in Stripe sandbox E2E verification; main HEAD after PR #58: `24d041864fd31b31a76aa559ebdae1c85c330acc`.
+- Current product release: PR #57 `Pin lockless Supabase runtime for My Namdar auth`, merge `52979eab757db23bed21416c9ec5a520b57c72c2`.
+- PR #58 docs-only merge/main HEAD: `24d041864fd31b31a76aa559ebdae1c85c330acc`.
+- Production deployment before finance merge: `dpl_bhvyvNbhjoi1JFgpYt3x46bjSkfW`, READY on `https://namdar.co.uk`.
 - Supabase production: `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
-- Window Cleaning is the only live/quotable/bookable service. Gutters, jet washing, roof cleaning, handyman and 3D tours remain `planned`.
-- Address-data work remains parked.
+- Window Cleaning is the only live service. Future services remain planned. Address work remains parked.
 - Privileged Staff/Admin requires AAL2/MFA.
 
 ## Stripe sandbox — FULL NORMAL FLOW VERIFIED, CUSTOMER POLICY OFF
-The real signed-in My Namdar flow passed deposit -> balance -> refund using a controlled £1.00 Window invoice.
-- £0.50 deposit Checkout: 200; webhook 200; invoice `part_paid`; booking `deposit_paid`; Stripe fee £0.22 / net £0.28.
-- £0.50 balance Checkout: 200; webhook 200; invoice `paid`; booking `paid`; second fee £0.22 / net £0.28.
-- Stripe return reopened signed-in My Namdar Billing correctly with several Namdar tabs open after PR #57.
-- Both £0.50 sandbox charges were fully refunded; refund webhooks 200; exactly two refund ledger rows; invoice/booking synchronized to `refunded`.
-- Sandbox payment/refund ledger is intentionally retained as audit history.
-- `site_settings.payments` is absent; customer online-payment policy OFF; headline allowance OFF; no live Stripe credentials.
+Signed-in My Namdar deposit -> balance -> refund passed end-to-end with verified 200 webhooks, exact processor-fee capture and corrected multi-tab return. Both sandbox charges were refunded and invoice/booking synchronized to `refunded`. Audit ledger retained.
 
-## My Namdar auth/session — VERIFIED
-PR #56 bounded `auth.getSession()` and removed the endless spinner failure mode. PR #57 pins exact Supabase JS `2.116.0` before account client creation, avoiding the stale multi-tab browser lock path. Multi-tab production restore passed.
+Current safety: `site_settings.payments` absent; online customer-payment policy OFF; headline allowance OFF; no live Stripe credentials.
 
-`account.html` still contains an older floating `@supabase/supabase-js@2` include, but exact `2.116.0` replaces the global before client creation. Optional cleanup only.
+## Business Finance — PR #59 READY TO MERGE
+Product decision: Namdar starts as a **sole trader**, then moves to a **limited company after success**. Preserve sole-trader history and split future company records at the incorporation date; do not retroactively convert historic sole-trader activity.
 
-## Business Finance — CURRENT WORK
-User decision: start Namdar as a **sole trader**, then move to a **limited company after the business succeeds**. Preserve sole-trader history and split future company records from the incorporation date rather than retroactively converting old activity.
-
+PR #59: `Add sole trader Business Finance dashboard`
 Branch: `feat/sole-trader-finance-dashboard-20260913`.
 
-### Database
-Supabase production migration applied successfully:
-- version `20260913143525`
-- name `business_finance_expense_ledger`
+Exact tested code head before this docs sync: `9944e7dcac5db197aa3023cdbfda785fb5f881fd`.
+- GitHub CI run `34763503689`: SUCCESS.
+- Exact-head Vercel preview `dpl_DgPUvMYTXjmDzDdEp5VaC1L3tVo2`: READY.
+- Preview build errors-only log: clean; build completed successfully.
 
-It creates private `business_expenses` with:
-- expense date/category/description/supplier;
-- gross amount + VAT amount;
-- business-use percentage;
-- tax treatment: `allowable`, `capital_allowance`, `non_allowable`;
-- payment method;
-- optional booking/reference/receipt reference/private notes;
-- audit user/timestamps;
-- RLS enabled and no browser policies; privileged server API only.
+### Applied production database migrations
+- `20260913143525 business_finance_expense_ledger`
+- `20260913144052 business_finance_expense_updated_by_index`
 
-The matching repository migration-file write was blocked by the GitHub connector safety gate. Do not claim a repo migration file exists; the migration is recorded by Supabase migration history and these handoff docs.
+`business_expenses` is private, RLS enabled, with no browser policies. The second migration fixed the only finance-specific missing-FK-index advisor finding. Re-run performance advisor confirmed `business_expenses_updated_by_fkey` is no longer listed.
 
-### Finance implementation candidate
-New files on branch:
-- `lib/uk-tax.js`: 2026/27 England/Wales/NI sole-trader Income Tax + Class 4 NI estimator, Personal Allowance taper, VAT threshold and MTD thresholds.
-- `scripts/uk-tax.test.mjs`.
-- `api/admin-business-finance.js`: private cash-basis dashboard aggregation.
-- `api/admin-finance-settings.js`: private `site_settings.finance_private` settings.
-- `api/admin-finance-expenses.js`: private expense-ledger CRUD.
-- `admin-business-finance.js`: Admin Reports UI for revenue/cash, expenses, estimated taxable profit, tax reserve, VAT/MTD monitors, monthly cash movement, expense mix, settings and expense entry.
-- `scripts/business-finance.test.mjs`.
-- `admin.js` loads the new module with version `6.4.24-business-finance-1`.
-- CI workflow includes syntax + finance regression/tax tests.
+The GitHub connector blocked creation of a matching SQL migration file. Do not claim one exists in the repo. Supabase migration history plus these handoff docs are the authoritative record for the already-applied schema changes.
 
-### Current finance rules
-- Default business mode: `sole_trader`.
-- Default accounting basis: `cash` (HMRC default for eligible sole traders from 2024/25).
-- Tax estimator currently supports tax year `2026-27` and region `england_wales_ni`.
-- Standard Personal Allowance £12,570; taper starts at £100,000 and reaches zero at £125,140.
-- Class 4 NI: 6% between £12,570 and £50,270, then 2% above.
-- VAT registration threshold monitor: £90,000 rolling 12 months.
-- MTD indicators show staged qualifying-income thresholds: >£50k Apr 2026, >£30k Apr 2027, >£20k Apr 2028; dashboard explicitly says obligation depends on prior submitted return, not current turnover alone.
-- Income Tax estimate is **incremental tax attributable to Namdar**: tax on other taxable income + Namdar profit minus tax on other taxable income alone.
-- Private optional `other_taxable_income` improves marginal-tax accuracy; it is never public.
-- Stripe processor fees are included automatically from actual payment-provider fee records.
-- Operational `booking_job_costs` remain separate from tax expenses; they are not silently deducted unless actual paid costs are recorded in the expense ledger.
-- Capital-allowance items remain visible but are excluded from the simple taxable-profit estimate pending specialist treatment.
-- Estimate is clearly labelled management-only, not an HMRC assessment. Loss relief, student loans, pension adjustments, savings/dividends and combined-employment NI interactions are not modelled.
+### Finance v1
+- `lib/uk-tax.js`: 2026/27 England/Wales/NI sole-trader estimator.
+- private `site_settings.finance_private` settings API.
+- private expense-ledger CRUD with audit logging.
+- Admin Business Finance dashboard under Reports.
+- cash-basis receipts/refunds from `payment_records`.
+- actual Stripe processor fees automatically included.
+- expense ledger supports business-use %, allowable/capital-allowance/non-allowable treatment.
+- cash surplus kept distinct from estimated taxable trading profit.
+- outstanding invoices shown separately from cash-basis income.
+- estimated incremental Income Tax attributable to Namdar + Class 4 NI.
+- tax reserve/gap + illustrative payments-on-account warning.
+- rolling 12-month VAT £90,000 threshold monitor.
+- MTD staged qualifying-income indicators (>£50k Apr 2026, >£30k Apr 2027, >£20k Apr 2028) with explicit caveat that current turnover alone does not establish the legal start date.
+- monthly tax-year cash movement and expense-category mix.
+- capital-allowance items are not silently deducted by the simple estimator.
+- operational `booking_job_costs` remain separate estimates; actual paid tax expenses must be recorded in the expense ledger.
+- invalid expense form data returns proper HTTP 400 validation errors.
 
-## Next verification sequence
-1. finish/update all three handoff docs on the finance branch;
-2. open PR and run CI;
-3. inspect exact Vercel preview/build;
-4. call preview APIs with authenticated Admin if practical, otherwise verify production only after merge;
-5. merge only when CI/build are green;
-6. verify `business_expenses` security/advisors and production finance API/UI;
-7. enter the user's actual sole-trader start date and any optional tax settings through Admin, not source code;
-8. keep Stripe customer policy OFF while finance work is validated;
-9. only after Business Finance is stable return to the real Window payment-policy decision.
+Defaults: `sole_trader`, `cash`, `england_wales_ni`, other taxable income £0, tax reserve £0, not VAT registered. Switching to `limited_company` requires an incorporation date and intentionally withholds company-tax estimates until Corporation Tax rules are refreshed at incorporation time.
+
+Tax output is management-only, not an HMRC assessment. V1 does not model loss relief, student loans, pension/Gift Aid adjustments, savings/dividends, detailed capital allowances, VAT scheme/input-tax rules, Scottish bands, traditional-accounting adjustments or combined employment/self-employment NI interactions.
+
+## Supabase advisor status
+- `business_expenses`: RLS enabled/no browser policy is intentional for server-only private finance data.
+- finance-specific `updated_by` missing-index finding: fixed.
+- existing project-wide advisor items remain, including leaked-password protection disabled and unrelated RLS/performance warnings; these pre-date Business Finance.
+
+## Next action after merge
+1. verify production deployment READY + `/api/health` healthy;
+2. confirm production Admin loader serves `admin-business-finance.js`;
+3. verify expense ledger starts clean and no `finance_private` row is required until real settings are entered;
+4. user enters actual sole-trader start date and, optionally, private other taxable income/tax reserve through Admin — never hard-code personal figures;
+5. begin recording real paid business expenses;
+6. keep Stripe commercial policy OFF until finance validation is complete, then return to Window payment-policy/live-Stripe decision.
 
 ## Do not break
-- Window Cleaning only; no Stage 2 activation without deliberate decision.
+- Window Cleaning only until deliberate next-stage activation.
+- No customer exposure of private finance settings/expense ledger.
 - No separate consumer card/Stripe surcharge.
-- Verified Stripe webhook is authoritative for Stripe money; browser success is never payment proof.
-- Never expose Stripe/Supabase/SMTP/Turnstile/cron secrets or private finance settings.
-- Sandbox-ready does not mean live-money-ready.
-- Direct contribution is not net profit; tax dashboard estimates are not filed tax returns.
-- Privileged access remains AAL2/MFA protected.
-- Review requests remain neutral/equal.
-- Address work stays parked.
+- Verified Stripe webhook remains authoritative for money state.
+- Never expose secrets or unnecessary private financial details.
+- Direct contribution != net profit; tax estimate != filed tax return.
+- Privileged finance mutations remain AAL2/settings-permission protected.
+- Review solicitation stays neutral/equal. Address work stays parked.
