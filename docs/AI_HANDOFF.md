@@ -4,11 +4,14 @@ Last verified: 2026-09-13 UTC
 
 Read `docs/AI_START.md` first.
 
-## Production source of truth before PR #59
+## Production source of truth
 - Repo `pchroonic/pchroonic`, default `main`.
-- Product release PR #57 merge `52979eab757db23bed21416c9ec5a520b57c72c2`.
-- PR #58 docs-only merge/main HEAD `24d041864fd31b31a76aa559ebdae1c85c330acc`.
-- Production deployment `dpl_bhvyvNbhjoi1JFgpYt3x46bjSkfW` READY.
+- Current product release: PR #59 `Add sole trader Business Finance dashboard`.
+- Exact tested PR head `03121fa992b5d845e5478e61665a90d59c9a9d4f`; CI `34763802394` SUCCESS; preview `dpl_Fb14yFYcoa5F7Bf2mdh7LKQ7Sqo9` READY with clean errors-only build output.
+- PR #59 merge/main HEAD `7eb4ebd47041288faac444eb4ae0a2304043d7c9`.
+- Production deployment `dpl_GbqaKFaNpjCVfKNeJ51aReKiixs4` READY on `https://namdar.co.uk`.
+- Production `/api/health` after deploy: HTTP 200; database healthy; Stripe sandbox secret/webhook configured.
+- Production `admin.js` serves `6.4.24-business-finance-1` and loads `admin-business-finance.js`.
 - Supabase production `qjigldxjcpnrlyxgmlqq`.
 - Window Cleaning only live; future services planned; address work parked.
 - Staff/Admin privileged APIs require AAL2/MFA.
@@ -23,12 +26,6 @@ Namdar starts as a **sole trader** and later becomes a **limited company after s
 - switch future reporting only from that date;
 - never retroactively reinterpret historic sole-trader activity as company activity;
 - refresh current Corporation Tax rules when incorporation happens.
-
-## PR #59
-Title: `Add sole trader Business Finance dashboard`
-Branch: `feat/sole-trader-finance-dashboard-20260913`.
-
-Earlier code head `9944e7dcac5db197aa3023cdbfda785fb5f881fd` passed CI `34763503689`; Vercel preview `dpl_DgPUvMYTXjmDzDdEp5VaC1L3tVo2` was READY with clean build output. Final Stripe-environment separation commits were added afterward and must pass the same gates before merge.
 
 ## Applied Supabase finance migrations
 - `20260913143525 business_finance_expense_ledger`
@@ -46,14 +43,14 @@ Tax treatments:
 The second migration fixed the finance-specific missing FK covering index on `updated_by`; performance advisor no longer reports it.
 
 ### Stripe environment tracking
-`payment_records.provider_livemode` now records provider environment:
+`payment_records.provider_livemode` records provider environment:
 - `false`: sandbox/test Stripe row;
 - `true`: live Stripe row;
-- null is allowed for non-Stripe/manual rows.
+- null allowed for non-Stripe/manual rows.
 
-All existing Stripe rows were safely backfilled `false` because no live Stripe credentials have ever been connected. Verified state: 4 sandbox Stripe rows, 0 live Stripe rows, 0 unknown Stripe rows.
+All existing Stripe rows were safely backfilled `false` because no live Stripe credentials have ever been connected. Verified post-release database state: 4 sandbox Stripe rows, 0 live Stripe rows, 0 unknown Stripe rows, 0 business expenses, 0 `finance_private` rows, 0 `payments` policy rows.
 
-Verified Stripe webhooks now persist:
+Verified Stripe webhooks persist:
 - Checkout payments: `provider_livemode = session.livemode === true`;
 - refunds: `provider_livemode = paymentIntent.livemode === true`.
 
@@ -114,28 +111,21 @@ Defaults: sole trader, cash basis, England/Wales/NI, no start date, no incorpora
 ## Public/private boundary
 `api/public-data.js` allow-lists only `brand`, `appearance`, `maintenance`, `advertising`, `contact`; `finance_private` is never public.
 
-Verified current production data before merge:
-- 4 sandbox Stripe rows;
-- 0 live Stripe rows;
-- 0 unknown Stripe rows;
-- 0 business expenses;
-- 0 `finance_private` rows.
-
 ## Explicit limitations
 Management estimate only, not HMRC assessment. V1 does not model loss relief/carry-forward, student loans, pension/Gift Aid adjusted-net-income effects beyond simple PA taper, savings/dividend tax, Marriage Allowance/other reliefs, combined employment/self-employment NI interactions, detailed capital allowances, VAT scheme/input-tax rules, Scottish bands, or traditional-accounting accrual adjustments.
 
 If Scotland or traditional accounting is selected, numeric tax estimate is withheld. If switched to limited company, company tax estimate is withheld until incorporation-time rules are deliberately refreshed.
 
-## Post-merge verification
-1. production deployment READY + `/api/health` healthy;
-2. production `admin.js` contains Business Finance loader;
-3. finance API excludes all 4 retained sandbox Stripe audit rows;
-4. expense ledger remains clean unless user adds real costs;
-5. no `finance_private` row is required until user enters real settings;
-6. user enters actual sole-trader start date and optional private other-income/tax-reserve values through Admin; never invent them;
-7. begin logging real paid expenses;
-8. keep Stripe commercial policy OFF until finance validation is complete;
-9. then return to Window payment-policy/live-Stripe rollout.
+## Live verification still requiring the user's authenticated Admin browser
+The static production loader and health endpoint are verified, but do not claim authenticated Business Finance API/UI behaviour has been interactively verified until the user opens Admin -> Reports. There is no authenticated browser session available to the connector.
+
+Next:
+1. User opens Admin -> Reports and checks Business Finance loads.
+2. Enter actual sole-trader start date through Admin; never invent it.
+3. Optionally enter private other-taxable-income and tax-reserve values through Admin.
+4. Add one real or controlled expense and verify it appears correctly; do not add fabricated expenses.
+5. Keep Stripe commercial policy OFF until finance data-entry is validated.
+6. Then return to Window payment-policy/live-Stripe rollout.
 
 ## Non-negotiables
 - No customer exposure of private finance settings/expense ledger.
