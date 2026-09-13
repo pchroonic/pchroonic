@@ -6,68 +6,71 @@ Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PR
 
 ## Production baseline
 - Repository: `pchroonic/pchroonic`, default `main`.
-- Latest product release: PR #52, `Harden notification cron against transient PostgREST 504s`.
-- Exact tested PR #52 head: `0cc73a93772d99f38eedc5287b7901fb14853185`.
-- GitHub Actions `34753702507`: SUCCESS.
-- Exact-head Vercel preview: `dpl_HPyvguMrtVaXT8Aw8BnrnFNU9g6J`, READY, clean errors-only build.
-- Merge: `2efca178f49221d3ca819b3c4df9d1780d759579`.
-- Production: `dpl_HSbQuHWcKxVQLPHJKZFb9RDctkVm`, READY on `https://namdar.co.uk`, canonical alias present, no alias error, clean errors-only build.
+- Latest merged product release: PR #52, `Harden notification cron against transient PostgREST 504s`.
+- PR #52 merge: `2efca178f49221d3ca819b3c4df9d1780d759579`.
+- Current production deployment after Stripe sandbox env redeploy: `dpl_DiD8jChsRaA64fRBdovzr3euKHj8`, READY on `https://namdar.co.uk`.
 - Supabase: `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
 - Window Cleaning is the only live/quotable/bookable service. Gutters, jet washing, roof cleaning, handyman and 3D tours remain `planned`.
 - Address-data work remains parked.
 - Privileged Staff/Admin requires AAL2/MFA.
 
-## Window Stage 1 — LIVE
-Window quote/pricing, route-aware booking, Staff On my way → Start → Complete, reviewed direct-cost/travel close-out, consent-aware conversion funnel, direct-contribution reporting, neutral post-job feedback/reviews, Stripe payment foundation and processor-fee accounting remain live.
+## Notification cron
+PR #52 remains live with bounded transient Data API read retries and schedule `7 * * * *`.
 
-**Direct contribution is not net profit.** Missing reviewed job cost or unresolved Stripe processor cost is not £0.
+A real post-release scheduled run at 2026-09-13 12:07 UTC completed non-degraded, so the Stripe setup gate was cleared. Keep `Namdar Cron Watch` active because the upstream 504 issue is still treated as potentially transient rather than permanently eliminated.
 
-## Notification 504 recovery — CODE LIVE, OBSERVATION GATE OPEN
-Before PR #52, authenticated production cron runs degraded repeatedly with unrelated Supabase Data API 504s across `post_job`, `booking_delivery`, `admin_contact`, quote reminders, overdue invoices, unassigned bookings, booking attention and business delivery. The issue was still present at 11:00 UTC on the then-current production deployment.
+## Stripe sandbox provider — CONNECTED, CUSTOMER PAYMENTS STILL DISABLED
+Current production `/api/health` after adding sandbox secrets and redeploy:
+- `stripe:true`
+- `stripeSecret:true`
+- `stripeWebhook:true`
 
-Database diagnosis showed tiny data volume, no notification backlog and millisecond SQL execution. This did not fit a slow-query problem; it fit transient PostgREST/Data API pool acquisition failures.
+Stripe context is sandbox/test mode only. The webhook destination `https://namdar.co.uk/api/stripe-webhook` is enabled for checkout success and refund events.
 
-PR #52 now provides:
-- bounded transient retries for idempotent cron GET/HEAD/OPTIONS database reads;
-- no generic automatic replay of POST/PATCH/PUT/DELETE;
-- bounded retry for thrown transient top-level post-job / booking-delivery / business-delivery reads;
-- resilient business-scan reads while retaining existing idempotent conflict-ignore queue writes;
-- retry/recovery telemetry in the cron JSON;
-- Vercel schedule moved from `0 * * * *` to `7 * * * *`.
+Still safe/inactive commercially:
+- no `site_settings.payments` row;
+- customer online payments are not enabled;
+- headline-price allowance remains OFF;
+- Window remains the only live service.
 
-Production source confirms `/api/booking-notifications` now runs at minute 7 each hour. Release smoke is clean: `/api/health` 200; database/email/reminders/follow-ups healthy; no due pending notification backlog; no Stripe activation; Window remains the only live service.
+## Sandbox payment test exposed a webhook bug
+A one-time £1.23 Stripe sandbox Payment Link completed successfully in Stripe. The Checkout Session is paid/complete, but Namdar did not record the payment.
 
-**Do not call the underlying 504 issue permanently resolved yet.** The next proof gate is a real authenticated scheduled run on the released PR #52 production deployment. A clean run means the release is operationally healthy; a recovered retry means containment worked but upstream instability still occurred. Keep `Namdar Cron Watch` active.
+Production Vercel logs showed two webhook POSTs returning HTTP 400 with:
+`Webhook raw body is unavailable.`
 
-## Stripe — CODE READY, PROVIDER DISABLED
-Stripe remains deliberately disconnected while the cron observation gate is open.
+Root cause: `lib/stripe-payments.js::readRawBody()` accessed Vercel's lazy `request.body` getter before streaming the IncomingMessage. Vercel parsed the JSON at that point, so the exact raw bytes required for Stripe signature verification were no longer available.
 
-Current production state:
-- `/api/health`: `stripe:false`, `stripeSecret:false`, `stripeWebhook:false`;
-- zero `payment_records` with `method='stripe'`;
-- no `site_settings.payments` row.
+## PR #54 — Stripe webhook raw-body fix CANDIDATE
+Branch: `fix/stripe-webhook-raw-body-20260913`
+PR: #54 `Fix Stripe webhook raw body handling on Vercel`
+Current exact head: `fcd149882d604e5b3865246e22fc5324c258e634`
+Exact-head Vercel preview: `dpl_76VaZhk28MRTWKiJYm7BLVVGFi5X`, READY, clean errors-only build.
 
-Verified Stripe webhook remains authoritative for money. Browser return/status is read-only. Customer card data never passes through Namdar.
+Fix:
+- stream the raw request first without touching `req.body`;
+- only use body fallback for non-stream adapters;
+- regression test throws if a Vercel-style lazy body getter is accessed before streaming.
 
-## Processor-fee accounting / pricing — LIVE FOUNDATION
-Internal Stripe processor fields and reporting from PR #50 remain live. Customer Billing/PDFs do not expose processor fee/net data and staff cannot manually create Stripe ledger rows.
+The first CI run `34759643914` failed only because continuity docs were not yet updated; JavaScript syntax/tests passed before the handoff gate. Re-run CI after these three docs updates.
 
-There is no customer Stripe/card surcharge. The optional Window headline-price allowance remains OFF by default; if later enabled it becomes part of the ordinary service price for every payment method.
+## Temporary sandbox test records
+Prepared only for webhook verification, no real customer/service:
+- quote `b1057c1c-d417-43aa-9fe9-3483ba31126d`
+- booking `4eb3100f-d05a-4f5c-977b-b569f25c3cb2`
+- invoice `805706a9-d9ff-4ed1-9cc6-8721a2454eb6`
+- amount £1.23
 
-## Next action
-1. observe the first real PR #52 production cron run at `:07` and inspect retry/degraded telemetry;
-2. only after a healthy observation, resume secure Stripe provider/webhook setup;
-3. test Checkout, delayed/duplicate webhook, fee capture and refund end-to-end in Stripe test mode;
-4. deliberately enable Window online payments only after tests pass;
-5. separately decide whether to enable the headline price allowance.
+They currently remain unpaid in Namdar because the webhook failed before verification. Remove them after payment + refund verification is complete.
 
 ## Do not break
 - Window Cleaning only; no Stage 2 activation without deliberate decision.
-- Notification retries must not blindly replay non-idempotent writes or duplicate customer emails.
 - No separate consumer card/Stripe surcharge.
 - Verified Stripe webhook, not browser redirect, is authoritative for Stripe money.
 - Never expose Stripe/Supabase/SMTP/Turnstile/cron secrets.
+- Customer payments stay disabled until sandbox payment, duplicate/delayed webhook, fee capture and refund tests all pass.
+- Staff cannot manually impersonate Stripe payment rows.
+- Direct contribution is not net profit; unresolved processor cost is not £0.
 - Privileged access remains AAL2/MFA protected.
 - Review requests remain neutral/equal; no positive-only gating or incentives.
 - Address work stays parked.
-- Support tickets remain customer-only; public inbound email remains Admin Email inbox.
