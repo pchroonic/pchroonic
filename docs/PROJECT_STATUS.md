@@ -4,62 +4,64 @@ Last updated: 2026-09-13 UTC
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current product release: PR #64 `Add Admin System Health and reliability history`.
-- Exact tested head `c840436aeb3363b263135867e11f1551e71cf6f4`; CI run `34767328622` SUCCESS.
-- Exact preview `dpl_HXjuMhD58ngJBtu2HmXrTXdgk9Mg` READY with clean errors-only build. Preview runtime lacks the production Supabase service-role env, so its DB health endpoint is not representative.
-- Merge/main HEAD `c9028003b68095b7ef4c9d601980afe359017448`.
-- Production deployment `dpl_BsZbTcWLNHYgP9hrCxLUgPsXHLas` READY on `https://namdar.co.uk`.
-- Production `/api/health` is HTTP 200 after release.
-- Production Admin loader `6.4.27-system-health-1` loads `admin-system-health.js`.
-- PR #65 docs-only continuity merge `6c9942d10e1f5601b6a3a070f918470e12eb06b8`.
+- Current live product release remains PR #64 System Health, merge `c9028003b68095b7ef4c9d601980afe359017448`.
+- Production deployment `dpl_BsZbTcWLNHYgP9hrCxLUgPsXHLas` READY on `https://namdar.co.uk`; `/api/health` HTTP 200 after release.
+- Live Admin loader before Newsletter Centre work: `6.4.27-system-health-1`.
 - Supabase production `qjigldxjcpnrlyxgmlqq`.
 - Window Cleaning only live; future services planned; address work parked.
 
-## Payments, finance and receipts
-- Stripe sandbox checkout/refund flow verified; commercial customer payment policy OFF.
-- Sandbox payment rows excluded from Business Finance.
-- Sole trader first, limited company later from the real incorporation date.
-- Confirmed £106 test fixture removed.
-- Smart receipt workflow live; user deferred its first authenticated receipt test.
+## Existing business systems
+- Stripe sandbox checkout/refund verified; commercial customer payment policy OFF.
+- Business Finance excludes sandbox money and uses sole-trader-first structure.
+- Smart receipt workflow live; authenticated receipt test deferred by user.
+- System Health live and first genuine hourly run verified healthy with persistent history and no false incident/alert.
 
-## Reliability and System Health — LIVE / FIRST RUN VERIFIED
-Migration:
-- `20260913154800 system_health_reliability_history`.
+## Newsletter Centre — IN PROGRESS
+Branch `feat/newsletter-centre-20260913`, target loader `6.4.28-newsletter-centre-1`.
 
-The release provides private scheduled-run history, grouped incident lifecycle, one-open-incident-per-fingerprint dedupe, notification/follow-up and account-purge health recording, deduped staff alerts, recovery resolution, and the private Admin System Health dashboard.
+Pre-work state:
+- 3 active explicit-consent subscribers;
+- 0 campaigns;
+- existing subscriber preferences for offers/tips/news;
+- existing campaign schema already supported preheader, CTA, audience topic and delivery counts;
+- Admin exposed only Subject + Message + unsafe single-request bulk send.
 
-Admin System Health monitors database availability/latency, Stripe readiness and mode, email readiness, cron configuration/freshness, notification queue problems, private receipt storage, incidents and recent scheduled runs.
+Applied migrations:
+- `20260913162500 newsletter_campaign_delivery_queue`
+- `20260913162600 newsletter_delivery_processing_claims`
 
-Security/privacy:
-- detailed API requires AAL2 + settings permission;
-- no secret values/customer identifiers in health output or persisted details;
-- RLS enabled on new tables with no direct browser policies;
-- expected signed-out/expired-session 401s are not platform incidents;
-- older hosting logs are not backfilled into new history.
+Release adds:
+- private per-recipient delivery queue;
+- unique campaign/subscriber dedupe;
+- atomic `queued -> processing` claims and stale-claim recovery;
+- topic-aware audience segmentation;
+- drafts and branded live preview;
+- optional preheader and CTA;
+- test-email action that does not alter subscriber campaign counts;
+- exact-recipient send confirmation;
+- resumable 10-recipient batches;
+- retry failed without resending successful recipients;
+- campaign history/progress;
+- searchable/filterable subscriber list without private tokens;
+- preference centre for Offers / Property-care tips / Namdar news;
+- full unsubscribe remains available and essential service emails remain separate;
+- old bulk sender retired so cached Admin clients cannot bypass the safe workflow.
 
-Database verification:
-- both new tables started at 0 rows before deployment;
-- required indexes present;
-- no new System Health unindexed-FK advisor finding.
-
-### First genuine scheduled run
-The first post-release hourly notification/follow-up cron ran 2026-09-13 16:07:25–16:07:28 UTC:
-- one `notification_cron` history row persisted;
-- status `healthy`;
-- duration 3336 ms;
-- post-job, booking delivery, business scan and business delivery all succeeded on attempt 1;
-- database retries/recoveries/exhaustions all 0;
-- 0 open incidents / 0 total incidents afterwards;
-- 0 System Health staff alerts afterwards.
-
-This verifies the production history write and the no-false-alert healthy path.
+Consent/safety:
+- customer accounts are never automatically marketing subscribers;
+- current status/preferences are checked again immediately before every delivery;
+- no campaign will be sent as part of deployment verification;
+- existing 3 subscriber records are not modified by development work;
+- subscriber tokens are server-side only and excluded from Admin responses.
 
 ## Immediate next work
-1. User can inspect Admin -> System health when convenient.
-2. Allow genuine scheduled-run history to accumulate naturally.
-3. If a real degradation happens, verify grouped incident creation, exactly one initial staff alert, repeat occurrence counting, and later healthy-run resolution.
-4. Keep customer Stripe policy OFF while finance/reliability work remains in validation mode.
-5. Security hardening remains a separate future priority; Supabase still reports leaked-password protection disabled.
+1. Run database advisors and regression checks.
+2. Open Newsletter Centre PR.
+3. Require green GitHub CI + READY exact-head Vercel preview with clean build.
+4. Merge only if clean and verify production loader/API health.
+5. Verify subscriber count remains 3 active, campaigns 0, deliveries 0 after deployment.
+6. User can later create a draft and deliberately send a test email before any real campaign.
+7. Security hardening remains a separate priority; leaked-password protection is still a known Supabase warning.
 
 ## Handoff rule
-Every substantial product/provider/data change updates `docs/AI_START.md`, `docs/AI_HANDOFF.md`, and this file. Never store credentials, raw API keys, customer secrets, TOTP codes, one-time Auth links or unnecessary private financial details in source/docs.
+Every substantial product/provider/data change updates `docs/AI_START.md`, `docs/AI_HANDOFF.md`, and this file. Never store credentials, raw API keys, subscriber tokens, customer secrets, TOTP codes, one-time Auth links or unnecessary private financial data in source/docs.

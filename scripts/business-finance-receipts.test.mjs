@@ -35,7 +35,7 @@ test('browser receipt reader keeps OCR local and requires review before save',()
 
 test('admin loader and CSP include receipt workflow dependencies',()=>{
   const loader=read('admin.js'),vercel=read('vercel.json');
-  assert.match(loader,/6\.4\.27-system-health-1/);
+  assert.match(loader,/6\.4\.28-newsletter-centre-1/);
   assert.match(loader,/admin-finance-receipts\.js/);
   assert.match(vercel,/connect-src[^\n]*cdn\.jsdelivr\.net/);
   assert.match(vercel,/worker-src[^\n]*cdn\.jsdelivr\.net/);

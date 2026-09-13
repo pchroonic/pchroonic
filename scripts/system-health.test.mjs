@@ -52,7 +52,7 @@ test('health history tables are server only with open-incident dedupe',()=>{
 
 test('Admin loader includes System Health dashboard',()=>{
   const loader=read('admin.js'),ui=read('admin-system-health.js');
-  assert.match(loader,/6\.4\.27-system-health-1/);
+  assert.match(loader,/6\.4\.28-newsletter-centre-1/);
   assert.match(loader,/admin-system-health\.js/);
   assert.match(ui,/System Health/);
   assert.match(ui,/Refresh health/);

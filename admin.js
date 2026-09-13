@@ -1,5 +1,5 @@
 (()=>{
-  const v='6.4.27-system-health-1';
+  const v='6.4.28-newsletter-centre-1';
   document.write(`<link rel="stylesheet" href="/admin-inbox-safety.css?v=${v}">`);
   document.write(`<script src="/privileged-login-captcha.js?v=${v}"><\/script>`);
   document.write(`<script src="/admin-original.js?v=${v}"><\/script>`);
@@ -15,4 +15,5 @@
   document.write(`<script src="/admin-business-finance-polish.js?v=${v}"><\/script>`);
   document.write(`<script src="/admin-finance-receipts.js?v=${v}"><\/script>`);
   document.write(`<script src="/admin-system-health.js?v=${v}"><\/script>`);
+  document.write(`<script src="/admin-newsletter-center.js?v=${v}"><\/script>`);
 })();
