@@ -5,7 +5,7 @@ import crypto from 'node:crypto';
 import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url);
 const {normalizePaymentPolicy,providerReadiness,checkoutPlan,headlinePriceWithAllowance}=require('../lib/payment-policy.js');
-const {checkoutIdempotencyKey,verifyStripeSignature,processorDetailsFromBalanceTransaction}=require('../lib/stripe-payments.js');
+const {checkoutIdempotencyKey,verifyStripeSignature,processorDetailsFromBalanceTransaction,readRawBody}=require('../lib/stripe-payments.js');
 const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
 
 test('payment policy is safely disabled by default and needs both provider secrets',()=>{
@@ -40,6 +40,18 @@ test('Stripe webhook signatures require the exact raw body and recent timestamp'
   assert.equal(verifyStripeSignature(raw,`t=${timestamp},v1=${signature}`,secret,{nowSeconds:timestamp}),true);
   assert.equal(verifyStripeSignature(Buffer.from('{"id":"changed"}'),`t=${timestamp},v1=${signature}`,secret,{nowSeconds:timestamp}),false);
   assert.equal(verifyStripeSignature(raw,`t=${timestamp},v1=${signature}`,secret,{nowSeconds:timestamp+301}),false);
+});
+
+test('raw body reader streams Vercel request before touching lazy body getter',async()=>{
+  const raw=Buffer.from('{"id":"evt_stream","type":"checkout.session.completed"}');
+  let getterTouched=false;
+  const req={
+    async *[Symbol.asyncIterator](){yield raw.subarray(0,17);yield raw.subarray(17)},
+    get body(){getterTouched=true;throw new Error('Vercel request.body getter must not be accessed before raw stream');}
+  };
+  const got=await readRawBody(req);
+  assert.deepEqual(got,raw);
+  assert.equal(getterTouched,false);
 });
 
 test('Checkout creation is Window-only, policy-gated and idempotent',()=>{
