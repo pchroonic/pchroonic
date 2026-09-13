@@ -4,11 +4,16 @@ Last verified: 2026-09-13 UTC
 
 Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PROJECT_STATUS.md` for roadmap/status.
 
-## Production baseline before Business Finance merge
+## Production baseline
 - Repository: `pchroonic/pchroonic`, default `main`.
-- Current product release: PR #57 `Pin lockless Supabase runtime for My Namdar auth`, merge `52979eab757db23bed21416c9ec5a520b57c72c2`.
-- PR #58 docs-only merge/main HEAD: `24d041864fd31b31a76aa559ebdae1c85c330acc`.
-- Production deployment before finance merge: `dpl_bhvyvNbhjoi1JFgpYt3x46bjSkfW`, READY on `https://namdar.co.uk`.
+- Current product release: PR #59 `Add sole trader Business Finance dashboard`.
+- PR #59 exact tested head: `03121fa992b5d845e5478e61665a90d59c9a9d4f`.
+- PR #59 CI run `34763802394`: SUCCESS.
+- PR #59 exact preview `dpl_Fb14yFYcoa5F7Bf2mdh7LKQ7Sqo9`: READY with clean errors-only build output.
+- PR #59 merge/main HEAD: `7eb4ebd47041288faac444eb4ae0a2304043d7c9`.
+- Production deployment: `dpl_GbqaKFaNpjCVfKNeJ51aReKiixs4`, READY on `https://namdar.co.uk`.
+- Production `/api/health` after deploy returned HTTP 200 with database healthy and Stripe sandbox secret/webhook configured.
+- Production `admin.js` serves loader version `6.4.24-business-finance-1` and loads `/admin-business-finance.js`.
 - Supabase production: `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
 - Window Cleaning is the only live service. Future services remain planned. Address work remains parked.
 - Privileged Staff/Admin requires AAL2/MFA.
@@ -18,37 +23,38 @@ Signed-in My Namdar deposit -> balance -> refund passed end-to-end with verified
 
 Current safety: `site_settings.payments` absent; online customer-payment policy OFF; headline allowance OFF; no live Stripe credentials.
 
-## Business Finance — PR #59 PRE-MERGE
+## Business Finance — LIVE
 Product decision: Namdar starts as a **sole trader**, then moves to a **limited company after success**. Preserve sole-trader history and split future company records from the incorporation date; do not retroactively convert historic sole-trader activity.
-
-PR #59: `Add sole trader Business Finance dashboard`
-Branch: `feat/sole-trader-finance-dashboard-20260913`.
-
-The earlier code head `9944e7dcac5db197aa3023cdbfda785fb5f881fd` passed GitHub CI run `34763503689` and Vercel preview `dpl_DgPUvMYTXjmDzDdEp5VaC1L3tVo2` was READY with a clean build. Final sandbox-environment tracking commits were added afterward and must also be green before merge.
 
 ### Applied production database migrations
 - `20260913143525 business_finance_expense_ledger`
 - `20260913144052 business_finance_expense_updated_by_index`
 - `20260913144632 stripe_payment_environment_tracking`
 
-`business_expenses` is private, RLS enabled, with no browser policies. The second migration fixed the only finance-specific missing-FK-index advisor finding.
+`business_expenses` is private, RLS enabled, with no browser policies. The second migration fixed the finance-specific missing-FK-index advisor finding.
 
-The third migration adds `payment_records.provider_livemode`, backfills every existing Stripe record to `false` because Namdar has never had live Stripe credentials, and adds a Stripe environment/paid-date index. Verified database state after migration: 4 sandbox Stripe rows, 0 live Stripe rows, 0 unknown Stripe rows, 0 business-expense rows, 0 `finance_private` rows.
+`payment_records.provider_livemode` separates Stripe sandbox from live money. All existing Stripe rows were safely backfilled `false` because Namdar has never had live Stripe credentials. Verified post-release database state:
+- 4 Stripe sandbox rows;
+- 0 live Stripe rows;
+- 0 unknown Stripe rows;
+- 0 business-expense rows;
+- 0 `finance_private` rows;
+- 0 `payments` policy rows.
 
-The GitHub connector blocked creation of matching SQL migration files for these new schema changes. Do not claim repo migration files exist. Supabase migration history plus these handoff docs are authoritative for the already-applied production schema changes.
+The GitHub connector blocked creation of matching SQL migration files for these schema changes. Do not claim repo migration files exist. Supabase migration history plus these continuity docs are authoritative for the already-applied production schema changes.
 
 ### Finance v1
 - `lib/uk-tax.js`: 2026/27 England/Wales/NI sole-trader estimator.
 - private `site_settings.finance_private` settings API.
 - private expense-ledger CRUD with audit logging.
 - Admin Business Finance dashboard under Reports.
-- cash-basis receipts/refunds from `payment_records`.
-- **Stripe sandbox/test rows are excluded entirely from business finance**; only `provider_livemode=true` Stripe rows count as real receipts/refunds/processor costs. Non-Stripe real payment methods remain eligible.
-- verified Stripe webhook now records `provider_livemode` from Checkout Session/PaymentIntent objects.
-- actual live Stripe processor fees are automatically included.
+- cash-basis receipts/refunds from real payment records.
+- **Stripe sandbox/test rows are excluded entirely from business finance**; only `provider_livemode=true` Stripe rows count as real Stripe receipts/refunds/processor costs. Non-Stripe real payment methods remain eligible.
+- verified Stripe webhook records `provider_livemode` from Checkout Session/PaymentIntent objects.
+- actual live Stripe processor fees are included automatically.
 - expense ledger supports business-use %, allowable/capital-allowance/non-allowable treatment.
-- cash surplus kept distinct from estimated taxable trading profit.
-- outstanding invoices shown separately from cash-basis income.
+- cash surplus is distinct from estimated taxable trading profit.
+- outstanding invoices are shown separately from cash-basis income.
 - estimated incremental Income Tax attributable to Namdar + Class 4 NI.
 - tax reserve/gap + illustrative payments-on-account warning.
 - rolling 12-month VAT £90,000 threshold monitor.
@@ -67,14 +73,13 @@ Tax output is management-only, not an HMRC assessment. V1 does not model loss re
 - finance-specific `updated_by` missing-index finding: fixed.
 - existing project-wide advisor items remain, including leaked-password protection disabled and unrelated RLS/performance warnings; these pre-date Business Finance.
 
-## Next action after merge
-1. verify production deployment READY + `/api/health` healthy;
-2. confirm production Admin loader serves `admin-business-finance.js`;
-3. verify finance API excludes the four retained sandbox Stripe audit rows;
-4. verify expense ledger remains clean and no `finance_private` row is required until real settings are entered;
-5. user enters actual sole-trader start date and, optionally, private other taxable income/tax reserve through Admin — never hard-code personal figures;
-6. begin recording real paid business expenses;
-7. keep Stripe commercial policy OFF until finance validation is complete, then return to Window payment-policy/live-Stripe decision.
+## Next action
+1. Open Admin -> Reports and visually verify the live Business Finance panel with the user's authenticated Admin session.
+2. Enter the user's **actual sole-trader start date** through Admin; never invent it.
+3. Optionally enter private other taxable income and current tax reserve through Admin for a more accurate marginal tax estimate; do not put unnecessary personal financial details in source/docs/chat.
+4. Begin recording real paid business expenses in the expense ledger.
+5. Keep Stripe commercial policy OFF while finance data-entry behaviour is validated.
+6. Once finance is stable, return to the Window commercial payment policy and live Stripe rollout.
 
 ## Do not break
 - Window Cleaning only until deliberate next-stage activation.
