@@ -15,6 +15,7 @@ Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PR
 - Production deployment: `dpl_BsZbTcWLNHYgP9hrCxLUgPsXHLas`, READY on `https://namdar.co.uk`.
 - Production `/api/health`: HTTP 200 with database, Stripe, email, reminders and followups healthy after deploy.
 - Production Admin loader: `6.4.27-system-health-1`, including `admin-system-health.js`.
+- PR #65 is docs-only live-release continuity, merge `6c9942d10e1f5601b6a3a070f918470e12eb06b8`.
 - Supabase production: `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
 - Window Cleaning only live; future services planned; address work parked.
 - Privileged Staff/Admin requires AAL2/MFA.
@@ -29,7 +30,7 @@ Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PR
 ## Intelligent receipts — LIVE / user deferred test
 PR #62 smart receipt workflow is live. It is private, OCR/review-first, duplicate-aware and never auto-posts an expense. The user chose to test it later.
 
-## System Health — LIVE
+## System Health — LIVE AND FIRST REAL RUN VERIFIED
 Migration: `20260913154800 system_health_reliability_history`.
 
 Private server-only tables:
@@ -47,31 +48,31 @@ Live behavior:
 - later healthy execution resolves the incident;
 - history begins with this release; older Vercel logs are not backfilled.
 
-Private Admin `System health` view monitors:
-- database availability and latency;
-- Stripe configured state + sandbox/live mode only;
-- email readiness;
-- cron configuration;
-- scheduled-job freshness;
-- booking/business notification queue backlog/failures;
-- private receipt Storage reachability;
-- incident history and scheduled-run history.
+Private Admin `System health` view monitors database availability/latency, Stripe readiness/mode, email readiness, cron configuration/freshness, notification queues, private receipt Storage, incidents and scheduled-run history.
 
-Important interpretation:
-- intermittent Supabase/PostgREST 504s were the primary recent reliability issue motivating this release;
-- expected signed-out/expired-session 401s are authentication events, not platform incidents;
-- no secrets or customer identifiers are exposed in health history/UI.
+### First genuine post-release run
+The real hourly `:07` cron executed from 16:07:25 to 16:07:28 UTC on 2026-09-13 and persisted one `notification_cron` row:
+- status: `healthy`;
+- summary: `Notification and follow-up cron completed normally`;
+- duration: 3336 ms;
+- all four stages healthy on attempt 1: post-job, booking delivery, business scan, business delivery;
+- database retries: 0; recovered: 0; exhausted: 0;
+- incidents after run: 0 open / 0 total;
+- System Health staff alerts after run: 0.
 
-## Current verification state
-- New health tables were 0 runs / 0 incidents before production deployment by design.
-- Both tables have RLS enabled, zero browser policies and expected indexes.
-- Supabase advisors show no new System Health missing-FK issue. Existing project-wide advisor items remain separate work.
-- Await/observe the first real hourly `:07` notification cron record; never fabricate run history.
+This proves production cron history persists before the function response completes and that a healthy run does not generate a false incident or alert.
+
+## Verification notes
+- Both health tables have RLS enabled, zero browser policies and expected indexes.
+- Supabase advisors show no new System Health missing-FK issue.
+- Existing project-wide advisor items remain separate work; leaked-password protection is still disabled and belongs to security hardening.
+- Intermittent Supabase/PostgREST 504s were the primary recent reliability issue motivating this release.
+- Expected signed-out/expired-session 401s are authentication events, not platform incidents.
 
 ## Next action
-1. Confirm the first real post-release `notification_cron` row appears after an actual scheduled run.
-2. User can open authenticated Admin -> System health to inspect live component cards.
-3. If a genuine degradation occurs, verify one grouped incident + one staff alert; a later healthy run should resolve it.
+1. User can open authenticated Admin -> System health and inspect the live component cards/history.
+2. Let real scheduled runs accumulate naturally.
+3. If a genuine degradation occurs, verify one grouped incident + one staff alert; repeated failures increment count and a later healthy run resolves it.
 4. Keep Stripe commercial policy OFF.
 
 ## Do not break
