@@ -45,6 +45,7 @@ jobs:
           node --check admin-business-finance-polish.js
           node --check admin-finance-receipts.js
           node --check admin-system-health.js
+          node --check admin-newsletter-center.js
           node --check api/address-harvest-cron.js
           node --check api/account-purge.js
           node --check api/admin-address-harvest.js
@@ -61,6 +62,10 @@ jobs:
           node --check api/admin-finance-expenses.js
           node --check api/admin-finance-receipts.js
           node --check api/admin-system-health.js
+          node --check api/admin-newsletter.js
+          node --check api/admin-newsletter-send.js
+          node --check api/newsletter-subscribe.js
+          node --check api/newsletter-unsubscribe.js
           node --check api/staff-job-action.js
           node --check api/staff-jobs.js
           node --check api/feedback.js
@@ -102,6 +107,7 @@ jobs:
           node --check lib/uk-tax.js
           node --check lib/receipt-intelligence.js
           node --check lib/system-health.js
+          node --check lib/newsletter.js
           node --check scripts/os-open-data-import.mjs
           node --test scripts/address-harvest-priority.test.mjs
           node --test scripts/address-commercial-foundation.test.mjs
@@ -118,6 +124,7 @@ jobs:
           node --test scripts/receipt-intelligence.test.mjs
           node --test scripts/business-finance-receipts.test.mjs
           node --test scripts/system-health.test.mjs
+          node --test scripts/newsletter-center.test.mjs
           node --check lib/server.js
           node --check lib/server-original.js
           node --check staff.js
@@ -128,6 +135,7 @@ jobs:
           node --check conversion.js
           node --check feedback.js
           node --check seo-page.js
+          node --check unsubscribe.js
 
       - name: Require current AI handoff documentation
         run: node scripts/check-ai-handoff.mjs
