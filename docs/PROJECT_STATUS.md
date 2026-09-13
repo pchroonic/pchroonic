@@ -31,8 +31,11 @@ Verified clean finance state after cleanup:
 ## Intelligent Expense Receipts — IN PROGRESS
 Branch: `feat/intelligent-expense-receipts-20260913`.
 
-Applied migration:
-- `20260913152601 intelligent_expense_receipts`.
+Applied migrations:
+- `20260913152601 intelligent_expense_receipts`;
+- `20260913153443 intelligent_expense_receipt_fk_indexes`.
+
+Both intelligent-receipt migrations have matching SQL files on the branch. The second added covering audit-user FK indexes; the receipt-specific missing-FK advisor findings are now cleared. Remaining advisor items are pre-existing elsewhere.
 
 New foundation:
 - private `business_expense_receipts` receipt-document/draft table;
@@ -72,18 +75,18 @@ Code/CI additions:
 - `20260913144052 business_finance_expense_updated_by_index`
 - `20260913144632 stripe_payment_environment_tracking`
 - `20260913152601 intelligent_expense_receipts`
+- `20260913153443 intelligent_expense_receipt_fk_indexes`
 
-Supabase migration history + continuity docs are authoritative for tool-applied schema changes.
+Older finance migrations may lack repo SQL files; both intelligent-receipt migrations have matching git files. Supabase migration history + continuity docs remain authoritative for applied schema.
 
 ## Immediate next work
 1. Open PR for intelligent receipts.
 2. Require green CI + READY exact-head Vercel preview + clean errors-only build.
-3. Check finance-receipt Supabase advisor/security findings.
-4. Merge only when clean; verify production loader `6.4.26-intelligent-receipts-1` and health endpoint.
-5. User uploads one controlled sample receipt and verifies OCR -> suggestions -> edit/review -> save -> receipt attachment -> learned supplier rule -> duplicate protection.
-6. User saves actual sole-trader start date when ready.
-7. Keep Stripe customer payment policy OFF during finance validation.
-8. Then return to Window commercial payment policy/live Stripe rollout.
+3. Merge only when clean; verify production loader `6.4.26-intelligent-receipts-1` and health endpoint.
+4. User uploads one controlled sample receipt and verifies OCR -> suggestions -> edit/review -> save -> receipt attachment -> learned supplier rule -> duplicate protection.
+5. User saves actual sole-trader start date when ready.
+6. Keep Stripe customer payment policy OFF during finance validation.
+7. Then return to Window commercial payment policy/live Stripe rollout.
 
 ## Handoff rule
 Every substantial product/provider/data change updates `docs/AI_START.md`, `docs/AI_HANDOFF.md`, and this file. Never store credentials, raw API keys, customer secrets, TOTP codes, one-time Auth links or unnecessary private financial details in source/docs.
