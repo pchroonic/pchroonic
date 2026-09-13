@@ -32,8 +32,11 @@ The user explicitly confirmed the £106 Sep-11 Window booking/invoice was test d
 ## Intelligent receipt branch
 Branch: `feat/intelligent-expense-receipts-20260913`.
 
-Applied production migration:
-- `20260913152601 intelligent_expense_receipts`.
+Applied production migrations:
+- `20260913152601 intelligent_expense_receipts`;
+- `20260913153443 intelligent_expense_receipt_fk_indexes`.
+
+Both migrations have matching SQL files on this branch. The second migration added covering indexes for `business_expense_receipts.updated_by`, `business_expense_merchant_rules.created_by`, and `business_expense_merchant_rules.updated_by`. Re-running the performance advisor removed all three new receipt-specific missing-FK findings. Remaining missing-FK advisor findings are pre-existing elsewhere in the product.
 
 ### New private schema/storage
 `business_expense_receipts`
@@ -56,7 +59,7 @@ Storage bucket `finance-receipts`
 - helper requires AAL2 and either Admin role or active staff `settings` permission;
 - upload path must start with authenticated user's UUID.
 
-Starting receipt state after migration: 0 receipt rows, 0 learned merchant rules.
+Starting receipt state: 0 receipt rows, 0 learned merchant rules.
 
 ### Receipt workflow
 Frontend `admin-finance-receipts.js`:
@@ -74,12 +77,12 @@ Frontend `admin-finance-receipts.js`:
 - recent receipt documents can be reopened through short-lived signed URLs;
 - reviewed unattached drafts can be reloaded without rerunning OCR.
 
-Privacy model: receipt pixels/document content are not sent to an external AI provider. OCR is performed in the authenticated browser. Pinned jsDelivr assets provide OCR/PDF code/language data; CSP now allows jsDelivr connect/worker assets. Original receipt file is retained only in private Namdar/Supabase storage.
+Privacy model: receipt pixels/document content are not sent to an external AI provider. OCR is performed in the authenticated browser. Pinned jsDelivr assets provide OCR/PDF code/language data; CSP allows jsDelivr connect/worker assets. Original receipt file is retained only in private Namdar/Supabase storage.
 
 Backend `lib/receipt-intelligence.js`:
 - deterministic extraction of supplier/date/total/VAT/reference/payment method;
 - keyword/rule category suggestion;
-- tax-treatment warnings (including fine/penalty detection);
+- tax-treatment warnings including fine/penalty detection;
 - confidence scores + review warnings;
 - merchant-key normalisation;
 - learned merchant rules can override generic suggestions after the user has previously reviewed a supplier.
@@ -112,18 +115,18 @@ Current branch still requires PR CI + exact Vercel preview before merge.
 - `20260913144052 business_finance_expense_updated_by_index`
 - `20260913144632 stripe_payment_environment_tracking`
 - `20260913152601 intelligent_expense_receipts`
+- `20260913153443 intelligent_expense_receipt_fk_indexes`
 
-Supabase migration history plus continuity docs are authoritative for schema applied through tools; do not invent missing SQL migration files in git.
+Older finance migrations may lack matching SQL files; both receipt migrations have matching branch files. Supabase migration history plus continuity docs are authoritative for what is applied.
 
 ## Next
 1. Open PR from `feat/intelligent-expense-receipts-20260913`.
 2. Require green GitHub CI + READY exact-head Vercel preview + clean errors-only build.
-3. Check Supabase advisors for finance-receipt-specific findings.
-4. Merge only if clean and verify production loader `6.4.26-intelligent-receipts-1` + `/api/health`.
-5. User uploads one controlled sample receipt in authenticated Admin -> Reports.
-6. Verify private storage, OCR, extracted fields, review/edit, save/attach, learned merchant rule, reopen link and duplicate protection.
-7. Keep Stripe commercial policy OFF until this finance workflow is validated.
-8. User saves real sole-trader start date when ready; never invent it.
+3. Merge only if clean and verify production loader `6.4.26-intelligent-receipts-1` + `/api/health`.
+4. User uploads one controlled sample receipt in authenticated Admin -> Reports.
+5. Verify private storage, OCR, extracted fields, review/edit, save/attach, learned merchant rule, reopen link and duplicate protection.
+6. Keep Stripe commercial policy OFF until this finance workflow is validated.
+7. User saves real sole-trader start date when ready; never invent it.
 
 ## Non-negotiables
 - No customer exposure of private finance settings, expense ledger or receipt documents.
