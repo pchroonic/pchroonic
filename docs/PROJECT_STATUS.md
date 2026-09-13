@@ -11,6 +11,7 @@ Last updated: 2026-09-13 UTC
 - Production deployment `dpl_BsZbTcWLNHYgP9hrCxLUgPsXHLas` READY on `https://namdar.co.uk`.
 - Production `/api/health` is HTTP 200 after release.
 - Production Admin loader `6.4.27-system-health-1` loads `admin-system-health.js`.
+- PR #65 docs-only continuity merge `6c9942d10e1f5601b6a3a070f918470e12eb06b8`.
 - Supabase production `qjigldxjcpnrlyxgmlqq`.
 - Window Cleaning only live; future services planned; address work parked.
 
@@ -21,20 +22,11 @@ Last updated: 2026-09-13 UTC
 - Confirmed £106 test fixture removed.
 - Smart receipt workflow live; user deferred its first authenticated receipt test.
 
-## Reliability and System Health — LIVE
+## Reliability and System Health — LIVE / FIRST RUN VERIFIED
 Migration:
 - `20260913154800 system_health_reliability_history`.
 
-The release adds:
-- private `system_health_runs` scheduled-run history;
-- private `system_health_incidents` grouped incident lifecycle;
-- one-open-incident-per-fingerprint dedupe;
-- hourly notification/follow-up health recording;
-- daily account-purge health recording;
-- one staff alert when a new incident opens;
-- repeat-failure count without alert spam;
-- automatic incident resolution after later healthy execution;
-- private Admin System Health dashboard.
+The release provides private scheduled-run history, grouped incident lifecycle, one-open-incident-per-fingerprint dedupe, notification/follow-up and account-purge health recording, deduped staff alerts, recovery resolution, and the private Admin System Health dashboard.
 
 Admin System Health monitors database availability/latency, Stripe readiness and mode, email readiness, cron configuration/freshness, notification queue problems, private receipt storage, incidents and recent scheduled runs.
 
@@ -50,12 +42,24 @@ Database verification:
 - required indexes present;
 - no new System Health unindexed-FK advisor finding.
 
-## Runtime verification still pending
-1. Observe the first real hourly notification cron after release and confirm one `notification_cron` history row.
-2. Healthy run => no incident/alert.
-3. Genuine degradation => one grouped incident + one staff alert; repeated failures only increment count; later healthy run resolves it.
-4. User can inspect Admin -> System health when convenient.
-5. Keep Stripe customer payment policy OFF.
+### First genuine scheduled run
+The first post-release hourly notification/follow-up cron ran 2026-09-13 16:07:25–16:07:28 UTC:
+- one `notification_cron` history row persisted;
+- status `healthy`;
+- duration 3336 ms;
+- post-job, booking delivery, business scan and business delivery all succeeded on attempt 1;
+- database retries/recoveries/exhaustions all 0;
+- 0 open incidents / 0 total incidents afterwards;
+- 0 System Health staff alerts afterwards.
+
+This verifies the production history write and the no-false-alert healthy path.
+
+## Immediate next work
+1. User can inspect Admin -> System health when convenient.
+2. Allow genuine scheduled-run history to accumulate naturally.
+3. If a real degradation happens, verify grouped incident creation, exactly one initial staff alert, repeat occurrence counting, and later healthy-run resolution.
+4. Keep customer Stripe policy OFF while finance/reliability work remains in validation mode.
+5. Security hardening remains a separate future priority; Supabase still reports leaked-password protection disabled.
 
 ## Handoff rule
 Every substantial product/provider/data change updates `docs/AI_START.md`, `docs/AI_HANDOFF.md`, and this file. Never store credentials, raw API keys, customer secrets, TOTP codes, one-time Auth links or unnecessary private financial details in source/docs.
