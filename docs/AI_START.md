@@ -6,64 +6,70 @@ Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PR
 
 ## Production baseline
 - Repository: `pchroonic/pchroonic`, default `main`.
-- Current `main` HEAD before this fix: `71935bdb169cb3d4f8f0413d1be8c36041a2f744` (PR #55 docs-only merge).
-- Latest product release before this fix: PR #54 `Fix Stripe webhook raw body handling on Vercel`.
-- PR #54 exact tested head: `d9a7d2cdded5905e032b53a38b725e30f50be531`; CI `34759777343` SUCCESS; production `dpl_9maand6wJHASgET55huV2EtauFjp` READY on `https://namdar.co.uk`.
-- Supabase: `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
+- Current production product release: PR #56 `Fix My Namdar Stripe return session restore stall`.
+- PR #56 merge/main HEAD: `70af420aa17787ce22879b2a6cd4880cb9238113`.
+- PR #56 CI passed; production deployment `dpl_CXTkbzJ4q29BfW7CmrLjCsGgA8rH` is READY on `https://namdar.co.uk`; `/api/health` returned healthy database + Stripe sandbox configuration.
+- Supabase production: `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
 - Window Cleaning is the only live/quotable/bookable service. Gutters, jet washing, roof cleaning, handyman and 3D tours remain `planned`.
 - Address-data work remains parked.
 - Privileged Staff/Admin requires AAL2/MFA.
 
 ## Notification cron
-PR #52 remains live with bounded transient Data API read retries and schedule `7 * * * *`.
+PR #52 remains live with bounded transient Data API read retries and schedule `7 * * * *`. Keep `Namdar Cron Watch` active because upstream 504s may still recur transiently.
 
-A real post-release scheduled run at 2026-09-13 12:07 UTC completed non-degraded. Keep `Namdar Cron Watch` active because upstream 504s may still recur transiently.
-
-## Stripe sandbox provider — CONNECTED
-Production `/api/health` reports Stripe secret + webhook configuration present. These are Stripe **sandbox/test-mode** credentials stored server-side in Vercel Production env so `namdar.co.uk` can be tested safely. They are not live-money credentials.
+## Stripe sandbox provider — CONNECTED, CUSTOMER POLICY OFF
+Production has Stripe test-mode secret + webhook signing secret only. These are sandbox credentials, not live-money credentials.
 
 Webhook destination: `https://namdar.co.uk/api/stripe-webhook`.
 
-PR #54 remains the verified webhook raw-body fix. The earlier £1.23 sandbox payment + full refund proved verified-webhook authority, refund idempotency and exact processor-cost capture.
+PR #54 remains the verified raw-body webhook fix. The earlier £1.23 sandbox payment + refund proved verified-webhook authority, refund idempotency and processor-cost capture.
 
-## Normal My Namdar Checkout verification — IN PROGRESS
-On 2026-09-13 the real signed-in customer Checkout route was tested with a controlled £1.00 Window invoice under a temporary sandbox-only policy:
-- mode `deposit_required`;
-- 20% deposit;
-- £0.50 minimum deposit;
-- pay-in-full allowed;
-- headline-price allowance OFF.
-
-The normal My Namdar Checkout created successfully and a £0.50 sandbox deposit completed. Verified live state immediately afterwards:
-- POST `/api/stripe-webhook` -> HTTP 200;
+## Normal My Namdar Checkout verification — FIRST DEPOSIT PASSED
+A controlled £1.00 Window invoice was used through the real signed-in My Namdar route. A £0.50 sandbox deposit completed successfully:
+- `/api/create-checkout` HTTP 200;
+- `/api/stripe-webhook` HTTP 200;
 - invoice £1.00 total / £0.50 paid / £0.50 outstanding / `part_paid`;
 - booking `payment_status='deposit_paid'`;
-- one Stripe payment ledger row, kind `deposit`, amount £0.50;
-- actual sandbox processor cost £0.22 / net £0.28.
+- one Stripe deposit ledger row for £0.50;
+- sandbox processor fee £0.22 / net £0.28.
 
-The payment itself was correct. The browser return exposed a separate frontend bug: after Stripe redirected to `/account?tab=billing&payment=success&session_id=...`, My Namdar could remain indefinitely on `Opening My Namdar… Restoring your secure session.` when Supabase `getSession()` stalled, especially with multiple Namdar tabs open.
+The remaining £0.50 balance is intentionally left as the controlled fixture for the return-flow test.
 
-The temporary `site_settings.payments` row was removed immediately after reproducing the bug. Customer online payment policy is OFF again while the fix is developed. The successful £0.50 sandbox deposit ledger/invoice state remains intact for the controlled £1.00 fixture.
+## My Namdar session restore — PR #56 IMPROVED FAILURE MODE, ROOT ISSUE STILL PRESENT
+PR #56 fixed the endless spinner failure mode:
+- auth guard loads before `account-original.js`;
+- `getSession()` is bounded to 5 seconds;
+- Stripe returns can retry once only;
+- the UI falls back to sign-in/recovery guidance instead of spinning forever.
 
-## Current fix candidate
-Branch: `fix/account-stripe-return-session-20260913`.
+After PR #56 went live, a real `/account` refresh with several Namdar tabs still hit the 5-second timeout and showed:
+`Your secure session is taking longer than expected...`
 
-Changes:
-- load `account-auth-hotfix.js` before `account-original.js`, so the Supabase client factory is patched before initial session restoration starts;
-- bound `auth.getSession()` to 5 seconds instead of allowing an indefinite spinner;
-- on a Stripe success return, permit one automatic page retry per Checkout session, with a session-storage loop guard;
-- if restoration still fails, replace the endless spinner with existing refresh/close-extra-tabs recovery guidance;
-- add `scripts/account-auth-hotfix.test.mjs` and run it in CI to lock the load order, bounded timeout and one-retry/no-loop behavior.
+So PR #56 correctly prevents an infinite hang, but the underlying Supabase session restore can still stall.
 
-No database migration or environment-variable change is required for this fix.
+## Stronger root-cause finding / current fix candidate
+`account.html` currently loads the floating CDN alias `@supabase/supabase-js@2` before `account.js`. A browser can therefore keep using an older cached v2 Auth build. Older Supabase browser Auth builds are known to hang `getSession()` under multi-tab `navigator.locks` contention. Current Supabase JS `2.116.0` uses lockless coordination by default unless a custom lock is supplied.
+
+Current branch: `fix/account-supabase-lockless-pin-20260913`.
+
+Candidate changes:
+- `account.js` version `6.4.23-supabase-lockless-1`;
+- synchronously load exact `@supabase/supabase-js@2.116.0` before the Namdar auth guard and before any Supabase client is created;
+- keep PR #56's 5-second fail-safe as defense-in-depth;
+- regression test asserts the exact Supabase pin loads before the auth guard.
+
+The existing floating script in `account.html` is not used to create a client before the exact pinned build replaces the global. This intentionally avoids a large HTML rewrite in the hotfix; it can be cleaned up later after production verification.
+
+## Commercial safety during auth fix
+The temporary `site_settings.payments` row was deleted again after the second reproduction. Customer online payment policy is OFF. The successful £0.50 fixture remains recorded and must not be charged again or deleted while the auth fix is being verified.
 
 ## Next action
-1. run CI and preview checks for the session-restore fix;
-2. merge/deploy only if those checks pass;
-3. verify production no longer leaves Stripe returns on an endless session spinner;
-4. recheck that only the controlled account has an eligible Window invoice, then temporarily re-enable the sandbox policy;
-5. pay the remaining £0.50 balance through normal My Namdar Checkout and verify webhook/ledger/invoice/booking state;
-6. refund/clean the controlled sandbox test and return payment policy OFF;
+1. run CI and exact preview checks for the Supabase pin;
+2. merge/deploy only if green;
+3. first verify ordinary `/account` session restoration with multiple Namdar tabs, without enabling payments;
+4. if session restoration is stable, recheck payment eligibility and temporarily enable the same sandbox-only policy;
+5. pay only the remaining £0.50 balance and verify webhook/ledger/invoice/booking state plus the browser return;
+6. refund/clean the controlled sandbox fixture and return payment policy OFF;
 7. only later choose the real Window commercial payment policy and connect live Stripe deliberately.
 
 ## Do not break
