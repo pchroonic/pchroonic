@@ -7,163 +7,156 @@ Read `docs/AI_START.md` first.
 ## Production source of truth
 - Repo: `pchroonic/pchroonic`, default `main`.
 - Latest product release: PR #50 `Account for Stripe fees without customer surcharges`.
-- Exact tested head: `17892e015f8e7f8b7c9a6b0b577292bb950d5c64`.
-- GitHub Actions: `34752824319` SUCCESS.
-- Exact-head Vercel preview: `dpl_2py2f1pDzH8YK5YD6GRkiD2hojfi` READY, clean errors-only build.
-- Merge: `32e13016601492eae3daa2021f35195298b00f5b`.
-- Product production: `dpl_Ce8kShg3ikTXVubaTYMKcgAFjztT` READY on `https://namdar.co.uk`, canonical alias present, `aliasError:null`, clean errors-only build.
-- Runtime errors/fatal logs on that deployment during release verification: none.
+- PR #50 exact tested head: `17892e015f8e7f8b7c9a6b0b577292bb950d5c64`.
+- CI: `34752824319` SUCCESS.
+- Exact-head preview: `dpl_2py2f1pDzH8YK5YD6GRkiD2hojfi` READY / clean.
+- Product merge: `32e13016601492eae3daa2021f35195298b00f5b`.
+- Product production: `dpl_Ce8kShg3ikTXVubaTYMKcgAFjztT` READY on `https://namdar.co.uk`.
+- Docs-only PR #51 merge `c350fc3a225c96ad0033a54727e5ab5d8c2490f7`; current production deployment `dpl_7sFz4g2vR4RmLhHS7J7PthjLydbi` READY / canonical alias / no alias error.
 - Supabase: `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
 - Only `windows` is live; gutters/jetwash/roof/handyman/tour3d remain `planned`.
 - Address work remains parked.
 - Staff/Admin privileged API access requires AAL2/MFA.
 
 ## Window Stage 1 live baseline
-Keep the existing Window quote/recurring pricing, service-live gates, route-aware booking rules, Staff On my way → Start → Complete, completed-job direct-cost/travel review, consent-aware conversion funnel, direct-contribution reporting, neutral post-job review flow, Stripe foundation and processor-cost accounting.
+Keep Window quote/recurring pricing, service-live gates, route-aware booking, Staff On my way → Start → Complete, completed-job direct-cost/travel review, consent-aware conversion funnel, direct-contribution reporting, neutral post-job review flow, Stripe foundation and processor-cost accounting.
 
-`booking_job_costs` remains the staff-reviewed job-cost source. Missing review is not £0. Missing/incomplete Stripe processor cost is also not £0. Direct contribution is not net profit.
+`booking_job_costs` remains the staff-reviewed job-cost source. Missing review is not £0. Missing/incomplete Stripe processor cost is not £0. Direct contribution is not net profit.
 
 Public Google review requests remain disabled until the official Business Profile review-request URL is deliberately entered. Never restore positive-only review gating or incentives.
 
-## Booking-notification resilience
-PR #47 isolated the four hourly notification stages and batched business reminder work. A real scheduled authenticated run at 2026-09-13 05:00:02 UTC returned HTTP 200 while logging `Notification cron stage failed: booking_delivery 504 Gateway Timeout`.
+## CURRENT PRIORITY — notification cron 504s
+Do not proceed with Stripe provider connection until this is released and observed.
 
-Containment is working, but the intermittent upstream/Supabase REST 504 persists. Keep `Namdar Cron Watch`; do not declare it permanently resolved.
+### Production evidence
+Vercel runtime logs on 2026-09-13 showed repeated authenticated `/api/booking-notifications` HTTP 200 responses with degraded internal stages:
+- 05:00 UTC: `booking_delivery` 504;
+- 06:00 UTC: `post_job` 504, `booking_delivery` 504, `admin_contact` 504, `overdue_invoices` 504;
+- 07:00 UTC: `booking_delivery` 504, `quote_reminders` 504, `unassigned_bookings` 504;
+- 08:00 UTC: `booking_delivery` 504, `booking_attention` 504;
+- 09:00 UTC: `post_job` 504, `admin_contact` 504, `business_delivery` 504;
+- 10:00 UTC: `booking_delivery` 504, `unassigned_bookings` 504.
 
-## PR #49 secure Stripe foundation — LIVE CODE, PROVIDER DISABLED
+05:00 ran on the PR #48 docs deployment; 06:00–10:00 were on PR #49 production `dpl_ALo78vUX3j9xwVZ8PnMjC9mAASmw`. PR #50/#51 did not change notification database access, so the vulnerability remains in current production source until this candidate is released.
+
+### Database diagnosis
+Production Supabase diagnostics during investigation:
+- `pg_notification_queue_usage()` = 0;
+- `datconnlimit` = -1;
+- PostgREST application observed as 14.5;
+- `authenticator` role has `statement_timeout=8s` and `lock_timeout=8s`;
+- PostgREST connections observed idle rather than blocked on a long query;
+- data size is tiny: 6 quotes, 2 bookings, 2 invoices, 4 business notifications, 2 booking notifications;
+- no due pending/sending notification backlog at diagnosis time.
+
+`pg_stat_statements` for the due booking-notification PostgREST query shows ~3.649 ms average execution and ~310.753 ms max over 100 calls. The query itself is not approaching the 8-second timeout.
+
+Supabase current docs identify HTTP 504/PGRST003 as timing out while waiting for an internal PostgREST pool connection. Their current retry guidance also includes 504 among transient retryable Data API errors for idempotent calls. The failure pattern across unrelated tiny reads is therefore treated as transient Data API/PostgREST pool acquisition pressure, not a single bad SQL query.
+
+Do **not** increase statement timeout or add random indexes as the primary fix; evidence does not support slow SQL.
+
+### Candidate branch
+`fix/cron-postgrest-504-retries-20260913`
+
+New file: `lib/notification-cron-resilience.js`.
+
+Behavior:
+- classifies 408/429/502/503/504/520/522/524 and network reset/timeout/fetch failures as transient;
+- `retryTransient()` uses at most 3 total attempts by default with short jittered backoff;
+- `createResilientReadDb()` retries only GET/HEAD/OPTIONS;
+- the read wrapper deliberately does **not** replay POST/PATCH/PUT/DELETE automatically;
+- retry metrics track `retries`, `recovered`, `exhausted`.
+
+`api/booking-notifications.js` now:
+- retries a thrown transient `post_job`, `booking_delivery` or `business_delivery` stage up to 3 total attempts;
+- gives `scanBusinessFollowUpsBatched()` the resilient read-only DB wrapper so `admin_contact`, quote, invoice, unassigned and attention source reads can recover before the scanner marks itself degraded;
+- keeps the business scanner's existing conflict-ignore batch insert retry for its idempotent notification queue POST;
+- adds per-stage `attempts` / `recovered` plus top-level `databaseRetries` to cron JSON for observability;
+- preserves HTTP 503 only when all four stages fail; partial failures remain HTTP 200 + `degraded:true` as before.
+
+Why retrying the top-level delivery stages is safe in the current implementation:
+- their uncaught stage-level gateway failure happens on the initial due-row read;
+- per-row processing catches row errors internally after a claim;
+- immediate stage retry therefore does not blindly resend already-delivered emails.
+
+Do not generalize this into automatic mutation retries without proving idempotency.
+
+### Schedule change
+`vercel.json` moves `/api/booking-notifications` from `0 * * * *` to `7 * * * *`.
+
+This avoids the exact-hour contention window repeatedly observed at 05:00–10:00 while preserving hourly cadence. Notification due times/business rules are unchanged; worst-case normal scheduling shift is only seven minutes.
+
+### Tests / release gate
+`scripts/booking-notification-resilience.test.mjs` now verifies:
+- 504/network classification;
+- recovery after transient failures;
+- GET reads retry;
+- PATCH mutation does not auto-retry;
+- business scanner recovers a first source 504 without becoming degraded;
+- existing conflict-ignore batch insert retry remains intact;
+- Vercel schedule is `7 * * * *`;
+- cron exposes retry observability.
+
+`.github/workflows/ai-handoff-check.yml` syntax-checks the new helper and runs the resilience test.
+
+Release only after exact-head GitHub CI SUCCESS and exact-head Vercel preview READY/clean. No database migration is needed.
+
+After production deploy, inspect the first real authenticated `:07` scheduled run. Do not declare the issue resolved until a real run is clean. If retries recover a transient, record that as containment/recovery, not proof the upstream pool issue vanished.
+
+Keep `Namdar Cron Watch` active.
+
+## Stripe foundation — LIVE CODE, PROVIDER DISABLED
 PR #49 added Window-only secure Checkout/payment policy without activating Stripe.
 
-Core rules retained after PR #50:
+Core rules retained:
 - online payments default disabled;
-- effective activation needs Admin activation + `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET`;
+- activation needs Admin activation + `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET`;
 - Checkout is customer-owned, Window-only and server-calculated;
-- deterministic idempotency key prevents duplicate Checkout creation for the same payment state;
-- webhook preserves raw body and verifies Stripe signature before money writes;
+- webhook signature/raw-body verification precedes money writes;
 - browser payment return/status is read-only for money;
-- `payment_records.provider_reference` is unique and webhook inserts use conflict-ignore semantics;
-- required deposit/full payment is enforced server-side before Window booking confirmation;
+- unique `payment_records.provider_reference` keeps webhook replay idempotent;
+- required deposit/full payment is enforced before Window confirmation;
 - card details never pass through or persist in Namdar.
 
-Latest production health after PR #50 still reports `stripe:false`, `stripeSecret:false`, `stripeWebhook:false`; there is no payment-policy row and there are zero Stripe payment rows.
+Production still has `/api/health` Stripe flags false, no `site_settings.payments` row and zero Stripe payment rows.
 
 ## PR #50 processor-fee accounting — LIVE
-### Business rule
-There is no separate consumer-facing Stripe/card surcharge in the Namdar journey. Customer-visible invoice/Checkout uses one ordinary service price.
+There is no separate customer Stripe/card surcharge.
 
-An optional Window **headline price allowance** may be deliberately enabled in Admin. When enabled it applies to the ordinary service price regardless of eventual payment method and is never itemised as a card/Stripe fee. It is currently OFF because no `site_settings.payments` row exists.
+Production migration `stripe_processor_fee_accounting` added nullable internal fields to `payment_records`:
+- `provider_payment_id`;
+- `provider_balance_transaction`;
+- `provider_fee`;
+- `provider_net`;
+- `provider_fee_currency`.
 
-Default allowance suggestion in code:
-- 1.5%;
-- £0.20 fixed;
-- disabled by default.
+The partial provider-payment index exists and RLS remains enabled.
 
-`headlinePriceWithAllowance(base, policy)` uses `(base + fixed) / (1 - rate)` before the existing whole-pound guide-price rounding. Promo/reward discounts are applied after the headline allowance. This allowance is a configurable pricing buffer only; it is not used as the accounting source of truth for actual Stripe cost.
+Verified Stripe webhooks record money/state first and attach actual provider fee/net afterward. If provider cost lookup is temporarily unavailable, the webhook returns retryable 503 after safe money recording; replay cannot duplicate money/receipt and can finish fee reconciliation.
 
-### Production migration
-Migration `stripe_processor_fee_accounting` was applied successfully before PR #50 merge.
+Staff cannot manually create `method='stripe'` rows. Customer Billing and PDFs do not expose internal processor-cost fields.
 
-Migration file:
-`supabase/migrations/20260913103500_stripe_processor_fee_accounting.sql`
+Admin has an optional Window headline-price allowance, currently OFF. Default suggestion is 1.5% + £0.20. If enabled, it is part of the ordinary service price for every payment method and never an itemised card fee. Actual reporting cost always comes from Stripe balance-transaction data.
 
-Added nullable internal `payment_records` columns:
-- `provider_payment_id text`;
-- `provider_balance_transaction text`;
-- `provider_fee numeric(12,2)`;
-- `provider_net numeric(12,2)`;
-- `provider_fee_currency text`.
+Window direct contribution subtracts actual captured Stripe fee along with reviewed direct job costs. Missing/non-GBP processor fee excludes the affected job from aggregate contribution rather than assuming £0.
 
-Added partial index:
-`payment_records_provider_payment_idx` on `provider_payment_id` where non-null.
-
-Post-migration verification:
-- all 5 columns present;
-- index present;
-- `payment_records` RLS still enabled;
-- 0 Stripe ledger rows;
-- 0 `site_settings.payments` rows;
-- service catalog unchanged: Window live, five future services planned.
-
-No new finance table was created.
-
-### Stripe actual-cost source
-`lib/stripe-payments.js` retrieves PaymentIntent, Charge, Refund and BalanceTransaction objects and normalises balance-transaction economics:
-- actual `fee`;
-- actual `net`;
-- currency;
-- balance-transaction reference.
-
-These provider values are internal accounting data. Do not infer actual fee from the headline allowance or a generic Stripe rate.
-
-### Retry-safe webhook reconciliation
-`api/stripe-webhook.js` now processes successful payments/refunds in this order:
-1. verify signed raw webhook, GBP, amount and Window ownership/metadata;
-2. insert the idempotent payment/refund record with provider payment ID and nullable cost fields;
-3. synchronise existing invoice/booking payment state;
-4. send first-insert customer/staff notification only once;
-5. retrieve actual Stripe processor economics;
-6. patch the same ledger row with balance transaction, fee, net and currency.
-
-If step 5/6 cannot complete because Stripe cost data is temporarily unavailable, the handler returns retryable HTTP 503 **after** the payment/refund and derived money state are already safely recorded. Stripe replay hits the same unique provider reference, does not duplicate money or receipts, and can finish processor-cost reconciliation.
-
-### Manual Stripe rows prohibited
-`api/admin-payments.js` rejects staff-created `method='stripe'` records. `admin-payment-settings.js` also removes Stripe from the manual payment dropdown. Stripe records must originate from the verified webhook so provider-fee data remains trustworthy.
-
-Cash, bank transfer, manual card and other existing staff methods remain available.
-
-### Customer privacy
-`api/customer-billing.js` explicitly selects only customer-safe payment fields and omits all processor-cost/provider-balance identifiers.
-
-`api/billing-document.js` may fetch full records internally but renders only ordinary receipt/invoice fields; it does not render `provider_fee`, `provider_net`, `provider_payment_id` or `provider_balance_transaction`. Regression tests cover both JSON Billing and PDFs.
-
-### Window direct contribution
-`api/admin-window-performance.js` now groups ledger rows by completed Window booking and calculates processor-cost completeness.
-
-Contribution-ready requires:
-- reviewed `booking_job_costs`; and
-- every linked Stripe transaction to have known GBP `provider_fee` data.
-
-For contribution-ready jobs:
-`direct costs = reviewed consumables + parking + travel + other job cost + actual Stripe processing fee`
-
-`direct contribution = job value - direct costs`
-
-If any Stripe fee is missing or non-GBP, affected job is excluded from direct-contribution aggregates rather than assuming £0. Admin reporting displays processor fees and data-quality counters.
-
-Direct contribution remains **not net profit**; labour, overheads, tax and other business costs remain outside this metric.
-
-### Release verification
-- PR: #50 `Account for Stripe fees without customer surcharges`;
-- exact head: `17892e015f8e7f8b7c9a6b0b577292bb950d5c64`;
-- CI: `34752824319` SUCCESS;
-- exact-head preview: `dpl_2py2f1pDzH8YK5YD6GRkiD2hojfi` READY / clean;
-- production migration applied and verified before merge;
-- merge: `32e13016601492eae3daa2021f35195298b00f5b`;
-- production: `dpl_Ce8kShg3ikTXVubaTYMKcgAFjztT` READY, canonical alias, no alias error;
-- product production build clean;
-- release-time runtime error/fatal query clean;
-- `/api/health` after deploy still `stripe:false`, `stripeSecret:false`, `stripeWebhook:false`;
-- Admin serves `6.4.22-stripe-fee-accounting-1`;
-- post-deploy DB recheck: 0 Stripe rows, 0 payment-policy rows, service catalog unchanged.
-
-## Stripe activation next
-Stripe itself is still disabled. Activation sequence:
-1. create/configure the Stripe account securely;
-2. store `STRIPE_SECRET_KEY` in Vercel server-side environment;
-3. configure Stripe webhook URL `https://namdar.co.uk/api/stripe-webhook`;
-4. store `STRIPE_WEBHOOK_SECRET` in Vercel;
-5. test in Stripe test mode: deposit/full Checkout, successful webhook, delayed/duplicate webhook, processor-fee capture, balance payment and refund;
-6. confirm Admin reporting shows the actual fee and customer Billing/PDFs do not;
-7. deliberately enable Window payment policy in Admin;
-8. separately decide whether headline price allowance should be enabled. It remains OFF by default.
-
-Never ask the user to paste provider secrets into chat or commit them.
+## Next sequence after cron fix
+1. release the notification 504 resilience candidate;
+2. observe a real clean/recovered `:07` scheduled cron run;
+3. only then configure Stripe account/provider securely;
+4. store secrets only in Vercel/server-side settings, never chat/source;
+5. configure `https://namdar.co.uk/api/stripe-webhook`;
+6. test deposit/full Checkout, delayed/duplicate webhook, fee capture, balance and refund in test mode;
+7. deliberately enable Window payment policy;
+8. separately decide whether headline allowance should be enabled.
 
 ## Non-negotiables
 - Window Cleaning only.
 - No separate customer card/Stripe surcharge.
-- Actual Stripe fee is internal accounting data from provider balance transactions.
 - Verified Stripe webhook is authoritative for Stripe money; browser redirect is not.
-- Missing processor cost is not £0 and blocks contribution for that job.
+- Actual Stripe fee is internal provider accounting data.
+- Missing processor cost is not £0.
+- Cron resilience must not blindly retry non-idempotent mutations or duplicate customer email.
 - No card details/provider secrets in browser, source, logs, docs or chat.
 - Privileged changes remain AAL2/MFA protected.
 - Existing accepted work survives service pauses.

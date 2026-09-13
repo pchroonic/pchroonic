@@ -85,6 +85,7 @@ jobs:
           node --check lib/booking-operations.js
           node --check lib/post-job-followup.js
           node --check lib/business-followup-batched.js
+          node --check lib/notification-cron-resilience.js
           node --check lib/payment-policy.js
           node --check lib/stripe-payments.js
           node --check scripts/os-open-data-import.mjs
