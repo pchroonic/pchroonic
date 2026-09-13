@@ -5,82 +5,66 @@ Last verified: 2026-09-13 UTC
 Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PROJECT_STATUS.md` for roadmap/status.
 
 ## Production baseline
-- Repository: `pchroonic/pchroonic`, default `main`.
-- Current product release: PR #64 `Add Admin System Health and reliability history`.
-- Exact tested PR head: `c840436aeb3363b263135867e11f1551e71cf6f4`.
-- GitHub CI run `34767328622`: SUCCESS.
-- Exact-head preview `dpl_HXjuMhD58ngJBtu2HmXrTXdgk9Mg`: READY; errors-only build clean.
-- Preview `/api/health` cannot exercise DB because Preview lacks `SUPABASE_SERVICE_ROLE_KEY`; runtime logs confirmed environment configuration, not a code regression.
-- PR #64 merge/main HEAD: `c9028003b68095b7ef4c9d601980afe359017448`.
-- Production deployment: `dpl_BsZbTcWLNHYgP9hrCxLUgPsXHLas`, READY on `https://namdar.co.uk`.
-- Production `/api/health`: HTTP 200 with database, Stripe, email, reminders and followups healthy after deploy.
-- Production Admin loader: `6.4.27-system-health-1`, including `admin-system-health.js`.
-- PR #65 is docs-only live-release continuity, merge `6c9942d10e1f5601b6a3a070f918470e12eb06b8`.
-- Supabase production: `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
+- Repo `pchroonic/pchroonic`, default `main`.
+- Current live product release remains PR #64 System Health; merge `c9028003b68095b7ef4c9d601980afe359017448`.
+- Production deployment `dpl_BsZbTcWLNHYgP9hrCxLUgPsXHLas` READY on `https://namdar.co.uk`; `/api/health` HTTP 200 after release.
+- Production Admin loader before this branch: `6.4.27-system-health-1`.
+- PR #65/#66 are docs-only System Health continuity; first real hourly health run was healthy with no false incident/alert.
+- Supabase production `qjigldxjcpnrlyxgmlqq`.
 - Window Cleaning only live; future services planned; address work parked.
 - Privileged Staff/Admin requires AAL2/MFA.
+- Stripe commercial customer payment policy OFF; no live Stripe credentials.
 
-## Stripe / finance safety
-- Stripe sandbox deposit -> balance -> refund flow verified.
-- Four retained Stripe rows are sandbox and excluded from Business Finance.
-- Customer payment policy OFF; no live Stripe credentials.
-- Sole trader first, limited company later from the real incorporation date.
-- Confirmed £106 test fixture removed.
+## Finance / receipts
+- Stripe sandbox payment/refund flow verified; sandbox rows excluded from finance.
+- Sole trader first, limited company later from real incorporation date.
+- Smart receipts live, first authenticated receipt test deferred by user.
 
-## Intelligent receipts — LIVE / user deferred test
-PR #62 smart receipt workflow is live. It is private, OCR/review-first, duplicate-aware and never auto-posts an expense. The user chose to test it later.
+## Newsletter Centre — IN PROGRESS
+User asked to improve newsletter. Branch: `feat/newsletter-centre-20260913`.
+Target Admin loader: `6.4.28-newsletter-centre-1`.
 
-## System Health — LIVE AND FIRST REAL RUN VERIFIED
-Migration: `20260913154800 system_health_reliability_history`.
+Existing consent boundary is preserved: customer accounts/emails are not marketing subscribers unless the person explicitly opts in. Current production data before this work: 3 active subscribers, 0 campaigns, 0 delivery rows. Do not expose subscriber PII in docs/chat.
 
-Private server-only tables:
-- `system_health_runs` for actual scheduled-run history;
-- `system_health_incidents` for grouped open/resolved incidents;
-- RLS enabled with no direct browser policies;
-- one open incident per fingerprint.
+Applied forward-only migrations:
+- `20260913162500 newsletter_campaign_delivery_queue`;
+- `20260913162600 newsletter_delivery_processing_claims`.
 
-Live behavior:
-- hourly notification/follow-up cron records healthy/warning/failing results and DB retry metrics;
-- daily account-purge cron records results;
-- cron health persistence is awaited before the response finishes;
-- first warning/failing incident sends one staff/settings alert to `/admin?tab=health`;
-- repeat failures increment the same incident without alert spam;
-- later healthy execution resolves the incident;
-- history begins with this release; older Vercel logs are not backfilled.
+New private `newsletter_campaign_deliveries` queue:
+- one unique row per campaign/subscriber;
+- statuses queued/processing/sent/failed/skipped;
+- atomic queued -> processing claim before send prevents concurrent duplicate sends;
+- stale processing claims can be safely returned to queue;
+- RLS enabled, no direct browser policies.
 
-Private Admin `System health` view monitors database availability/latency, Stripe readiness/mode, email readiness, cron configuration/freshness, notification queues, private receipt Storage, incidents and scheduled-run history.
+Branch implementation:
+- `lib/newsletter.js`: topic/preferences logic, HTTPS CTA validation, branded HTML/plain-text email renderer and delivery counts;
+- `api/admin-newsletter.js`: AAL2 newsletter-permission dashboard, save draft, test send, queue audience, resumable 10-recipient batches, retry failed, delete draft;
+- `api/admin-newsletter-send.js`: old unsafe bulk sender retired with 409 refresh instruction;
+- `admin-newsletter-center.js`: draft composer, preheader, CTA, audience topic, live preview, test email, exact recipient confirmation, resumable send progress, campaign history and subscriber filters;
+- `api/newsletter-unsubscribe.js` + `unsubscribe.html/js`: topic preference centre for offers/tips/news plus unsubscribe-all;
+- `scripts/newsletter-center.test.mjs` + CI checks.
 
-### First genuine post-release run
-The real hourly `:07` cron executed from 16:07:25 to 16:07:28 UTC on 2026-09-13 and persisted one `notification_cron` row:
-- status: `healthy`;
-- summary: `Notification and follow-up cron completed normally`;
-- duration: 3336 ms;
-- all four stages healthy on attempt 1: post-job, booking delivery, business scan, business delivery;
-- database retries: 0; recovered: 0; exhausted: 0;
-- incidents after run: 0 open / 0 total;
-- System Health staff alerts after run: 0.
-
-This proves production cron history persists before the function response completes and that a healthy run does not generate a false incident or alert.
-
-## Verification notes
-- Both health tables have RLS enabled, zero browser policies and expected indexes.
-- Supabase advisors show no new System Health missing-FK issue.
-- Existing project-wide advisor items remain separate work; leaked-password protection is still disabled and belongs to security hardening.
-- Intermittent Supabase/PostgREST 504s were the primary recent reliability issue motivating this release.
-- Expected signed-out/expired-session 401s are authentication events, not platform incidents.
+Important sending safety:
+- no real marketing message is sent during development/verification;
+- queue creation does not send by itself;
+- a browser can close mid-send; reopening/resuming processes only unsent rows;
+- already-sent delivery rows are never reset by normal resume/retry;
+- current subscriber status/preferences are rechecked immediately before each send;
+- preference/unsubscribe links are unique to the subscriber but tokens are never returned in the Admin dashboard.
 
 ## Next action
-1. User can open authenticated Admin -> System health and inspect the live component cards/history.
-2. Let real scheduled runs accumulate naturally.
-3. If a genuine degradation occurs, verify one grouped incident + one staff alert; repeated failures increment count and a later healthy run resolves it.
-4. Keep Stripe commercial policy OFF.
+1. Finish continuity docs and database advisor checks.
+2. Open Newsletter Centre PR.
+3. Require green GitHub CI and READY exact-head Vercel preview with clean build.
+4. Do not send a real newsletter for deployment testing.
+5. Merge only if clean; verify production loader/API health and unchanged subscriber/campaign counts.
+6. User can later create a controlled draft/test email from Admin.
 
 ## Do not break
-- No secrets/customer identifiers in health API/UI/history.
-- Expected auth 401s are not platform failures.
-- No fabricated/backfilled operational history.
-- No customer exposure of operational health, finance or receipt data.
-- Smart receipts remain review-first.
-- Sandbox Stripe never enters revenue/tax reporting.
-- No separate consumer card surcharge; verified Stripe webhook remains authoritative.
-- Window Cleaning only until deliberate activation of later services; address work stays parked.
+- Explicit marketing consent only; never auto-subscribe customers.
+- Unsubscribe remains easy and essential service emails stay separate.
+- No subscriber tokens/PII in logs/docs/health output.
+- No duplicate sends from concurrent/resumed batches.
+- Stripe commercial policy remains OFF.
+- Smart receipts remain review-first; sandbox Stripe never enters finance.
