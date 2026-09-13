@@ -14,6 +14,7 @@ Read `docs/AI_START.md` first.
 - Production deployment `dpl_BsZbTcWLNHYgP9hrCxLUgPsXHLas` READY on `https://namdar.co.uk`.
 - Production `/api/health` HTTP 200 after deploy.
 - Production Admin loader `6.4.27-system-health-1`, including `admin-system-health.js`.
+- PR #65 docs-only live-release continuity merge `6c9942d10e1f5601b6a3a070f918470e12eb06b8`.
 - Supabase production `qjigldxjcpnrlyxgmlqq`.
 - Window Cleaning only live; address work parked; privileged Staff/Admin requires AAL2/MFA.
 
@@ -41,58 +42,59 @@ Applied migration:
 - one open incident per fingerprint via partial unique index;
 - RLS enabled, no browser policies.
 
-Initial pre-deploy state was 0 runs / 0 incidents. Do not backfill old logs.
+No old logs are backfilled.
 
 ### Runtime recording
 `lib/system-health.js`
-- health classification + scheduled freshness helpers;
-- creates runs;
-- warning/failing opens/touches an incident;
+- creates health runs;
+- warning/failing opens or updates one incident;
 - first incident open creates one staff notification with `permission_key='settings'`, high/urgent priority and target `/admin?tab=health`;
-- repeats increment occurrence count without notification spam;
-- healthy execution resolves matching incident.
+- repeat failures increment occurrence count without notification spam;
+- healthy execution resolves the matching incident.
 
 `api/booking-notifications.js`
 - retains four isolated stages and retry behavior;
 - records `notification_cron` after each authorized real run;
-- healthy when all stages succeed, warning for partial degradation, failing for total/terminal failure;
-- details contain only stage result/retry counters;
 - health persistence is awaited before response completion.
 
 `api/account-purge.js`
-- records `account_purge` status and counts only;
-- no customer IDs in health history;
-- persistence is awaited.
+- records `account_purge` status/counts only and awaits persistence;
+- no customer IDs are written to health history.
 
-### Private health API
-`api/admin-system-health.js`
-- GET only, `requireStaff(req,'settings')`;
-- checks database latency/availability, Stripe configured state + sandbox/live mode, email readiness, cron configuration, latest scheduled-run freshness, notification queues and private `finance-receipts` bucket reachability;
-- notification freshness: warning after 90m, failing after 150m;
-- account purge freshness: warning after 30h, failing after 42h;
-- returns incident history and recent run history;
-- never returns provider secret values.
+### Private health API/UI
+`api/admin-system-health.js` is GET-only and requires `requireStaff(req,'settings')`. It checks database latency/availability, Stripe configured state + sandbox/live mode, email readiness, cron configuration, scheduled-run freshness, notification queues and private receipt Storage reachability. It returns incidents/recent runs but never secret values.
 
-### Admin UI
-`admin-system-health.js`
-- Settings-only `System health` tab + `/admin?tab=health` deep link;
-- component cards, overall state, incident history and scheduled-run history;
-- manual refresh and 60-second refresh while visible;
-- Overview shortcut `Open System Health`.
+`admin-system-health.js` adds a Settings-only `System health` tab, `/admin?tab=health` deep link, component cards, incident history, run history, manual refresh and 60-second visible-tab refresh.
+
+### First real production run — VERIFIED
+The first genuine post-release hourly notification cron ran 2026-09-13 16:07:25–16:07:28 UTC and persisted exactly one `notification_cron` run:
+- status `healthy`;
+- summary `Notification and follow-up cron completed normally`;
+- duration 3336 ms;
+- post-job: healthy, attempt 1;
+- booking delivery: healthy, attempt 1;
+- business scan: healthy, attempt 1;
+- business delivery: healthy, attempt 1;
+- DB retries 0 / recovered 0 / exhausted 0.
+
+Immediately after that run:
+- open incidents: 0;
+- total incidents: 0;
+- `system_health` staff alerts: 0.
+
+This verifies persistence completes before the cron response and that a healthy run creates no false incident/alert.
 
 ### Database/advisor verification
-- RLS enabled on both new tables, policy count 0 by design;
+- RLS enabled on both health tables, policy count 0 by design;
 - expected component/status/incident indexes present;
 - no new System Health missing-FK advisor finding;
-- existing project advisor findings are separate work, including leaked-password protection being disabled.
+- existing project advisor items remain separate work, including leaked-password protection being disabled.
 
-## Pending runtime verification
-1. Observe first genuine post-release hourly `notification_cron` run after the :07 schedule.
-2. Confirm it inserts exactly one run row.
-3. If it is healthy, no incident/alert should be created.
-4. If genuinely degraded, one grouped incident + one staff alert should appear; repeat failures only increase count; later healthy run resolves it.
-5. User can inspect authenticated Admin -> System health.
-6. Keep Stripe commercial policy OFF.
+## Next
+1. User may inspect authenticated Admin -> System health when convenient.
+2. Let real cron history accumulate naturally.
+3. When a genuine degradation occurs, verify one grouped incident + one staff alert, repeat-failure count behavior, then healthy-run resolution.
+4. Keep Stripe commercial policy OFF.
 
 ## Non-negotiables
 - No env values, provider secrets, customer identifiers or raw private errors in health output/history.
@@ -100,5 +102,5 @@ Initial pre-deploy state was 0 runs / 0 incidents. Do not backfill old logs.
 - No fabricated/backfilled run history.
 - No customer exposure of System Health/finance/receipt data.
 - Smart receipts remain review-first.
-- Sandbox Stripe excluded from finance; Stripe webhook remains authoritative.
+- Sandbox Stripe excluded from finance; Stripe webhook authoritative.
 - Window only live; address work parked.
