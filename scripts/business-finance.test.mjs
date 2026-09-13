@@ -16,10 +16,13 @@ test('public site settings never expose private finance settings',()=>{
   assert.doesNotMatch(source,/finance_private/);
 });
 
-test('finance API uses cash ledger, private expenses and explicit estimate disclaimer',()=>{
+test('finance API uses real cash ledger, private expenses and explicit estimate disclaimer',()=>{
   const source=read('api/admin-business-finance.js');
   assert.match(source,/payment_records\?/);
   assert.match(source,/business_expenses\?/);
+  assert.match(source,/provider_livemode/);
+  assert.match(source,/row\?\.method!=='stripe'\|\|row\?\.provider_livemode===true/);
+  assert.match(source,/excludedSandboxStripeRows/);
   assert.match(source,/Management estimate only, not an HMRC assessment/);
 });
 
