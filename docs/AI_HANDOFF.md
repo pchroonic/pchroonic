@@ -7,129 +7,87 @@ Read `docs/AI_START.md` first.
 ## Production source of truth
 - Repo `pchroonic/pchroonic`, default `main`.
 - Current product release: PR #59 `Add sole trader Business Finance dashboard`.
-- Exact tested PR head `03121fa992b5d845e5478e61665a90d59c9a9d4f`; CI `34763802394` SUCCESS; preview `dpl_Fb14yFYcoa5F7Bf2mdh7LKQ7Sqo9` READY with clean errors-only build output.
+- Exact tested PR head `03121fa992b5d845e5478e61665a90d59c9a9d4f`; CI `34763802394` SUCCESS; preview `dpl_Fb14yFYcoa5F7Bf2mdh7LKQ7Sqo9` READY.
 - PR #59 merge/main HEAD `7eb4ebd47041288faac444eb4ae0a2304043d7c9`.
-- Production deployment `dpl_GbqaKFaNpjCVfKNeJ51aReKiixs4` READY on `https://namdar.co.uk`.
-- Production `/api/health` after deploy: HTTP 200; database healthy; Stripe sandbox secret/webhook configured.
-- Production `admin.js` serves `6.4.24-business-finance-1` and loads `admin-business-finance.js`.
+- Production deployment `dpl_GbqaKFaNpjCVfKNeJ51aReKiixs4` READY on `https://namdar.co.uk`; `/api/health` HTTP 200 after deploy.
+- Production `admin.js` currently serves `6.4.24-business-finance-1`.
 - Supabase production `qjigldxjcpnrlyxgmlqq`.
 - Window Cleaning only live; future services planned; address work parked.
 - Staff/Admin privileged APIs require AAL2/MFA.
 
+## Authenticated Business Finance visual verification
+On 2026-09-13 the user opened production Admin -> Reports while signed in and supplied screenshots. This closes the earlier interactive-verification gap: Business Finance visibly renders in the authenticated Admin browser with its KPIs, tax-reserve section, VAT/MTD monitor, monthly cash movement table, expense mix and settings form.
+
+Visible state:
+- cash received £0;
+- net business receipts £0;
+- expenses £0;
+- Stripe processing £0;
+- taxable-profit estimate £0;
+- outstanding invoices £106;
+- VAT rolling-12-month monitor £106;
+- sole-trader start date empty;
+- no VAT registration ticked.
+
+The current £106 is one issued Window invoice created 2026-09-09 for a confirmed booking dated 2026-09-11. It is unpaid and the booking still has `work_status=scheduled`. It is not a Stripe sandbox artifact. Do not delete/void/exclude it without the user's classification of that booking as real vs test/old data.
+
 ## Stripe state
-Sandbox provider connected; commercial customer payment policy OFF; no live-money credentials. Normal signed-in deposit + balance + refund flow passed end-to-end with authoritative webhooks, exact processor-fee capture and corrected multi-tab browser return. `site_settings.payments` absent.
+Sandbox provider connected; commercial customer payment policy OFF; no live-money credentials. Normal signed-in deposit + balance + refund passed end-to-end with authoritative webhooks. `site_settings.payments` absent. Four retained Stripe rows are sandbox and excluded from finance.
 
 ## Business Finance product decision
-Namdar starts as a **sole trader** and later becomes a **limited company after success**.
-- preserve dated sole-trader history;
-- incorporation requires a date;
-- switch future reporting only from that date;
-- never retroactively reinterpret historic sole-trader activity as company activity;
-- refresh current Corporation Tax rules when incorporation happens.
+Namdar starts as a **sole trader** and later becomes a **limited company after success**. Preserve historical sole-trader activity and switch future reporting from the incorporation date only.
+
+## Current work branch
+`fix/business-finance-setup-ux-20260913`
+
+Purpose: polish the initial finance setup after the authenticated screenshots, without changing money or historical records.
+
+Changes:
+- add `admin-business-finance-polish.js`;
+- bump Admin loader target to `6.4.25-business-finance-setup-1`;
+- if business type is sole trader and no saved start date exists, show a setup warning and suppress the premature £0 tax/deadline display with `Tax timeline not activated yet`;
+- cash/invoice/expense tracking remains usable before start-date setup;
+- hide incorporation date unless `Limited company` is selected;
+- hide VAT registration date unless the VAT-registered checkbox is selected;
+- regression test covers the setup gate/conditional fields;
+- CI syntax checks the new polish file.
+
+Implementation detail: the setup gate uses the date input's `defaultValue` rather than the unsaved live `value`, so merely typing a date does not make the tax timeline look activated before settings are actually saved and rerendered from server state.
 
 ## Applied Supabase finance migrations
 - `20260913143525 business_finance_expense_ledger`
 - `20260913144052 business_finance_expense_updated_by_index`
 - `20260913144632 stripe_payment_environment_tracking`
 
-### `business_expenses`
-Private table, RLS enabled, no browser policies. Records actual paid expenses: date/category/description/supplier, amount, VAT amount, business-use %, tax treatment, payment method, optional booking/reference/receipt reference/private notes, source and audit users/timestamps.
+`business_expenses` remains private/RLS enabled/no browser policies. `payment_records.provider_livemode` records Stripe test/live environment. Verified state: 4 sandbox Stripe rows, 0 live, 0 unknown, 0 business expenses, 0 `finance_private` rows, 0 `payments` rows.
 
-Tax treatments:
-- `allowable`: deducted by simple sole-trader estimate;
-- `capital_allowance`: visible/cash-impacting but excluded from simple tax deduction pending proper treatment;
-- `non_allowable`: visible/cash-impacting but excluded from taxable-profit deduction.
+GitHub SQL migration-file creation for these schema changes was blocked by the connector safety gate. Supabase migration history + continuity docs remain authoritative.
 
-The second migration fixed the finance-specific missing FK covering index on `updated_by`; performance advisor no longer reports it.
+## Finance implementation summary
+- `lib/uk-tax.js`: 2026/27 England/Wales/NI sole-trader estimator.
+- private `site_settings.finance_private` settings.
+- private audited business-expense ledger.
+- cash-basis receipts/refunds from real payment rows only.
+- Stripe rows count only when `provider_livemode===true`.
+- actual live GBP Stripe fees included automatically.
+- cash surplus kept separate from estimated taxable profit.
+- outstanding invoices are not cash-basis income until paid.
+- VAT monitor is invoice-based indicative taxable-turnover monitoring, not the same thing as cash receipts.
+- MTD monitor is informational; current turnover alone does not establish legal start date.
+- management estimate only; no claim of being an HMRC assessment.
 
-### Stripe environment tracking
-`payment_records.provider_livemode` records provider environment:
-- `false`: sandbox/test Stripe row;
-- `true`: live Stripe row;
-- null allowed for non-Stripe/manual rows.
-
-All existing Stripe rows were safely backfilled `false` because no live Stripe credentials have ever been connected. Verified post-release database state: 4 sandbox Stripe rows, 0 live Stripe rows, 0 unknown Stripe rows, 0 business expenses, 0 `finance_private` rows, 0 `payments` policy rows.
-
-Verified Stripe webhooks persist:
-- Checkout payments: `provider_livemode = session.livemode === true`;
-- refunds: `provider_livemode = paymentIntent.livemode === true`.
-
-Business Finance filters Stripe rows so only `provider_livemode=true` counts as real revenue/refunds/processor costs. Sandbox audit rows remain in Billing/payment history but never enter business finance or tax estimates.
-
-GitHub SQL migration-file creation was blocked by the connector safety gate. Do not invent repo migration files for these schema changes. Supabase migration history plus these continuity docs are authoritative.
-
-## Finance implementation
-### Tax engine
-`lib/uk-tax.js` supports 2026/27 England/Wales/Northern Ireland:
-- UK tax year starts 6 April;
-- Personal Allowance £12,570; taper above £100,000; zero at £125,140;
-- Income Tax 20% / 40% / 45%;
-- Class 4 NI 6% £12,570–£50,270, then 2% above;
-- VAT threshold metadata £90,000;
-- MTD staged thresholds metadata;
-- illustrative payments-on-account warning only.
-
-Income Tax attributable to Namdar is incremental:
-`tax(other taxable income + Namdar profit) - tax(other taxable income)`.
-
-### Private finance settings
-`api/admin-finance-settings.js`
-- GET requires `analytics`;
-- POST requires `settings`;
-- stores under non-public `site_settings.finance_private`;
-- audit metadata redacts private values;
-- limited-company switch requires incorporation date.
-
-Defaults: sole trader, cash basis, England/Wales/NI, no start date, no incorporation date, other taxable income £0, tax reserved £0, not VAT registered.
-
-### Expense ledger API
-`api/admin-finance-expenses.js`
-- GET `analytics`;
-- POST/PATCH/DELETE `settings`;
-- audited mutations;
-- bad date/description/non-positive amount return HTTP 400 via `error.status`.
-
-### Business Finance API
-`api/admin-business-finance.js`
-- cash-basis receipts/refunds from real payment ledger rows;
-- excludes every Stripe row unless `provider_livemode===true`;
-- actual live GBP Stripe fees deducted automatically;
-- expense ledger prorated by business-use %;
-- cash surplus = net receipts - all business-use ledger cash expenses - live Stripe fees;
-- estimated taxable profit = net receipts - allowable expenses - live Stripe fees;
-- outstanding invoices stay outside cash-basis income until paid;
-- indicative rolling-12-month VAT monitor;
-- MTD indicator does not infer legal obligation from current turnover alone;
-- monthly cash movement + expense-category breakdown;
-- operational `booking_job_costs` are reference-only, never silently tax-deducted.
-
-### Admin UI
-`admin-business-finance.js` adds Business Finance under Reports: cash KPIs, tax reserve estimate, VAT/MTD monitor, monthly table, expense mix, private settings, expense entry/delete.
-
-`admin.js` loader version `6.4.24-business-finance-1`.
-
-## Public/private boundary
-`api/public-data.js` allow-lists only `brand`, `appearance`, `maintenance`, `advertising`, `contact`; `finance_private` is never public.
-
-## Explicit limitations
-Management estimate only, not HMRC assessment. V1 does not model loss relief/carry-forward, student loans, pension/Gift Aid adjusted-net-income effects beyond simple PA taper, savings/dividend tax, Marriage Allowance/other reliefs, combined employment/self-employment NI interactions, detailed capital allowances, VAT scheme/input-tax rules, Scottish bands, or traditional-accounting accrual adjustments.
-
-If Scotland or traditional accounting is selected, numeric tax estimate is withheld. If switched to limited company, company tax estimate is withheld until incorporation-time rules are deliberately refreshed.
-
-## Live verification still requiring the user's authenticated Admin browser
-The static production loader and health endpoint are verified, but do not claim authenticated Business Finance API/UI behaviour has been interactively verified until the user opens Admin -> Reports. There is no authenticated browser session available to the connector.
-
-Next:
-1. User opens Admin -> Reports and checks Business Finance loads.
-2. Enter actual sole-trader start date through Admin; never invent it.
-3. Optionally enter private other-taxable-income and tax-reserve values through Admin.
-4. Add one real or controlled expense and verify it appears correctly; do not add fabricated expenses.
-5. Keep Stripe commercial policy OFF until finance data-entry is validated.
-6. Then return to Window payment-policy/live-Stripe rollout.
+## Next
+1. Open PR from `fix/business-finance-setup-ux-20260913` and require green CI + READY exact-head Vercel preview.
+2. Merge only if clean, then verify production loader/version and the new setup warning/conditional fields.
+3. Ask user whether the £106 Sep-11 booking/invoice is genuine or test/old data before changing it.
+4. User saves the actual sole-trader start date through Admin.
+5. Optionally enter private other-taxable-income/tax-reserve values and begin real expense logging.
+6. Keep Stripe commercial policy OFF during finance validation, then return to Window payment-policy/live Stripe rollout.
 
 ## Non-negotiables
 - No customer exposure of private finance settings/expense ledger.
 - Sandbox Stripe activity never counts as revenue/tax activity.
+- Do not mutate the £106 invoice until user classifies it.
 - No separate customer card surcharge.
 - Stripe webhook authoritative for money state.
 - No secrets or unnecessary personal finance details in source/logs/docs/chat.
