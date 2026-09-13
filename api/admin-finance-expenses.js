@@ -1,4 +1,5 @@
 const {json,parseBody,db,requireStaff,auditLog,queryParam,safeError}=require('../lib/server');
+const {merchantKey}=require('../lib/receipt-intelligence');
 
 const CATEGORIES=new Set(['materials','travel','parking','vehicle','office','phone_internet','software','advertising','insurance','professional_fees','training','uniform_ppe','premises','staff_subcontractors','equipment','bank_finance','other']);
 const TAX_TREATMENTS=new Set(['allowable','capital_allowance','non_allowable']);
@@ -22,6 +23,14 @@ function normalize(body,staff,existing=null){
   return{expense_date:expenseDate,category,description,supplier:clean(body.supplier??existing?.supplier,160)||null,amount,vat_amount:vat,business_use_percent:pct(body.businessUsePercent??body.business_use_percent??existing?.business_use_percent),tax_treatment:treatment,payment_method:method,booking_id:clean(body.bookingId||body.booking_id||existing?.booking_id,80)||null,reference:clean(body.reference??existing?.reference,160)||null,receipt_reference:clean(body.receiptReference||body.receipt_reference||existing?.receipt_reference,500)||null,notes:clean(body.notes??existing?.notes,1500)||null,source:existing?.source||'manual',updated_by:staff.user.id,updated_at:new Date().toISOString()};
 }
 async function getOne(id){return (await db(`business_expenses?id=eq.${encodeURIComponent(id)}&select=*&limit=1`).catch(()=>[]))?.[0]||null}
+async function getReceipt(id){return (await db(`business_expense_receipts?id=eq.${encodeURIComponent(id)}&select=*&limit=1`).catch(()=>[]))?.[0]||null}
+async function learnMerchant(expense,staff){
+  const key=merchantKey(expense?.supplier||'');if(!key)return;
+  const now=new Date().toISOString(),existing=(await db(`business_expense_merchant_rules?merchant_key=eq.${encodeURIComponent(key)}&select=*&limit=1`).catch(()=>[]))?.[0]||null;
+  const payload={merchant_key:key,merchant_name:expense.supplier||null,category:expense.category,tax_treatment:expense.tax_treatment,business_use_percent:expense.business_use_percent,payment_method:expense.payment_method,use_count:Number(existing?.use_count||0)+1,last_used_at:now,updated_by:staff.user.id,updated_at:now};
+  if(existing?.id)await db(`business_expense_merchant_rules?id=eq.${encodeURIComponent(existing.id)}`,{method:'PATCH',prefer:'return=minimal',body:payload});
+  else await db('business_expense_merchant_rules',{method:'POST',prefer:'return=minimal',body:{...payload,created_by:staff.user.id,created_at:now}});
+}
 module.exports=async function handler(req,res){
   try{
     if(req.method==='GET'){
@@ -32,20 +41,31 @@ module.exports=async function handler(req,res){
     }
     const staff=await requireStaff(req,'settings'),body=parseBody(req);
     if(req.method==='POST'){
+      const receiptId=clean(body.receiptId,80),receipt=receiptId?await getReceipt(receiptId):null;
+      if(receiptId&&!receipt)return json(res,404,{ok:false,error:'Receipt draft not found.'});
+      if(receipt?.expense_id)return json(res,409,{ok:false,error:'This receipt is already attached to another expense.'});
+      if(receipt&&receipt.status!=='review')return json(res,409,{ok:false,error:'Read and review the receipt before saving the expense.'});
       const row={...normalize(body,staff),created_by:staff.user.id,created_at:new Date().toISOString()};
+      if(receipt){row.receipt_reference=receipt.id;row.source='receipt'}
       const created=(await db('business_expenses',{method:'POST',prefer:'return=representation',body:row}))?.[0];
-      await auditLog(req,staff,{action:'finance.expense_create',entityType:'business_expense',entityId:created?.id||null,summary:`Added ${row.category} expense`,after:{expense_date:row.expense_date,category:row.category,amount:row.amount,business_use_percent:row.business_use_percent,tax_treatment:row.tax_treatment},metadata:{description:row.description}});
-      return json(res,201,{ok:true,expense:created});
+      if(receipt&&created?.id){
+        await db(`business_expense_receipts?id=eq.${encodeURIComponent(receipt.id)}`,{method:'PATCH',prefer:'return=minimal',body:{expense_id:created.id,status:'attached',updated_by:staff.user.id,updated_at:new Date().toISOString()}});
+        await learnMerchant(created,staff);
+      }
+      await auditLog(req,staff,{action:'finance.expense_create',entityType:'business_expense',entityId:created?.id||null,summary:`Added ${row.category} expense`,after:{expense_date:row.expense_date,category:row.category,amount:row.amount,business_use_percent:row.business_use_percent,tax_treatment:row.tax_treatment},metadata:{description:row.description,receiptAttached:Boolean(receipt)}});
+      return json(res,201,{ok:true,expense:created,receiptAttached:Boolean(receipt)});
     }
     const id=clean(body.id,80);if(!id)return json(res,400,{ok:false,error:'Expense ID is required.'});
     const before=await getOne(id);if(!before)return json(res,404,{ok:false,error:'Expense not found.'});
     if(req.method==='PATCH'){
       const row=normalize(body,staff,before);
       const updated=(await db(`business_expenses?id=eq.${encodeURIComponent(id)}`,{method:'PATCH',prefer:'return=representation',body:row}))?.[0];
+      if(updated?.source==='receipt'||updated?.receipt_reference)await learnMerchant(updated,staff);
       await auditLog(req,staff,{action:'finance.expense_update',entityType:'business_expense',entityId:id,summary:`Updated ${row.category} expense`,before:{expense_date:before.expense_date,category:before.category,amount:before.amount,business_use_percent:before.business_use_percent,tax_treatment:before.tax_treatment},after:{expense_date:row.expense_date,category:row.category,amount:row.amount,business_use_percent:row.business_use_percent,tax_treatment:row.tax_treatment}});
       return json(res,200,{ok:true,expense:updated});
     }
     if(req.method==='DELETE'){
+      await db(`business_expense_receipts?expense_id=eq.${encodeURIComponent(id)}`,{method:'PATCH',prefer:'return=minimal',body:{expense_id:null,status:'review',updated_by:staff.user.id,updated_at:new Date().toISOString()}}).catch(()=>null);
       await db(`business_expenses?id=eq.${encodeURIComponent(id)}`,{method:'DELETE',prefer:'return=minimal'});
       await auditLog(req,staff,{action:'finance.expense_delete',entityType:'business_expense',entityId:id,summary:'Deleted business expense',before:{expense_date:before.expense_date,category:before.category,amount:before.amount,business_use_percent:before.business_use_percent,tax_treatment:before.tax_treatment}});
       return json(res,200,{ok:true});
