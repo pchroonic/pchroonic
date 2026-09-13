@@ -1,11 +1,35 @@
 (()=>{
-  const SESSION_TIMEOUT_MS=8000;
+  const SESSION_TIMEOUT_MS=5000;
   const PATCHED=Symbol.for('namdar.auth.session-hotfix');
-  const originalCreate=window.supabase?.createClient;
-  if(typeof originalCreate!=='function')return;
+  const FACTORY_PATCHED=Symbol.for('namdar.auth.factory-hotfix');
+  const TIMEOUT=Symbol('namdar.auth.session-timeout');
+
+  function loadingStillVisible(){
+    const loading=document.querySelector('#accountSessionLoading');
+    return !!loading&&!loading.classList.contains('hidden');
+  }
+
+  function tryStripeReturnReload(){
+    if(!loadingStillVisible())return false;
+    let url;
+    try{url=new URL(location.href)}catch{return false}
+    if(url.searchParams.get('payment')!=='success')return false;
+    const sessionId=url.searchParams.get('session_id');
+    if(!sessionId)return false;
+    const key=`namdar.stripe-return-retry:${sessionId}`;
+    try{
+      if(sessionStorage.getItem(key)==='1')return false;
+      sessionStorage.setItem(key,'1');
+    }catch{}
+    if(typeof location.reload==='function'){
+      location.reload();
+      return true;
+    }
+    return false;
+  }
 
   function timeoutResult(){
-    return new Promise(resolve=>setTimeout(()=>resolve({data:{session:null},error:new Error('Session restore timed out')}),SESSION_TIMEOUT_MS));
+    return {data:{session:null},error:new Error('Session restore timed out')};
   }
 
   function patchClient(client){
@@ -15,7 +39,23 @@
     const originalGetSession=auth.getSession.bind(auth);
     const originalOnAuthStateChange=auth.onAuthStateChange.bind(auth);
 
-    auth.getSession=(...args)=>Promise.race([originalGetSession(...args),timeoutResult()]);
+    auth.getSession=async(...args)=>{
+      let timer;
+      try{
+        const result=await Promise.race([
+          Promise.resolve().then(()=>originalGetSession(...args)),
+          new Promise(resolve=>{timer=setTimeout(()=>resolve(TIMEOUT),SESSION_TIMEOUT_MS)})
+        ]);
+        if(result===TIMEOUT){
+          tryStripeReturnReload();
+          return timeoutResult();
+        }
+        return result;
+      }finally{
+        if(timer)clearTimeout(timer);
+      }
+    };
+
     auth.onAuthStateChange=(callback)=>originalOnAuthStateChange((event,session)=>{
       setTimeout(()=>{
         Promise.resolve(callback(event,session)).catch(error=>console.error('Namdar auth-state handler failed',error));
@@ -24,12 +64,31 @@
     return client;
   }
 
-  window.supabase.createClient=(...args)=>patchClient(originalCreate(...args));
-  try{if(typeof sb!=='undefined'&&sb)patchClient(sb)}catch(error){console.warn('Namdar existing auth client patch skipped',error)}
+  function patchFactory(){
+    const originalCreate=window.supabase?.createClient;
+    if(typeof originalCreate!=='function')return false;
+    if(originalCreate[FACTORY_PATCHED])return true;
+    const patchedCreate=(...args)=>patchClient(originalCreate(...args));
+    Object.defineProperty(patchedCreate,FACTORY_PATCHED,{value:true});
+    window.supabase.createClient=patchedCreate;
+    try{if(typeof sb!=='undefined'&&sb)patchClient(sb)}catch(error){console.warn('Namdar existing auth client patch skipped',error)}
+    return true;
+  }
+
+  window.NamdarAuthHotfix={patchClient,patchFactory,sessionTimeoutMs:SESSION_TIMEOUT_MS};
+
+  if(!patchFactory()){
+    let attempts=0;
+    const poll=setInterval(()=>{
+      attempts++;
+      if(patchFactory()||attempts>=100)clearInterval(poll);
+    },50);
+  }
 
   setTimeout(()=>{
     const loading=document.querySelector('#accountSessionLoading');
     if(!loading||loading.classList.contains('hidden'))return;
+    if(tryStripeReturnReload())return;
     loading.classList.add('hidden');
     document.querySelector('#portalSection')?.classList.add('hidden');
     document.querySelector('#authSection')?.classList.remove('hidden');
@@ -39,5 +98,5 @@
       status.classList.add('error');
       status.classList.remove('success');
     }
-  },SESSION_TIMEOUT_MS+500);
+  },SESSION_TIMEOUT_MS+750);
 })();

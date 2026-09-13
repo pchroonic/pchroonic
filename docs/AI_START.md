@@ -6,12 +6,9 @@ Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PR
 
 ## Production baseline
 - Repository: `pchroonic/pchroonic`, default `main`.
-- Latest product release: PR #54 `Fix Stripe webhook raw body handling on Vercel`.
-- Exact tested head: `d9a7d2cdded5905e032b53a38b725e30f50be531`.
-- GitHub Actions `34759777343`: SUCCESS.
-- Exact-head preview `dpl_F38E2rKUyZsnG2afqhsdsMEo1eNx`: READY, clean errors-only build.
-- Merge: `3dfdd4cb7cbf244dc450631c23273792b3b82853`.
-- Production: `dpl_9maand6wJHASgET55huV2EtauFjp`, READY on `https://namdar.co.uk`, clean errors-only build.
+- Current `main` HEAD before this fix: `71935bdb169cb3d4f8f0413d1be8c36041a2f744` (PR #55 docs-only merge).
+- Latest product release before this fix: PR #54 `Fix Stripe webhook raw body handling on Vercel`.
+- PR #54 exact tested head: `d9a7d2cdded5905e032b53a38b725e30f50be531`; CI `34759777343` SUCCESS; production `dpl_9maand6wJHASgET55huV2EtauFjp` READY on `https://namdar.co.uk`.
 - Supabase: `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
 - Window Cleaning is the only live/quotable/bookable service. Gutters, jet washing, roof cleaning, handyman and 3D tours remain `planned`.
 - Address-data work remains parked.
@@ -20,48 +17,54 @@ Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PR
 ## Notification cron
 PR #52 remains live with bounded transient Data API read retries and schedule `7 * * * *`.
 
-A real post-release scheduled run at 2026-09-13 12:07 UTC completed non-degraded, clearing the Stripe setup gate. Keep `Namdar Cron Watch` active because upstream 504s may still recur transiently.
+A real post-release scheduled run at 2026-09-13 12:07 UTC completed non-degraded. Keep `Namdar Cron Watch` active because upstream 504s may still recur transiently.
 
-## Stripe sandbox — CONNECTED AND END-TO-END VERIFIED
-Production `/api/health` currently reports:
-- `stripe:true`
-- `stripeSecret:true`
-- `stripeWebhook:true`
-
-These are Stripe **sandbox/test-mode** credentials stored server-side in Vercel Production env so `namdar.co.uk` can be tested safely. They are not live-money credentials.
+## Stripe sandbox provider — CONNECTED
+Production `/api/health` reports Stripe secret + webhook configuration present. These are Stripe **sandbox/test-mode** credentials stored server-side in Vercel Production env so `namdar.co.uk` can be tested safely. They are not live-money credentials.
 
 Webhook destination: `https://namdar.co.uk/api/stripe-webhook`.
 
-Commercial safety remains:
-- no `site_settings.payments` row;
-- customer online payment policy is OFF;
-- headline-price allowance is OFF;
-- no real customer payment path is deliberately enabled.
+PR #54 remains the verified webhook raw-body fix. The earlier £1.23 sandbox payment + full refund proved verified-webhook authority, refund idempotency and exact processor-cost capture.
 
-## PR #54 webhook raw-body fix — LIVE
-The first £1.23 sandbox payment initially exposed a production bug: Vercel's lazy `request.body` getter was touched before reading the request stream, so the exact signed Stripe payload was lost and webhook requests returned HTTP 400 `Webhook raw body is unavailable.`
+## Normal My Namdar Checkout verification — IN PROGRESS
+On 2026-09-13 the real signed-in customer Checkout route was tested with a controlled £1.00 Window invoice under a temporary sandbox-only policy:
+- mode `deposit_required`;
+- 20% deposit;
+- £0.50 minimum deposit;
+- pay-in-full allowed;
+- headline-price allowance OFF.
 
-PR #54 fixes `readRawBody()` so stream-capable requests are consumed directly without touching `req.body`, preserving the exact bytes required for Stripe signature verification. A regression test fails if a Vercel-style lazy body getter is accessed first.
+The normal My Namdar Checkout created successfully and a £0.50 sandbox deposit completed. Verified live state immediately afterwards:
+- POST `/api/stripe-webhook` -> HTTP 200;
+- invoice £1.00 total / £0.50 paid / £0.50 outstanding / `part_paid`;
+- booking `payment_status='deposit_paid'`;
+- one Stripe payment ledger row, kind `deposit`, amount £0.50;
+- actual sandbox processor cost £0.22 / net £0.28.
 
-After deployment, Stripe automatically retried the previously failed event. Production webhook returned HTTP 200 at 13:30:39 UTC and Namdar recorded exactly one Stripe payment ledger row.
+The payment itself was correct. The browser return exposed a separate frontend bug: after Stripe redirected to `/account?tab=billing&payment=success&session_id=...`, My Namdar could remain indefinitely on `Opening My Namdar… Restoring your secure session.` when Supabase `getSession()` stalled, especially with multiple Namdar tabs open.
 
-Verified payment result before cleanup:
-- amount £1.23;
-- invoice paid and booking `payment_status='paid'`;
-- one Stripe ledger payment only;
-- actual Stripe sandbox processor cost captured: £0.24 fee / £0.99 net;
-- browser success remained non-authoritative; the verified webhook performed the money write.
+The temporary `site_settings.payments` row was removed immediately after reproducing the bug. Customer online payment policy is OFF again while the fix is developed. The successful £0.50 sandbox deposit ledger/invoice state remains intact for the controlled £1.00 fixture.
 
-A full £1.23 sandbox refund was then issued. Refund-related webhooks returned HTTP 200 at 13:32:23 UTC. Namdar created exactly one refund ledger row and synchronized invoice/booking to refunded. Multiple Stripe refund-related events did not duplicate the refund row.
+## Current fix candidate
+Branch: `fix/account-stripe-return-session-20260913`.
 
-The one-time sandbox Payment Link is disabled. Temporary test quote/booking/invoice/payment rows were deleted after verification. Current DB safety check: zero Stripe payment rows and zero `site_settings.payments` rows.
+Changes:
+- load `account-auth-hotfix.js` before `account-original.js`, so the Supabase client factory is patched before initial session restoration starts;
+- bound `auth.getSession()` to 5 seconds instead of allowing an indefinite spinner;
+- on a Stripe success return, permit one automatic page retry per Checkout session, with a session-storage loop guard;
+- if restoration still fails, replace the endless spinner with existing refresh/close-extra-tabs recovery guidance;
+- add `scripts/account-auth-hotfix.test.mjs` and run it in CI to lock the load order, bounded timeout and one-retry/no-loop behavior.
+
+No database migration or environment-variable change is required for this fix.
 
 ## Next action
-1. choose the desired Window customer payment policy (optional payment vs required deposit vs full payment; deposit percentage/minimum if applicable);
-2. keep this in sandbox while testing the real Namdar customer Checkout route under that policy;
-3. only after that is satisfactory, connect/verify the Stripe live account and replace sandbox provider credentials with live credentials/webhook secret;
-4. deliberately enable the payment policy only when ready for real customers;
-5. separately decide whether to enable the headline price allowance.
+1. run CI and preview checks for the session-restore fix;
+2. merge/deploy only if those checks pass;
+3. verify production no longer leaves Stripe returns on an endless session spinner;
+4. recheck that only the controlled account has an eligible Window invoice, then temporarily re-enable the sandbox policy;
+5. pay the remaining £0.50 balance through normal My Namdar Checkout and verify webhook/ledger/invoice/booking state;
+6. refund/clean the controlled sandbox test and return payment policy OFF;
+7. only later choose the real Window commercial payment policy and connect live Stripe deliberately.
 
 ## Do not break
 - Window Cleaning only; no Stage 2 activation without deliberate decision.

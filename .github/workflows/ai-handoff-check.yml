@@ -25,6 +25,7 @@ jobs:
           node --check account-original.js
           node --check account-captcha-guard.js
           node --check account-auth-hotfix.js
+          node --test scripts/account-auth-hotfix.test.mjs
           node --check account-mfa-guard.js
           node --check account-service-availability.js
           node --check account-payments.js
