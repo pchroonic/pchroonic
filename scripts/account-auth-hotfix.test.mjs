@@ -57,6 +57,15 @@ function createContext(href='https://namdar.co.uk/account?tab=billing'){
   return {context,timers,client,get reloads(){return reloads}};
 }
 
+test('account loader pins the current lockless Supabase build before the auth guard',()=>{
+  assert.match(loaderSource,/const supabaseVersion='2\.116\.0'/);
+  const supabase=loaderSource.indexOf('cdn.jsdelivr.net/npm/@supabase/supabase-js@');
+  const guard=loaderSource.indexOf('/account-auth-hotfix.js');
+  assert.ok(supabase>=0,'pinned Supabase script should be loaded');
+  assert.ok(guard>=0,'auth guard should be loaded');
+  assert.ok(supabase<guard,'current Supabase build must load before the auth guard patches createClient');
+});
+
 test('account loader installs auth guard before the portal bootstrap',()=>{
   const guard=loaderSource.indexOf('/account-auth-hotfix.js');
   const original=loaderSource.indexOf('/account-original.js');
