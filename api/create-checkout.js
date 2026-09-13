@@ -1,18 +1,31 @@
-const { json, parseBody, db, env, requireCustomer, ensureInvoiceForBooking, syncInvoicePaymentState, safeError } = require('../lib/server');
-module.exports = async function handler(req,res){
+const {json,parseBody,db,env,requireCustomer,ensureInvoiceForBooking,syncInvoicePaymentState,safeError,requestOrigin}=require('../lib/server');
+const {loadPaymentPolicy,checkoutPlan}=require('../lib/payment-policy');
+const {checkoutIdempotencyKey,createCheckoutSession}=require('../lib/stripe-payments');
+
+module.exports=async function handler(req,res){
   try{
-    if(req.method!=='POST') return json(res,405,{ok:false,error:'Method not allowed'});
-    const stripeKey=env('STRIPE_SECRET_KEY');if(!stripeKey)return json(res,503,{ok:false,error:'Online payment is not enabled yet.'});
-    const {user}=await requireCustomer(req);const b=parseBody(req),bookingId=String(b.bookingId||'').trim();if(!bookingId)return json(res,400,{ok:false,error:'Booking ID is required.'});
-    const booking=(await db(`bookings?id=eq.${encodeURIComponent(bookingId)}&select=*&limit=1`))?.[0];if(!booking)return json(res,404,{ok:false,error:'Booking not found.'});if(booking.customer_id!==user.id)return json(res,403,{ok:false,error:'This booking does not belong to your account.'});
-    const invoice=await ensureInvoiceForBooking(booking,{issue:true}),state=await syncInvoicePaymentState(invoice.id);if(state.outstanding<=.004)return json(res,409,{ok:false,error:'This invoice is already paid.'});
-    const quote=booking.quote_id?(await db(`quotes?id=eq.${encodeURIComponent(booking.quote_id)}&select=id,email,customer_name,service_key&limit=1`))?.[0]:null;if(!quote)return json(res,404,{ok:false,error:'Quote not found.'});
-    const percent=Math.max(1,Math.min(100,Number(env('NAMDAR_DEPOSIT_PERCENT','20'))||20));let kind='balance',charge=state.outstanding;
-    if(state.net<=.004&&percent<100){kind='deposit';charge=Math.min(state.outstanding,Math.max(.5,Number((Number(invoice.total||0)*percent/100).toFixed(2))))}else if(state.net<=.004&&percent>=100){kind='full'}
-    const amountPence=Math.max(50,Math.round(charge*100));
-    const params=new URLSearchParams();params.set('mode','payment');params.set('customer_email',quote.email);params.set('success_url','https://namdar.co.uk/account?tab=billing&payment=success&session_id={CHECKOUT_SESSION_ID}');params.set('cancel_url','https://namdar.co.uk/account?tab=billing&payment=cancelled');params.set('line_items[0][quantity]','1');params.set('line_items[0][price_data][currency]','gbp');params.set('line_items[0][price_data][unit_amount]',String(amountPence));params.set('line_items[0][price_data][product_data][name]',`Namdar ${kind==='deposit'?'booking deposit':kind==='full'?'payment':'balance'} — ${quote.service_key}`);params.set('metadata[booking_id]',booking.id);params.set('metadata[invoice_id]',invoice.id);params.set('metadata[payment_kind]',kind);params.set('metadata[customer_id]',user.id);
-    const response=await fetch('https://api.stripe.com/v1/checkout/sessions',{method:'POST',headers:{Authorization:`Bearer ${stripeKey}`,'Content-Type':'application/x-www-form-urlencoded'},body:params.toString()});const session=await response.json();if(!response.ok){const e=new Error(session?.error?.message||'Could not create Stripe checkout.');e.status=502;throw e}
+    if(req.method!=='POST')return json(res,405,{ok:false,error:'Method not allowed'});
+    const {user}=await requireCustomer(req),body=parseBody(req),bookingId=String(body.bookingId||'').trim();
+    if(!bookingId)return json(res,400,{ok:false,error:'Booking ID is required.'});
+    const policy=await loadPaymentPolicy({db,env});
+    if(!policy.ready)return json(res,503,{ok:false,error:'Secure online payment is not configured yet.'});
+    if(!policy.effectiveActive)return json(res,409,{ok:false,error:'Online payment is currently disabled by Namdar.'});
+    const booking=(await db(`bookings?id=eq.${encodeURIComponent(bookingId)}&select=*&limit=1`))?.[0];
+    if(!booking)return json(res,404,{ok:false,error:'Booking not found.'});
+    if(booking.customer_id!==user.id)return json(res,403,{ok:false,error:'This booking does not belong to your account.'});
+    if(!['pending','confirmed','completed'].includes(booking.status))return json(res,409,{ok:false,error:'This booking cannot accept an online payment.'});
+    const quote=booking.quote_id?(await db(`quotes?id=eq.${encodeURIComponent(booking.quote_id)}&select=id,email,customer_name,customer_id,service_key&limit=1`))?.[0]:null;
+    if(!quote)return json(res,404,{ok:false,error:'Quote not found.'});
+    if(quote.service_key!=='windows')return json(res,409,{ok:false,error:'Online payment is currently available for Window Cleaning only.'});
+    const invoice=await ensureInvoiceForBooking(booking,{issue:true});
+    if(!invoice||invoice.status==='void')return json(res,409,{ok:false,error:'This invoice cannot accept payment.'});
+    const state=await syncInvoicePaymentState(invoice.id);
+    if(state.outstanding<=.004)return json(res,409,{ok:false,error:'This invoice is already paid.'});
+    const plan=checkoutPlan({policy,total:invoice.total,net:state.net,outstanding:state.outstanding,preferFull:body.fullPayment===true});
+    if(!plan)return json(res,409,{ok:false,error:'No online payment is due for this invoice.'});
+    const idempotencyKey=checkoutIdempotencyKey({invoiceId:invoice.id,net:state.net,outstanding:state.outstanding,kind:plan.kind,amount:plan.amount});
+    const {session}=await createCheckoutSession({secret:env('STRIPE_SECRET_KEY'),booking,invoice,quote,amount:plan.amount,kind:plan.kind,origin:requestOrigin(req),idempotencyKey});
     await db(`bookings?id=eq.${encodeURIComponent(booking.id)}`,{method:'PATCH',prefer:'return=minimal',body:{stripe_checkout_session_id:session.id}});
-    return json(res,200,{ok:true,url:session.url,sessionId:session.id,invoiceId:invoice.id,paymentKind:kind,amount:Number(charge.toFixed(2)),outstanding:state.outstanding,depositPercent:percent});
+    return json(res,200,{ok:true,url:session.url,sessionId:session.id,invoiceId:invoice.id,paymentKind:plan.kind,amount:plan.amount,outstanding:state.outstanding,depositPercent:policy.depositPercent,minimumDeposit:policy.minimumDeposit,required:plan.required});
   }catch(e){return safeError(res,e)}
 };

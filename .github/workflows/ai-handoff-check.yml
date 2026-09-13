@@ -27,6 +27,7 @@ jobs:
           node --check account-auth-hotfix.js
           node --check account-mfa-guard.js
           node --check account-service-availability.js
+          node --check account-payments.js
           node --check privileged-login-captcha.js
           node --test scripts/privileged-login-captcha.test.mjs
           node --check admin.js
@@ -37,13 +38,16 @@ jobs:
           node --check admin-services.js
           node --check admin-booking-operations.js
           node --check admin-post-job-followup.js
+          node --check admin-payment-settings.js
           node --check admin-window-performance.js
           node --check api/address-harvest-cron.js
           node --check api/admin-address-harvest.js
           node --check api/admin-address-harvest-export.js
           node --check api/admin-services.js
           node --check api/admin-booking-operations.js
+          node --check api/admin-booking-update.js
           node --check api/admin-review-settings.js
+          node --check api/admin-payment-settings.js
           node --check api/admin-window-performance.js
           node --check api/admin-job-economics.js
           node --check api/staff-job-action.js
@@ -62,6 +66,11 @@ jobs:
           node --check api/customer-quote-action-core.js
           node --check api/booking.js
           node --check api/booking-core.js
+          node --check api/create-checkout.js
+          node --check api/payment-status.js
+          node --check api/customer-billing.js
+          node --check api/stripe-webhook.js
+          node --check api/health.js
           node --check api/public-data.js
           node --check api/sitemap.js
           node --check api/support-inbox.js
@@ -76,6 +85,8 @@ jobs:
           node --check lib/booking-operations.js
           node --check lib/post-job-followup.js
           node --check lib/business-followup-batched.js
+          node --check lib/payment-policy.js
+          node --check lib/stripe-payments.js
           node --check scripts/os-open-data-import.mjs
           node --test scripts/address-harvest-priority.test.mjs
           node --test scripts/address-commercial-foundation.test.mjs
@@ -86,6 +97,7 @@ jobs:
           node --test scripts/window-performance.test.mjs
           node --test scripts/post-job-followup.test.mjs
           node --test scripts/booking-notification-resilience.test.mjs
+          node --test scripts/stripe-payments.test.mjs
           node --check lib/server.js
           node --check lib/server-original.js
           node --check staff.js

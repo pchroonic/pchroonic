@@ -1,8 +1,17 @@
-const { json, parseBody, db, requireStaff, ensureInvoiceForBooking, sendBookingNotificationNow, scheduleBookingReminder, scheduleBookingFollowUp, cancelPendingBookingNotifications, scheduleCancelledBookingFollowUp, cancelPendingBusinessNotifications, auditLog, safeError } = require('../lib/server');
+const { json, parseBody, db, env, requireStaff, ensureInvoiceForBooking, syncInvoicePaymentState, sendBookingNotificationNow, scheduleBookingReminder, scheduleBookingFollowUp, cancelPendingBookingNotifications, scheduleCancelledBookingFollowUp, cancelPendingBusinessNotifications, auditLog, safeError } = require('../lib/server');
+const {loadPaymentPolicy,paymentRequirementMet}=require('../lib/payment-policy');
 const STATUSES=new Set(['pending','confirmed','completed','cancelled']);
 const PAYMENTS=new Set(['unpaid','deposit_paid','paid','refunded']);
 function validDate(v){const d=new Date(v);return Number.isFinite(d.getTime())?d:null}
 async function quoteFor(id){return (await db(`quotes?id=eq.${encodeURIComponent(id)}&select=*&limit=1`))?.[0]||null}
+async function enforcePaymentBeforeConfirmation(quote,booking=null){
+  if(!quote||quote.service_key!=='windows')return null;
+  const policy=await loadPaymentPolicy({db,env});if(!policy.effectiveActive||policy.mode==='optional')return null;
+  if(!booking?.id){const e=new Error(policy.mode==='full_required'?'Create this appointment as Pending so the customer can pay in full before confirmation.':'Create this appointment as Pending so the customer can pay the required deposit before confirmation.');e.status=409;throw e}
+  const invoice=await ensureInvoiceForBooking(booking,{issue:true}),state=await syncInvoicePaymentState(invoice.id),paymentStatus=state.outstanding<=.004?'paid':state.net>.004?'deposit_paid':'unpaid';
+  if(!paymentRequirementMet(policy,paymentStatus)){const e=new Error(policy.mode==='full_required'?'Full payment is required before this Window Cleaning booking can be confirmed.':'The required deposit must be paid before this Window Cleaning booking can be confirmed.');e.status=409;throw e}
+  return{policy,paymentStatus,state};
+}
 async function validateAssignedStaff(id){
   if(!id)return null;
   const p=(await db(`profiles?id=eq.${encodeURIComponent(id)}&role=in.(staff,admin)&select=id,full_name,email,role,account_status&limit=1`))?.[0];
@@ -28,6 +37,7 @@ module.exports=async function handler(req,res){
       if(assignedStaffId&&!(await validateAssignedStaff(assignedStaffId)))return json(res,400,{ok:false,error:'Choose an active Namdar team member who can manage bookings.'});
       if(startsAt.getTime()<Date.now()-60000&&status!=='completed')return json(res,400,{ok:false,error:'Choose a future booking time.'});
       const quote=await quoteFor(quoteId);if(!quote)return json(res,404,{ok:false,error:'Quote not found.'});
+      if(status==='confirmed')await enforcePaymentBeforeConfirmation(quote,null);
       const existing=await db(`bookings?quote_id=eq.${encodeURIComponent(quoteId)}&status=neq.cancelled&select=id,status,starts_at&limit=1`);if(existing?.length)return json(res,409,{ok:false,error:'This quote already has an active booking.'});
       if(['pending','confirmed'].includes(status)&&await conflict(startsAt,endsAt,'',assignedStaffId))return json(res,409,{ok:false,error:assignedStaffId?'That team member already has a booking during this time.':'That time overlaps another pending or confirmed booking. Assign a team member to allow parallel jobs.'});
       const rows=await db('bookings',{method:'POST',prefer:'return=representation',body:{quote_id:quote.id,customer_id:quote.customer_id||null,starts_at:startsAt.toISOString(),ends_at:endsAt.toISOString(),address,status,payment_status:payment,assigned_staff_id:assignedStaffId,promo_code:quote.promo_code||null,discount_total:Number(quote.promo_discount||0)+Number(quote.reward_discount||0)}});const booking=rows?.[0];if(!booking)return json(res,500,{ok:false,error:'Booking could not be created.'});
@@ -47,6 +57,7 @@ module.exports=async function handler(req,res){
     if(!startsAt||!endsAt||endsAt<=startsAt||!address)return json(res,400,{ok:false,error:'Choose a valid date/time and service address.'});
     const scheduleChanged=startsAt.toISOString()!==new Date(current.starts_at).toISOString()||endsAt.toISOString()!==new Date(current.ends_at).toISOString(),staffChanged=assignedStaffId!==(current.assigned_staff_id||null);
     if(scheduleChanged&&startsAt.getTime()<Date.now()-60000&&status!=='completed')return json(res,400,{ok:false,error:'Choose a future booking time.'});
+    if(status==='confirmed'&&current.status!=='confirmed'){const quote=current.quote_id?await quoteFor(current.quote_id):null;if(quote)await enforcePaymentBeforeConfirmation(quote,current)}
     if(['pending','confirmed'].includes(status)&&await conflict(startsAt,endsAt,id,assignedStaffId))return json(res,409,{ok:false,error:assignedStaffId?'That team member already has a booking during this time.':'That time overlaps another pending or confirmed booking. Assign a team member to allow parallel jobs.'});
     const patch={status,payment_status:payment,starts_at:startsAt.toISOString(),ends_at:endsAt.toISOString(),address,assigned_staff_id:assignedStaffId};if(status==='completed'&&current.status!=='completed'){patch.work_status='completed';patch.completed_at=current.completed_at||new Date().toISOString()}else if(current.status==='completed'&&status!=='completed'){patch.work_status='scheduled';patch.completed_at=null}const rows=await db(`bookings?id=eq.${encodeURIComponent(id)}`,{method:'PATCH',prefer:'return=representation',body:patch});const booking=rows?.[0];
     if(booking&&['confirmed','completed'].includes(status))await ensureInvoiceForBooking(booking,{issue:true});

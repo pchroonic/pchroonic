@@ -1,108 +1,77 @@
 # Namdar AI fast resume
 
-Last verified: 2026-09-12 UTC
+Last verified: 2026-09-13 UTC
 
 Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PROJECT_STATUS.md` for roadmap/status.
 
 ## Production baseline
 - Repository: `pchroonic/pchroonic`, default `main`.
-- Latest product release: PR #47, `Harden booking notification cron against gateway timeouts`.
-- PR #47 exact head: `437ab7e56b8e74f4c68d92fe096b646110018b95`.
-- GitHub Actions run `34719427324`: SUCCESS.
-- Exact-head Vercel preview: `dpl_7QMQLeXV8rEF1qBcyS7d2FyLeLKX`, READY, clean errors-only build, `aliasError: null`.
-- Product merge: `43f2db200463083cd9736485700c27a3d80974b8`.
-- Product production: `dpl_7UXKtKqyitKF5xiGADPcwN9MwgZk`, READY on `https://namdar.co.uk`, `aliasError: null`.
+- Current `main`: `ebca3eb768e80a7104ff74169bce4337d49eec11` (PR #48 handoff sync after PR #47).
+- Latest product release: PR #47 booking-notification resilience, merge `43f2db200463083cd9736485700c27a3d80974b8`.
+- Product production: `dpl_7UXKtKqyitKF5xiGADPcwN9MwgZk`; final docs production: `dpl_BhUY6TcpjfCk3XsV8cwcsZ1uE5g1`; both READY on `https://namdar.co.uk`.
 - Supabase: `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
-- Window Cleaning is the only live/quotable/bookable service; gutters, jet washing, roof cleaning, handyman and 3D tours remain `planned`.
+- Window Cleaning is the only live/quotable/bookable service. Five future services remain `planned`.
 - Address-data work remains parked.
 - Privileged Staff/Admin requires AAL2/MFA.
 
-## Window Cleaning Stage 1 — LIVE
-Current live foundation includes:
-- Window-specific quote inputs and server-side service/live gating;
-- one-off and 4/8/12-week guide pricing;
-- server-enforced booking rules: 21-day horizon, 24h notice, Mon–Sat, 08–11 / 11–14 / 14–17, max 3 jobs/day, postcode-area route density;
-- Staff field workflow: On my way → Start job → Complete job;
-- completed-job direct-cost/travel close-out;
-- consent-aware postcode → quote → sent final → accepted → booked → completed acquisition funnel;
-- completed-job actual work timing, reviewed direct costs, direct contribution and direct margin reporting.
+## Window Stage 1 — LIVE
+Live foundation includes Window quote/pricing rules, route-aware customer booking, Staff On my way → Start → Complete, completed-job direct-cost/travel close-out, consent-aware acquisition funnel, direct-contribution reporting and neutral post-job feedback/review workflow.
 
-**Direct contribution is not net profit.** Labour, overheads, tax and other business costs are outside the Stage 1 metric. Jobs without a cost review are excluded rather than treated as £0 cost.
+**Direct contribution is not net profit.** Missing cost review is not £0.
 
-## Post-job close-out + honest review workflow — LIVE
-PR #45 remains live underneath PR #47.
+Google public-review requests remain disabled because production still has no configured official Google Business Profile review-request URL.
 
-Completed Window jobs expose direct-cost/travel review in Staff using the existing `booking_job_costs` table. The action is assigned-job-only, completed-job-only, Window-only, AAL2/Bookings protected, bounded and audit logged.
+## Booking-notification resilience — LIVE, upstream 504 still intermittent
+PR #47 batches business reminder scans and isolates post-job, booking delivery, business scan and business delivery stages.
 
-The immediate completion email remains. A secure follow-up is scheduled 24 hours after completion. The follow-up asks for private Namdar feedback and, when configured, offers the same optional honest Google review choice to every completed customer regardless of private rating. Low private ratings still route to private support attention.
+A real authenticated cron run on 2026-09-13 at 05:00:02 UTC returned HTTP 200 but logged:
+`Notification cron stage failed: booking_delivery 504 Gateway Timeout`
 
-Do not restore positive-only review gating, discourage negative reviews, request a particular star rating, or offer review incentives.
+This proves stage isolation is working: one transient Supabase gateway failure no longer aborts the whole cron. It also proves the underlying transient database 504 has not disappeared. Keep the hourly `Namdar Cron Watch`; do not call this issue permanently resolved.
 
-Admin → Bookings has a Settings-protected Google Business Profile review-link field. Production still has no `site_settings.reviews` row, so Google public-review CTAs remain disabled until the official Google review-request URL is deliberately entered.
+## Current candidate — Stripe Window payment foundation
+Branch: `feat/stripe-payment-foundation-20260913`.
 
-## Booking notification 504 resilience — LIVE
-PR #47 is production-live.
+Production provider state before this candidate:
+- `/api/health`: Stripe not ready;
+- no `site_settings.payments` row;
+- zero `payment_records` with `method='stripe'`.
 
-### What production evidence showed
-Before PR #47, Vercel grouped **21 Gateway Timeout errors** on `/api/booking-notifications` between 9 and 12 September 2026. Runtime stacks pointed to Supabase REST access inside business reminder scanning/queueing and, in one sample, due business-notification delivery.
+The candidate deliberately reuses the existing v5.2 `invoices`, `payment_records` and booking `payment_status` ledger. No new payment/accounting table or migration is introduced.
 
-This was not a volume or missing-index problem. At investigation time production had only:
-- 1 pending final quote;
-- 0 overdue invoices;
-- 0 upcoming unassigned bookings in the next 24h;
-- 1 stale scheduled booking;
-- 4 sent `business_notifications` rows and no pending backlog.
+### Security / money flow
+- `lib/payment-policy.js`: configurable, fail-safe Window policy; default is disabled.
+- Online payment requires **both** `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`, plus deliberate Admin activation.
+- `api/create-checkout.js`: Window-only, customer-owned booking only, deterministic idempotency key, server-calculated deposit/full/balance amount; customer cannot choose an arbitrary amount.
+- `api/stripe-webhook.js`: raw-body Stripe signature verification; verified webhook is the authoritative writer of Stripe payments/refunds; duplicate delivery is ignored through existing unique `provider_reference`.
+- `api/payment-status.js`: customer return/status endpoint is read-only and can no longer create payment ledger entries.
+- Failed/cancelled checkout never confirms a booking and never records payment.
+- Stripe payment confirmation updates the existing invoice/booking payment state; no browser redirect can mark money paid.
+- Stripe refunds received by verified webhook are inserted into the existing refund ledger and resynchronise invoice/booking payment state.
+- Namdar never handles/stores card details.
 
-Existing indexes already covered pending-due rows, entity lookup and unique event identity.
+### Payment policy / UX
+Admin → Payments gains a Settings/AAL2-protected policy panel:
+- disabled / enabled;
+- optional, deposit-required or full-payment-required policy;
+- configurable deposit percentage;
+- configurable minimum deposit;
+- optional customer choice to pay in full instead of deposit;
+- provider readiness shown without exposing secrets.
 
-### Live fix
-New `lib/business-followup-batched.js`:
-- builds quote/invoice/booking reminder candidates in memory;
-- bulk-loads invoice quote context rather than fetching one quote per invoice;
-- de-duplicates candidates by the existing event identity;
-- inserts in conflict-ignore batches (default 50, max 100) against the existing unique constraint;
-- retries one transient 502/503/504 only for the idempotent conflict-ignore batch write;
-- reports partial source/queue failures as degraded without discarding healthy sources.
+My Namdar Billing supports pending/confirmed/completed Window bookings and can show secure deposit, balance or full-payment actions when the policy is actually enabled.
 
-`api/booking-notifications.js` now isolates four stages:
-1. post-job follow-up delivery (10);
-2. generic booking notification delivery (10);
-3. batched business reminder scan;
-4. due business notification delivery (10).
+Required deposit/full-payment modes are enforced server-side before an Admin can move a Window booking from Pending to Confirmed. Under a required policy, a new appointment must first be created Pending, paid, then confirmed.
 
-A transient failure in one stage no longer aborts the other stages. The endpoint returns a degraded result when only part of the run fails and reserves HTTP 503 for all four stages failing.
-
-No database migration or new index was required.
-
-### Release verification — PR #47
-- branch: `fix/booking-notification-504-20260912`;
-- exact head: `437ab7e56b8e74f4c68d92fe096b646110018b95`;
-- final CI: `34719427324` SUCCESS;
-- exact-head preview: `dpl_7QMQLeXV8rEF1qBcyS7d2FyLeLKX` READY / clean build;
-- merge: `43f2db200463083cd9736485700c27a3d80974b8`;
-- production: `dpl_7UXKtKqyitKF5xiGADPcwN9MwgZk` READY on `namdar.co.uk`, canonical alias present, no alias error;
-- unauthenticated production `/api/booking-notifications` → 401 as expected;
-- Vercel runtime errors for `/api/booking-notifications` since this production deployment: none at the release smoke check;
-- production `business_notifications` still contained only the four previously sent rows; no synthetic queue rows were created;
-- service catalog remained Window live and all five future services planned.
-
-The historical 504 is **hardened but not yet declared permanently resolved**. Confirm at least one real authenticated scheduled cron execution on this deployment before closing the observation item.
-
-## Next best work
-1. observe the next real scheduled `/api/booking-notifications` execution and confirm no new 504/degraded run;
-2. enter the official Google Business Profile review-request URL when available;
-3. use Start → Complete → direct-cost review for every real Window job;
-4. collect genuine before/after photos and authentic customer feedback/reviews;
-5. calibrate Window pricing, capacity and route rules from real conversion, work time, travel and direct contribution;
-6. assess Stage 2 only when real evidence supports it and the user deliberately chooses to proceed.
+### Activation gate
+Do **not** describe Stripe payments as live yet. Production currently lacks Stripe configuration and the payment policy is absent/default-disabled. After candidate CI/preview/release, the next interactive step is to connect/configure Stripe securely, create the production webhook endpoint for `/api/stripe-webhook`, add the webhook secret in Vercel, run real/test-mode end-to-end Checkout/webhook/refund tests, then deliberately enable the policy in Admin.
 
 ## Do not break
-- Window Cleaning only is the current commercial offering.
-- Do not activate Stage 2 without deliberate user decision.
-- Customer service/booking restrictions remain server-side enforced.
+- Window Cleaning only; do not activate Stage 2.
+- Stripe webhook, not browser redirect, is authoritative for money.
+- Never expose or commit Stripe/Supabase/SMTP/Turnstile/cron secrets.
 - Existing accepted work survives service pauses.
-- Privileged access requires AAL2/MFA.
-- Review requests remain neutral and equally available; no incentives or positive-only gating.
-- Address-data work stays parked unless deliberately resumed.
+- Privileged access remains AAL2/MFA protected.
+- Review requests stay neutral/equal; no positive-only gating or incentives.
+- Address work stays parked.
 - Support tickets remain customer-only; public inbound email remains Admin Email inbox.
-- Never expose secrets.
