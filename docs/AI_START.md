@@ -36,10 +36,13 @@ Verified finance state after cleanup:
 ## Intelligent Expense Receipts — in progress
 Branch: `feat/intelligent-expense-receipts-20260913`.
 
-Applied Supabase migration:
-- `20260913152601 intelligent_expense_receipts`.
+Applied Supabase migrations:
+- `20260913152601 intelligent_expense_receipts`;
+- `20260913153443 intelligent_expense_receipt_fk_indexes`.
 
-Migration adds:
+Both receipt migrations have matching SQL files in `supabase/migrations/` on this branch. The second migration added covering indexes for receipt/merchant-rule audit-user foreign keys. After it was applied, all three new receipt-specific `unindexed_foreign_keys` advisor findings disappeared. Remaining advisor findings are pre-existing elsewhere in Namdar.
+
+Receipt foundation:
 - private `business_expense_receipts` document/draft table;
 - private `business_expense_merchant_rules` learning table;
 - private `finance-receipts` Storage bucket (JPG/PNG/WebP/PDF, 10 MB limit);
@@ -74,17 +77,17 @@ Important privacy design: receipt image/PDF pixels are not sent to a third-party
 - `20260913144052 business_finance_expense_updated_by_index`
 - `20260913144632 stripe_payment_environment_tracking`
 - `20260913152601 intelligent_expense_receipts`
+- `20260913153443 intelligent_expense_receipt_fk_indexes`
 
-Supabase migration history plus these handoff docs are authoritative for applied schema changes. Do not invent missing repo SQL migration files.
+Older finance schema changes may lack matching git SQL files; the two intelligent-receipt migrations do have matching branch files. Supabase migration history plus continuity docs remain authoritative for what is actually applied.
 
 ## Next action
 1. Open PR for intelligent receipt branch.
 2. Require green GitHub CI and READY exact Vercel preview with clean errors-only build.
-3. Verify Supabase receipt storage policies/advisors and clean starting state.
-4. Merge only if green, then verify production loader `6.4.26-intelligent-receipts-1`.
-5. In authenticated Admin -> Reports, upload a controlled sample receipt and verify: private upload -> OCR -> suggestions -> review -> save -> attachment -> learned merchant rule -> duplicate protection.
-6. Enter the actual sole-trader start date through Admin when the user is ready; never invent it.
-7. Keep Stripe commercial policy OFF until finance/receipt behaviour is validated.
+3. Merge only if green, then verify production loader `6.4.26-intelligent-receipts-1`.
+4. In authenticated Admin -> Reports, upload a controlled sample receipt and verify: private upload -> OCR -> suggestions -> review -> save -> attachment -> learned merchant rule -> duplicate protection.
+5. Enter the actual sole-trader start date through Admin when the user is ready; never invent it.
+6. Keep Stripe commercial policy OFF until finance/receipt behaviour is validated.
 
 ## Do not break
 - No customer exposure of private finance settings, expense ledger or receipt documents.
