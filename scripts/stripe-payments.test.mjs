@@ -51,18 +51,19 @@ test('Checkout creation is Window-only, policy-gated and idempotent',()=>{
 test('verified webhook is authoritative, idempotent and records actual processor cost',()=>{
   const webhook=read('api/stripe-webhook.js'),status=read('api/payment-status.js'),migration=read('supabase/migrations/20260913103500_stripe_processor_fee_accounting.sql');
   assert.match(webhook,/verifyStripeSignature/);assert.match(webhook,/bodyParser:false/);assert.match(webhook,/payment_records\?on_conflict=provider_reference/);assert.match(webhook,/resolution=ignore-duplicates/);assert.match(webhook,/syncInvoicePaymentState/);assert.match(webhook,/stripe_refund:/);assert.match(webhook,/retrievePaymentProcessorDetails/);assert.match(webhook,/provider_fee/);assert.match(webhook,/provider_net/);assert.match(webhook,/provider_balance_transaction/);
+  assert.match(webhook,/attachProcessorDetails/);assert.match(webhook,/processor-cost data is not ready yet/);assert.match(webhook,/err\.status=503/);
   for(const column of ['provider_payment_id','provider_balance_transaction','provider_fee','provider_net','provider_fee_currency'])assert.match(migration,new RegExp(column));
   assert.doesNotMatch(status,/db\('payment_records',\{method:'POST'/);assert.match(status,/pendingWebhook/);assert.match(status,/provider_reference=eq\./);
 });
 
-test('customer billing never exposes internal processor cost fields',()=>{
-  const billing=read('api/customer-billing.js');
-  assert.doesNotMatch(billing,/provider_fee|provider_net|provider_balance_transaction|provider_payment_id/);
+test('customer billing and PDFs never render internal processor cost fields',()=>{
+  const billing=read('api/customer-billing.js'),pdf=read('api/billing-document.js');
+  for(const field of ['provider_fee','provider_net','provider_balance_transaction','provider_payment_id']){assert.doesNotMatch(billing,new RegExp(field));assert.doesNotMatch(pdf,new RegExp(field))}
 });
 
 test('manual staff payment entry cannot impersonate a Stripe webhook payment',()=>{
-  const adminPayments=read('api/admin-payments.js');
-  assert.match(adminPayments,/method===['"]stripe['"]/);assert.match(adminPayments,/recorded automatically from verified Stripe webhooks/i);
+  const adminPayments=read('api/admin-payments.js'),admin=read('admin-payment-settings.js');
+  assert.match(adminPayments,/method===['"]stripe['"]/);assert.match(adminPayments,/recorded automatically from verified Stripe webhooks/i);assert.match(admin,/paymentMethod option\[value=\\?"stripe/);
 });
 
 test('required Window payment policy is enforced server-side before booking confirmation',()=>{
