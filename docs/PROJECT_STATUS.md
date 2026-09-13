@@ -4,86 +4,86 @@ Last updated: 2026-09-13 UTC
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current product release: PR #59 `Add sole trader Business Finance dashboard`.
-- Exact tested head `03121fa992b5d845e5478e61665a90d59c9a9d4f`; CI `34763802394` SUCCESS; preview `dpl_Fb14yFYcoa5F7Bf2mdh7LKQ7Sqo9` READY.
-- PR #59 merge/main HEAD `7eb4ebd47041288faac444eb4ae0a2304043d7c9`.
-- Production deployment `dpl_GbqaKFaNpjCVfKNeJ51aReKiixs4` READY on `https://namdar.co.uk`; `/api/health` HTTP 200.
-- Production Admin loader currently serves Business Finance version `6.4.24-business-finance-1`.
+- Current product release: PR #61 `Polish Business Finance initial setup`, merge `2bb2f20b41136a2b3ba2dac1d083955d3108fd6c`.
+- Production deployment `dpl_F8Ti9xMH6xYRynvUcQw14Cda4fpV` READY on `https://namdar.co.uk`.
+- Production Admin loader `6.4.25-business-finance-setup-1`.
 - Supabase production `qjigldxjcpnrlyxgmlqq`.
 - Window Cleaning only live; future services planned; address work parked.
 
-## Stripe sandbox — FULL PASS / COMMERCIAL POLICY OFF
-Signed-in deposit + balance + full-refund sandbox flow passed with authoritative webhooks and exact processor costs. Customer payment policy remains OFF; no live Stripe credentials. Four retained Stripe ledger rows are sandbox and excluded from finance.
+## Stripe sandbox — full pass / commercial policy OFF
+Signed-in deposit + balance + full-refund sandbox flow passed with authoritative webhooks. Customer payment policy remains OFF; no live Stripe credentials. Four retained Stripe ledger rows are sandbox and excluded from finance.
 
-## Business Finance — LIVE / AUTHENTICATED UI VERIFIED
+## Business Finance — live
 Business structure decision: **sole trader first, limited company after success**.
 
-The user opened production Admin -> Reports while authenticated and supplied screenshots on 2026-09-13. The live module visibly loads all major Business Finance sections.
+Authenticated Admin screenshots verified the live module. PR #61 now withholds the tax timeline until the real sole-trader start date is saved and hides irrelevant incorporation/VAT date fields until applicable.
 
-Current visible/live state:
-- cash received £0;
-- net business receipts £0;
-- expenses £0;
-- Stripe processing £0;
-- taxable profit £0;
-- outstanding invoices £106;
-- VAT rolling-12-month monitor £106;
-- no saved sole-trader start date;
-- no VAT registration selected.
+### Test-data cleanup completed
+The user confirmed the old £106 Sep-11 Window booking/invoice was test data. It had no payments, job costs, feedback, promo use or project linkage. Its quote, booking, invoice, booking notifications and matching archived reminder were removed together.
 
-The £106 comes from one issued Window invoice created 9 Sep 2026 for a confirmed appointment on 11 Sep 2026. It remains unpaid and `scheduled`. It is not Stripe sandbox activity. It must remain untouched until the user confirms whether that booking was genuine or test/old data.
+Verified clean finance state after cleanup:
+- outstanding invoices £0;
+- rolling invoice turnover £0;
+- business expenses 0;
+- Stripe rows 4 sandbox / 0 live;
+- payment policy rows 0.
 
-## Business Finance setup UX — IN PROGRESS
-Branch: `fix/business-finance-setup-ux-20260913`.
+## Intelligent Expense Receipts — IN PROGRESS
+Branch: `feat/intelligent-expense-receipts-20260913`.
 
-Planned/reviewed changes:
-- `admin-business-finance-polish.js` added;
-- Admin loader target becomes `6.4.25-business-finance-setup-1`;
-- no saved sole-trader start date => show setup-incomplete warning and withhold the tax filing timeline/reserve display instead of showing misleading £0 placeholders;
-- cash/invoice/expense tracking continues to work before tax setup is completed;
-- future incorporation date hidden unless Limited company selected;
-- VAT registration date hidden unless VAT registered selected;
-- no financial records changed by these UX improvements;
-- regression and syntax checks added.
+Applied migration:
+- `20260913152601 intelligent_expense_receipts`.
 
-## Applied production schema
-Supabase migrations:
+New foundation:
+- private `business_expense_receipts` receipt-document/draft table;
+- private `business_expense_merchant_rules` learning table;
+- private `finance-receipts` Supabase Storage bucket, JPG/PNG/WebP/PDF, 10 MB;
+- storage access requires AAL2 plus Admin or active staff settings permission;
+- current receipt rows 0, learned merchant rules 0.
+
+Receipt experience being built:
+- receipt drag/select above Expense Ledger;
+- SHA-256 exact-file duplicate protection;
+- private original receipt storage;
+- browser-local OCR using pinned Tesseract.js 7.0.0;
+- PDF embedded-text extraction using pinned PDF.js 4.10.38, with scanned-PDF OCR fallback;
+- automatic suggestions for supplier/date/total/VAT/reference/payment method/category/tax treatment/business-use %;
+- confidence and review warnings;
+- likely duplicate expense warning based on date/amount/supplier;
+- no auto-posting: user must review and save;
+- receipt attached to saved expense after review;
+- final corrected merchant choices learned for later receipts;
+- recent receipt documents can be reopened privately;
+- deleting an expense detaches its receipt back to review rather than deleting document history.
+
+Privacy: receipt content is not sent to a third-party AI service in v1. OCR runs in the authenticated browser; originals remain in private Supabase storage. CDN access is limited to pinned OCR/PDF runtime assets.
+
+Code/CI additions:
+- `lib/receipt-intelligence.js`;
+- `api/admin-finance-receipts.js`;
+- `admin-finance-receipts.js`;
+- receipt attachment/learning in `api/admin-finance-expenses.js`;
+- Admin loader target `6.4.26-intelligent-receipts-1`;
+- CSP support for pinned jsDelivr worker/fetch assets;
+- receipt parser/security tests and CI syntax checks.
+
+## Applied production finance schema
 - `20260913143525 business_finance_expense_ledger`
 - `20260913144052 business_finance_expense_updated_by_index`
 - `20260913144632 stripe_payment_environment_tracking`
+- `20260913152601 intelligent_expense_receipts`
 
-Private `business_expenses` has RLS enabled/no browser policies. `payment_records.provider_livemode` distinguishes sandbox/live Stripe. Verified state remains 4 sandbox / 0 live / 0 unknown Stripe rows, 0 business expenses, 0 `finance_private` rows and 0 payment-policy rows.
-
-Business Finance excludes sandbox Stripe receipts/refunds/processor fees entirely while retaining technical audit history.
-
-## Finance v1 functionality
-- Business Finance panel in Admin Reports.
-- cash received/refunds/net receipts and outstanding invoices.
-- private expense ledger with category, business-use %, tax treatment and audit trail.
-- only real/live Stripe provider rows enter finance; test-mode Stripe excluded.
-- actual live Stripe provider fees deducted automatically.
-- cash surplus separate from taxable-profit estimate.
-- estimated sole-trader Income Tax attributable to Namdar + Class 4 NI.
-- tax reserve target/gap + illustrative payment-on-account warning.
-- rolling 12-month £90,000 VAT threshold monitor.
-- MTD staged threshold indicator with legal-obligation caveat.
-- monthly tax-year cash table and expense-category mix.
-- optional private other taxable income for marginal tax accuracy.
-- future incorporation date preserves historic sole-trader records.
-- capital-allowance items excluded from simple taxable-profit deduction pending proper treatment.
-- operational job-cost estimates not silently used as tax expenses.
-
-Tax output is a management estimate, not an HMRC assessment. Scotland/traditional-accounting/limited-company tax calculations are withheld rather than guessed in v1.
+Supabase migration history + continuity docs are authoritative for tool-applied schema changes.
 
 ## Immediate next work
-1. Open PR for setup UX branch and require green CI + READY Vercel preview.
-2. Merge only when clean; verify production loader `6.4.25-business-finance-setup-1` and conditional setup fields.
-3. User classifies the £106 Sep-11 booking/invoice as real vs test/old before any mutation.
-4. User saves actual sole-trader start date through Admin.
-5. Optionally enter private other taxable income/tax reserve and begin real paid-expense entry.
-6. Keep Stripe customer payment policy OFF during finance validation.
-7. Once finance data-entry is stable, return to Window commercial payment policy/live Stripe rollout.
-8. Other open work remains Google review URL, privileged security follow-ups, SMS/legal and Window real-job pricing evidence; address work remains parked.
+1. Open PR for intelligent receipts.
+2. Require green CI + READY exact-head Vercel preview + clean errors-only build.
+3. Check finance-receipt Supabase advisor/security findings.
+4. Merge only when clean; verify production loader `6.4.26-intelligent-receipts-1` and health endpoint.
+5. User uploads one controlled sample receipt and verifies OCR -> suggestions -> edit/review -> save -> receipt attachment -> learned supplier rule -> duplicate protection.
+6. User saves actual sole-trader start date when ready.
+7. Keep Stripe customer payment policy OFF during finance validation.
+8. Then return to Window commercial payment policy/live Stripe rollout.
 
 ## Handoff rule
 Every substantial product/provider/data change updates `docs/AI_START.md`, `docs/AI_HANDOFF.md`, and this file. Never store credentials, raw API keys, customer secrets, TOTP codes, one-time Auth links or unnecessary private financial details in source/docs.
