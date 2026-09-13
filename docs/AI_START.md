@@ -6,95 +6,71 @@ Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PR
 
 ## Production baseline
 - Repository: `pchroonic/pchroonic`, default `main`.
-- Current production product release: PR #61 `Polish Business Finance initial setup`, merge `2bb2f20b41136a2b3ba2dac1d083955d3108fd6c`.
-- Production deployment: `dpl_F8Ti9xMH6xYRynvUcQw14Cda4fpV`, READY on `https://namdar.co.uk`.
-- Production Admin loader: `6.4.25-business-finance-setup-1`.
+- Current product release: PR #62 `Add intelligent receipt-driven expense ledger`.
+- PR #62 exact tested head: `2496e80a085f3acf812a4e865f5befb72eec02a8`.
+- PR #62 CI run `34766157941`: SUCCESS.
+- Exact-head Vercel preview `dpl_4adpSAC33DWg2oawWeqWPqUW78KM`: READY; errors-only build clean.
+- PR #62 merge/main HEAD: `a6b73927f1649f2ad167cda4410f2f5632b78212`.
+- Production deployment: `dpl_B4nhdmgLZ13n813rUMWQfJRj2KUN`, READY on `https://namdar.co.uk`.
+- Production `/api/health`: HTTP 200 after deploy.
+- Production Admin loader: `6.4.26-intelligent-receipts-1`; it loads `admin-finance-receipts.js`.
 - Supabase production: `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
 - Window Cleaning is the only live service. Future services remain planned. Address work remains parked.
 - Privileged Staff/Admin requires AAL2/MFA.
 
 ## Stripe sandbox — full normal flow verified, customer policy OFF
-Signed-in My Namdar deposit -> balance -> refund passed end-to-end with authoritative 200 webhooks, processor-fee capture and corrected multi-tab return. Four Stripe sandbox audit rows remain and are excluded from Business Finance.
+Signed-in My Namdar deposit -> balance -> refund passed end-to-end with authoritative webhooks. Four Stripe sandbox audit rows remain and are excluded from Business Finance. `site_settings.payments` is absent; no live Stripe credentials.
 
-Current safety: `site_settings.payments` absent; online customer-payment policy OFF; headline allowance OFF; no live Stripe credentials.
+## Business Finance — LIVE
+Namdar starts as a **sole trader**, later moves to a **limited company after success**. Preserve dated sole-trader history and split future company records from the real incorporation date. Tax output remains a management estimate, not an HMRC assessment.
 
-## Business Finance — live
-Namdar starts as a **sole trader**, later moves to a **limited company after success**. Preserve dated sole-trader history and split future company records from the actual incorporation date.
+### Test-data cleanup
+The user confirmed the old £106 Sep-11 Window booking/invoice was test data. It had no payments, job costs, feedback, project link or promo use. Its quote, booking, invoice, notifications and matching archived reminder were deleted together.
 
-Authenticated Admin screenshots confirmed the Business Finance UI loads. PR #61 now hides premature tax/deadline output until the actual sole-trader start date is saved and conditionally hides incorporation/VAT registration dates.
+Verified post-PR62 clean finance state:
+- outstanding invoices £0;
+- rolling invoice turnover £0;
+- business expenses 0;
+- receipt rows 0;
+- learned merchant rules 0;
+- Stripe rows 4 sandbox / 0 live;
+- payment policy rows 0.
 
-### Confirmed test-data cleanup
-The user confirmed the old £106 Window booking/invoice was test data. Database inspection showed no payments, job costs, feedback, promo redemption, project link or other real finance dependency. The test quote, booking, invoice, booking notifications and matching archived reminder were deleted together on 2026-09-13.
-
-Verified finance state after cleanup:
-- outstanding invoices: £0;
-- rolling invoice turnover used by VAT monitor: £0;
-- business expenses: 0;
-- Stripe ledger: 4 sandbox / 0 live;
-- `site_settings.payments`: 0 rows.
-
-## Intelligent Expense Receipts — in progress
-Branch: `feat/intelligent-expense-receipts-20260913`.
-
-Applied Supabase migrations:
+## Intelligent Expense Receipts — LIVE / NEEDS FIRST AUTHENTICATED RECEIPT TEST
+Applied migrations:
 - `20260913152601 intelligent_expense_receipts`;
 - `20260913153443 intelligent_expense_receipt_fk_indexes`.
 
-Both receipt migrations have matching SQL files in `supabase/migrations/` on this branch. The second migration added covering indexes for receipt/merchant-rule audit-user foreign keys. After it was applied, all three new receipt-specific `unindexed_foreign_keys` advisor findings disappeared. Remaining advisor findings are pre-existing elsewhere in Namdar.
+Both receipt migrations have matching files in `supabase/migrations/`. Receipt-specific missing-FK advisor findings are cleared. Private receipt/merchant tables intentionally use RLS without browser table policies; server APIs mediate table access. Private Storage access requires AAL2 plus Admin or active staff settings permission.
 
-Receipt foundation:
-- private `business_expense_receipts` document/draft table;
-- private `business_expense_merchant_rules` learning table;
-- private `finance-receipts` Storage bucket (JPG/PNG/WebP/PDF, 10 MB limit);
-- AAL2 + finance/settings storage access helper/policies.
+Live receipt workflow:
+1. choose/drop JPG, PNG, WebP or PDF (up to 10 MB);
+2. browser computes SHA-256 and blocks exact-file duplicates;
+3. original uploads to private `finance-receipts` Supabase Storage;
+4. OCR runs locally in the Admin browser with pinned Tesseract.js 7.0.0; PDF.js 4.10.38 reads text PDFs first and scanned PDFs fall back to OCR;
+5. server-side receipt intelligence suggests supplier, date, total, VAT, reference, payment method, category, tax treatment and business-use percentage;
+6. low-confidence and possible date/amount/supplier duplicate warnings are shown;
+7. user reviews/corrects fields before saving — never auto-post;
+8. saved expense links to the private original receipt;
+9. reviewed supplier/category/tax/business-use/payment-method choices become a private merchant rule for future suggestions;
+10. recent receipt documents reopen with short-lived signed URLs.
 
-Current receipt data starts clean: 0 receipt rows and 0 learned merchant rules.
-
-Receipt workflow under development:
-1. staff chooses/drops a JPG, PNG, WebP or PDF receipt;
-2. browser hashes the file and blocks exact-file duplicates;
-3. original file uploads to private Supabase Storage;
-4. OCR runs **locally in the browser** with pinned Tesseract.js; text PDFs are read with pinned PDF.js first and scanned PDFs fall back to OCR;
-5. server-side deterministic receipt intelligence extracts/suggests supplier, date, total, VAT, reference, payment method, expense category, tax treatment and business-use percentage;
-6. Namdar warns about low-confidence fields and possible date/amount/supplier duplicates;
-7. user reviews/corrects fields before saving — no receipt is silently posted as an expense;
-8. reviewed receipt becomes attached to the saved `business_expenses` row;
-9. corrected supplier/category/tax/business-use/payment-method choices update a private merchant rule for better suggestions next time.
-
-Code added/changed on branch:
-- `lib/receipt-intelligence.js`;
-- `api/admin-finance-receipts.js`;
-- `admin-finance-receipts.js`;
-- `api/admin-finance-expenses.js` receipt attachment + merchant learning;
-- Admin loader target `6.4.26-intelligent-receipts-1`;
-- CSP allows pinned jsDelivr OCR/PDF worker/fetch assets;
-- receipt parser/security regression tests + CI syntax checks.
-
-Important privacy design: receipt image/PDF pixels are not sent to a third-party AI provider. OCR runs in the authenticated Admin browser; the original receipt is stored in private Namdar/Supabase storage. External CDN use is for pinned OCR/PDF library/runtime assets only. Optional AI enrichment can be added later deliberately, but is not required for v1.
-
-## Applied production finance migrations
-- `20260913143525 business_finance_expense_ledger`
-- `20260913144052 business_finance_expense_updated_by_index`
-- `20260913144632 stripe_payment_environment_tracking`
-- `20260913152601 intelligent_expense_receipts`
-- `20260913153443 intelligent_expense_receipt_fk_indexes`
-
-Older finance schema changes may lack matching git SQL files; the two intelligent-receipt migrations do have matching branch files. Supabase migration history plus continuity docs remain authoritative for what is actually applied.
+Privacy: receipt pixels/document contents are not sent to a third-party AI provider in v1. OCR runs in the authenticated browser and originals remain in private Namdar/Supabase storage. CDN use is limited to pinned OCR/PDF runtime assets.
 
 ## Next action
-1. Open PR for intelligent receipt branch.
-2. Require green GitHub CI and READY exact Vercel preview with clean errors-only build.
-3. Merge only if green, then verify production loader `6.4.26-intelligent-receipts-1`.
-4. In authenticated Admin -> Reports, upload a controlled sample receipt and verify: private upload -> OCR -> suggestions -> review -> save -> attachment -> learned merchant rule -> duplicate protection.
-5. Enter the actual sole-trader start date through Admin when the user is ready; never invent it.
+1. User hard-refreshes Admin -> Reports and confirms the `Smart receipt` panel appears above Expense Ledger.
+2. User uploads one controlled sample/real receipt.
+3. Verify end-to-end: private upload -> OCR -> suggestions -> review/edit -> save -> attached receipt -> merchant rule -> reopen -> duplicate protection.
+4. Do not fabricate an expense. If testing with a non-business/sample receipt, delete/detach the resulting test expense/receipt afterward.
+5. User saves actual sole-trader start date when ready; never invent it.
 6. Keep Stripe commercial policy OFF until finance/receipt behaviour is validated.
 
 ## Do not break
 - No customer exposure of private finance settings, expense ledger or receipt documents.
-- Receipt suggestions must remain review-first; never auto-post tax/accounting entries.
-- Sandbox Stripe activity must never enter revenue/tax reporting.
+- Receipt suggestions are review-first; never auto-post accounting/tax entries.
+- Sandbox Stripe activity never enters revenue/tax reporting.
 - No separate consumer card/Stripe surcharge.
 - Verified Stripe webhook remains authoritative for money state.
 - Never expose secrets or unnecessary private financial details.
 - Direct contribution != net profit; tax estimate != filed tax return.
-- Window Cleaning only until deliberate next-stage activation. Address work remains parked.
+- Window Cleaning only until deliberate next-stage activation. Address work stays parked.
