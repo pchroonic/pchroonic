@@ -41,6 +41,11 @@ test('verified webhook is authoritative and idempotent; browser status cannot cr
   assert.doesNotMatch(status,/db\('payment_records',\{method:'POST'/);assert.match(status,/pendingWebhook/);assert.match(status,/provider_reference=eq\./);
 });
 
+test('required Window payment policy is enforced server-side before booking confirmation',()=>{
+  const booking=read('api/admin-booking-update.js');
+  assert.match(booking,/enforcePaymentBeforeConfirmation/);assert.match(booking,/loadPaymentPolicy\(\{db,env\}\)/);assert.match(booking,/paymentRequirementMet/);assert.match(booking,/Create this appointment as Pending/);assert.match(booking,/status==='confirmed'&&current\.status!=='confirmed'/);
+});
+
 test('Admin and customer payment surfaces are extensions and do not expose secret values',()=>{
   const adminApi=read('api/admin-payment-settings.js'),admin=read('admin-payment-settings.js'),account=read('account-payments.js');
   assert.match(adminApi,/requireStaff\(req,'settings'\)/);assert.match(adminApi,/!provider\.ready/);assert.match(adminApi,/payments\.settings_update/);assert.doesNotMatch(adminApi,/STRIPE_SECRET_KEY.*return/);
