@@ -6,117 +6,99 @@ Read `docs/AI_START.md` first.
 
 ## Production source of truth
 - Repo `pchroonic/pchroonic`, default `main`.
-- Product release PR #62 `Add intelligent receipt-driven expense ledger`, merge `a6b73927f1649f2ad167cda4410f2f5632b78212`.
-- PR #63 docs-only continuity merge `aabcb88d3ee24a92a3af3770e256550f692d32af`.
-- Production deployment `dpl_B4nhdmgLZ13n813rUMWQfJRj2KUN` READY on `https://namdar.co.uk`.
-- Production Admin loader `6.4.26-intelligent-receipts-1`.
+- Current product release: PR #64 `Add Admin System Health and reliability history`.
+- Exact tested head `c840436aeb3363b263135867e11f1551e71cf6f4`; CI `34767328622` SUCCESS.
+- Exact preview `dpl_HXjuMhD58ngJBtu2HmXrTXdgk9Mg` READY with clean errors-only build.
+- Preview health DB check is unavailable because Preview lacks `SUPABASE_SERVICE_ROLE_KEY`; production has the required env.
+- Merge/main HEAD `c9028003b68095b7ef4c9d601980afe359017448`.
+- Production deployment `dpl_BsZbTcWLNHYgP9hrCxLUgPsXHLas` READY on `https://namdar.co.uk`.
+- Production `/api/health` HTTP 200 after deploy.
+- Production Admin loader `6.4.27-system-health-1`, including `admin-system-health.js`.
 - Supabase production `qjigldxjcpnrlyxgmlqq`.
-- Window Cleaning only live; address work parked; AAL2/MFA required for privileged Staff/Admin.
+- Window Cleaning only live; address work parked; privileged Staff/Admin requires AAL2/MFA.
 
 ## Existing safety state
 - Stripe customer policy OFF; no live Stripe credentials.
-- Four retained Stripe rows are sandbox and excluded from finance.
-- Business structure: sole trader first, limited company later from real incorporation date.
-- Confirmed £106 test fixture removed.
-- Smart receipts live; first authenticated receipt test deferred by user.
+- Four retained Stripe rows are sandbox and excluded from Business Finance.
+- Sole trader first, limited company later from real incorporation date.
+- £106 confirmed test fixture removed.
+- Smart receipts are live; user deferred authenticated receipt testing.
 
 ## Reliability evidence
-Vercel 7-day runtime-error review before implementation:
-- meaningful current issue: intermittent Supabase/PostgREST 504s, especially `/api/booking-notifications` stages;
-- 401 staff/customer sign-in errors are expected auth/session noise, not reliability incidents;
-- missing env errors and webhook raw-body errors were tied to older deployments and must not be surfaced as current state.
+Pre-release Vercel review showed intermittent Supabase/PostgREST 504s as the meaningful reliability problem, particularly in hourly notification/follow-up processing. Routine customer/staff 401s are expected auth/session events and are intentionally not treated as platform incidents. Old missing-env and Stripe raw-body failures belonged to older deployments and are not current incidents.
 
-## System Health branch
-Branch: `feat/system-health-reliability-20260913`.
-Admin loader target: `6.4.27-system-health-1`.
-
+## System Health — LIVE
 Applied migration:
 - `20260913154800 system_health_reliability_history`.
 
-### Database
+### Private schema
 `system_health_runs`
-- server-only operational run history;
-- fields include component, healthy/warning/failing status, summary, source, start/finish, duration and non-secret JSON details;
-- RLS enabled, no direct browser policies.
+- component, healthy/warning/failing status, summary, source, timing, duration, non-secret details;
+- RLS enabled, no browser policies.
 
 `system_health_incidents`
-- grouped incident lifecycle with fingerprint, component, warning/failing severity, open/resolved state, title/message, occurrence count, first/last seen, resolved timestamp and latest run link;
-- partial unique index allows only one open incident per fingerprint;
-- RLS enabled, no direct browser policies.
+- grouped incident fingerprint, component, warning/failing severity, open/resolved state, title/message, occurrence count, first/last seen, resolution and latest run link;
+- one open incident per fingerprint via partial unique index;
+- RLS enabled, no browser policies.
 
-### `lib/system-health.js`
-Exports:
-- `statusFromFailures(failed,total)`;
-- `freshnessStatus(lastSeen,warningAfterMs,failingAfterMs,now)`;
-- `recordHealthState(...)`;
-- incident open/touch/resolve helpers.
+Initial pre-deploy state was 0 runs / 0 incidents. Do not backfill old logs.
 
-Behavior:
-- every scheduled-run health record inserts `system_health_runs`;
-- warning/failing states open or increment one incident fingerprint;
-- first open creates one staff notification with `permission_key='settings'` and target `/admin?tab=health`;
-- repeat failures update occurrence count without notification spam;
-- healthy run resolves the open incident.
+### Runtime recording
+`lib/system-health.js`
+- health classification + scheduled freshness helpers;
+- creates runs;
+- warning/failing opens/touches an incident;
+- first incident open creates one staff notification with `permission_key='settings'`, high/urgent priority and target `/admin?tab=health`;
+- repeats increment occurrence count without notification spam;
+- healthy execution resolves matching incident.
 
-### Notification cron instrumentation
-`api/booking-notifications.js` keeps existing four isolated stages and retry logic, then records:
-- component `notification_cron`;
-- `healthy` when all stages succeed;
-- `warning` when some stages degrade/fail;
-- `failing` when all stages fail or an authorized scheduled run stops before completion;
-- fingerprint `notification-cron-degraded`;
-- details contain stage ok/attempt/recovered/failed counts and DB retry counters only, no customer data/secrets.
+`api/booking-notifications.js`
+- retains four isolated stages and retry behavior;
+- records `notification_cron` after each authorized real run;
+- healthy when all stages succeed, warning for partial degradation, failing for total/terminal failure;
+- details contain only stage result/retry counters;
+- health persistence is awaited before response completion.
 
-### Account purge instrumentation
-`api/account-purge.js` records component `account_purge`, fingerprint `account-purge-degraded`, counts only, and marks failures without exposing customer IDs in health history.
+`api/account-purge.js`
+- records `account_purge` status and counts only;
+- no customer IDs in health history;
+- persistence is awaited.
 
 ### Private health API
 `api/admin-system-health.js`
-- GET only;
-- requires `requireStaff(req,'settings')` (therefore AAL2 through wrapped server helper);
-- live components:
-  - Database latency/availability;
-  - Stripe configured + sandbox/live mode only, never secret values;
-  - Email provider readiness;
-  - CRON_SECRET presence as boolean state only;
-  - notification cron freshness (warning after 90m, failing after 150m);
-  - account purge freshness (warning after 30h, failing after 42h);
-  - booking/business notification queue backlog/stuck/failed counts;
-  - private `finance-receipts` bucket reachability via service-role server call;
-- returns open/resolved incident history and recent health runs;
-- notes explicitly distinguish expected auth 401 noise.
+- GET only, `requireStaff(req,'settings')`;
+- checks database latency/availability, Stripe configured state + sandbox/live mode, email readiness, cron configuration, latest scheduled-run freshness, notification queues and private `finance-receipts` bucket reachability;
+- notification freshness: warning after 90m, failing after 150m;
+- account purge freshness: warning after 30h, failing after 42h;
+- returns incident history and recent run history;
+- never returns provider secret values.
 
 ### Admin UI
 `admin-system-health.js`
-- loaded after existing Admin modules;
-- dynamically adds a Settings-only `System health` tab without modifying the large legacy Admin file;
-- deep link `/admin?tab=health` works after access sync;
-- adds Overview button `Open System Health`;
-- component cards show Healthy/Warning/Failing, latency, schedules and last-run age;
-- incident history shows open/resolved cycles and occurrence count;
-- scheduled-run history table shows recent cron outcomes;
-- manual refresh + 60s refresh while tab is open.
+- Settings-only `System health` tab + `/admin?tab=health` deep link;
+- component cards, overall state, incident history and scheduled-run history;
+- manual refresh and 60-second refresh while visible;
+- Overview shortcut `Open System Health`.
 
-### Regression coverage
-- `scripts/system-health.test.mjs` tests health classification/freshness and static privacy/security wiring;
-- CI syntax checks include new UI/API/helper plus `api/account-purge.js`;
-- existing finance/receipt loader assertions updated to `6.4.27-system-health-1`.
+### Database/advisor verification
+- RLS enabled on both new tables, policy count 0 by design;
+- expected component/status/incident indexes present;
+- no new System Health missing-FK advisor finding;
+- existing project advisor findings are separate work, including leaked-password protection being disabled.
 
-## Next verification
-1. Open PR only after branch code/docs are complete.
-2. Require green GitHub CI.
-3. Require exact-head Vercel preview READY and errors-only build clean.
-4. Merge, verify production `/api/health` and exact Admin loader.
-5. Authenticated Admin -> System health should initially show live components and no fabricated run history.
-6. After next hourly :07 cron, verify a `notification_cron` run exists.
-7. If a real cron degradation occurs, verify one incident + one staff alert; later healthy run must resolve it.
-8. Keep Stripe commercial policy OFF.
+## Pending runtime verification
+1. Observe first genuine post-release hourly `notification_cron` run after the :07 schedule.
+2. Confirm it inserts exactly one run row.
+3. If it is healthy, no incident/alert should be created.
+4. If genuinely degraded, one grouped incident + one staff alert should appear; repeat failures only increase count; later healthy run resolves it.
+5. User can inspect authenticated Admin -> System health.
+6. Keep Stripe commercial policy OFF.
 
 ## Non-negotiables
-- Do not expose env values, Stripe secrets, service-role keys, customer identifiers or raw provider errors in health UI/history.
-- Do not count expected 401 auth events as platform incidents.
-- Do not backfill runtime logs into Namdar history as if they were recorded live.
-- No customer exposure of health/finance/receipt data.
-- Sandbox Stripe excluded from business finance; Stripe webhook authoritative.
+- No env values, provider secrets, customer identifiers or raw private errors in health output/history.
+- Expected 401 auth events are not platform incidents.
+- No fabricated/backfilled run history.
+- No customer exposure of System Health/finance/receipt data.
 - Smart receipts remain review-first.
+- Sandbox Stripe excluded from finance; Stripe webhook remains authoritative.
 - Window only live; address work parked.
