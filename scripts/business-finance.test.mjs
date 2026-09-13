@@ -29,10 +29,12 @@ test('finance UI warns that operational job-cost estimates are not tax expenses'
   assert.match(source,/not automatically treated as tax expenses/);
 });
 
-test('expense mutations require settings permission and reads require analytics',()=>{
+test('expense mutations require settings permission, reads require analytics and validation returns 400',()=>{
   const source=read('api/admin-finance-expenses.js');
   assert.match(source,/requireStaff\(req,'analytics'\)/);
   assert.match(source,/requireStaff\(req,'settings'\)/);
+  assert.match(source,/Object\.assign\(new Error\(message\),\{status:400\}\)/);
+  assert.doesNotMatch(source,/statusCode:400/);
 });
 
 test('private finance settings are stored under a non-public key',()=>{
