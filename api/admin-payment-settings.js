@@ -15,12 +15,12 @@ module.exports=async function handler(req,res){
     }
     if(req.method!=='POST')return json(res,405,{ok:false,error:'Method not allowed'});
     const staff=await requireStaff(req,'settings'),body=parseBody(req),before=await currentRow(),provider=providerReadiness(env);
-    const policy=normalizePaymentPolicy({active:body.active,mode:body.mode,depositPercent:body.depositPercent,minimumDeposit:body.minimumDeposit,allowFullPayment:body.allowFullPayment});
+    const policy=normalizePaymentPolicy({active:body.active,mode:body.mode,depositPercent:body.depositPercent,minimumDeposit:body.minimumDeposit,allowFullPayment:body.allowFullPayment,headlineAllowanceActive:body.headlineAllowanceActive,headlineAllowancePercent:body.headlineAllowancePercent,headlineAllowanceFixed:body.headlineAllowanceFixed});
     if(body.active===true&&!provider.ready)return json(res,409,{ok:false,error:'Connect Stripe and configure the verified webhook before enabling online payments.'});
     const now=new Date().toISOString();
-    await db('site_settings?on_conflict=key',{method:'POST',prefer:'resolution=merge-duplicates,return=representation',body:{key:'payments',value:{active:policy.active,mode:policy.mode,deposit_percent:policy.depositPercent,minimum_deposit:policy.minimumDeposit,allow_full_payment:policy.allowFullPayment},updated_by:staff.user.id,updated_at:now}});
+    await db('site_settings?on_conflict=key',{method:'POST',prefer:'resolution=merge-duplicates,return=representation',body:{key:'payments',value:{active:policy.active,mode:policy.mode,deposit_percent:policy.depositPercent,minimum_deposit:policy.minimumDeposit,allow_full_payment:policy.allowFullPayment,headline_allowance_active:policy.headlineAllowanceActive,headline_allowance_percent:policy.headlineAllowancePercent,headline_allowance_fixed:policy.headlineAllowanceFixed},updated_by:staff.user.id,updated_at:now}});
     const after=await currentRow();
-    await auditLog(req,staff,{action:'payments.settings_update',entityType:'site_settings',entityId:'payments',summary:policy.active?`Updated online payment policy (${policy.mode})`:'Kept online payments disabled',before,after,metadata:{providerReady:provider.ready}});
+    await auditLog(req,staff,{action:'payments.settings_update',entityType:'site_settings',entityId:'payments',summary:policy.active?`Updated online payment policy (${policy.mode})`:'Kept online payments disabled',before,after,metadata:{providerReady:provider.ready,headlineAllowanceActive:policy.headlineAllowanceActive,headlineAllowancePercent:policy.headlineAllowancePercent,headlineAllowanceFixed:policy.headlineAllowanceFixed}});
     return json(res,200,view(after,provider,true));
   }catch(error){return safeError(res,error)}
 };
