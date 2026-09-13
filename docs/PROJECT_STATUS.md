@@ -4,9 +4,12 @@ Last updated: 2026-09-13 UTC
 
 ## Production baseline
 - Repo: `pchroonic/pchroonic`, default `main`.
-- Latest merged product release: PR #52 `Harden notification cron against transient PostgREST 504s`.
-- Merge `2efca178f49221d3ca819b3c4df9d1780d759579`.
-- Current production deployment after Stripe sandbox env redeploy: `dpl_DiD8jChsRaA64fRBdovzr3euKHj8` READY on `https://namdar.co.uk`.
+- Latest product release: PR #54 `Fix Stripe webhook raw body handling on Vercel`.
+- Exact tested head `d9a7d2cdded5905e032b53a38b725e30f50be531`.
+- CI `34759777343`: SUCCESS.
+- Exact-head preview `dpl_F38E2rKUyZsnG2afqhsdsMEo1eNx`: READY / clean build.
+- Merge `3dfdd4cb7cbf244dc450631c23273792b3b82853`.
+- Production `dpl_9maand6wJHASgET55huV2EtauFjp`: READY on `https://namdar.co.uk`.
 - Supabase: `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
 - Window Cleaning is the only live/quotable/bookable service; five future services remain planned.
 - Address-data work remains parked.
@@ -20,74 +23,77 @@ Product sequence includes:
 - PR #47 first booking-notification resilience layer;
 - PR #49 secure Stripe payment foundation;
 - PR #50 processor-cost accounting + no-surcharge headline pricing option;
-- PR #52 bounded transient PostgREST/Data API recovery for notification cron + schedule moved to minute 7.
+- PR #52 bounded transient PostgREST/Data API recovery for notification cron + schedule moved to minute 7;
+- PR #54 Vercel-compatible raw-body handling for verified Stripe webhooks.
 
 ## Notification 504 resilience — LIVE / MONITORED
-PR #52 remains deployed. A real scheduled run at 2026-09-13 12:07 UTC completed non-degraded, so the Stripe setup gate was cleared. `Namdar Cron Watch` stays active because the upstream 504 source may still recur transiently.
+PR #52 remains deployed. A real scheduled run at 2026-09-13 12:07 UTC completed non-degraded, so the Stripe setup gate was cleared. `Namdar Cron Watch` remains active because the upstream 504 source may still recur transiently.
 
-## Stripe sandbox — CONNECTED, CUSTOMER PAYMENTS OFF
-Stripe test credentials and webhook signing secret are present in Vercel Production env solely for sandbox verification.
+## Stripe sandbox — CONNECTED AND VERIFIED, CUSTOMER PAYMENTS OFF
+Stripe test credentials and webhook signing secret are present server-side in Vercel Production env solely so the real production hostname can receive sandbox webhooks.
 
 Current live health:
 - `stripe:true`
 - `stripeSecret:true`
 - `stripeWebhook:true`
 
-Still inactive commercially:
+These are test-mode credentials only.
+
+Commercial state remains inactive:
 - no `site_settings.payments` row;
 - Window online payment policy not enabled;
 - headline-price allowance OFF;
 - no real customer payment path deliberately activated.
 
-## Sandbox payment verification — BLOCKED ON RAW BODY BUG
-A £1.23 one-time Stripe sandbox payment completed successfully in Stripe using a temporary Namdar test quote/booking/invoice.
+## Sandbox payment verification — PASSED
+A one-time £1.23 Stripe sandbox payment was run against temporary Namdar test records.
 
-Stripe state:
-- Checkout Session paid/complete;
-- GBP 123 pence;
-- sandbox only.
+The first attempt exposed a webhook bug: Vercel had parsed the body before Stripe signature verification because `readRawBody()` touched a lazy `request.body` getter. Webhook POSTs returned HTTP 400 and Namdar correctly did not record the browser success as money.
 
-Namdar state immediately after payment:
-- booking still unpaid;
-- invoice still issued with amount_paid 0;
-- no Stripe payment ledger row.
+PR #54 fixed the raw-body path. After deployment Stripe automatically retried the same paid event:
+- webhook returned HTTP 200 at 13:30:39 UTC;
+- exactly one payment ledger row was created;
+- invoice/booking became paid;
+- actual sandbox processor fee captured: £0.24;
+- provider net captured: £0.99.
 
-Production logs showed webhook POST 400 with `Webhook raw body is unavailable.`
+This proves verified webhook authority and exact processor-cost capture.
 
-Root cause: `readRawBody()` touched Vercel's lazy `request.body` getter before streaming, causing JSON parsing before Stripe signature verification.
+## Sandbox refund verification — PASSED
+A full £1.23 sandbox refund was then issued.
 
-## PR #54 — RAW BODY FIX IN REVIEW
-Branch `fix/stripe-webhook-raw-body-20260913`.
-PR #54 `Fix Stripe webhook raw body handling on Vercel`.
+Result:
+- Stripe refund succeeded;
+- refund-related webhook calls returned HTTP 200 at 13:32:23 UTC;
+- exactly one refund ledger row was created despite multiple relevant refund events;
+- invoice and booking synchronized to refunded;
+- refund balance transaction captured.
 
-Code head before continuity commits: `fcd149882d604e5b3865246e22fc5324c258e634`.
-Preview `dpl_76VaZhk28MRTWKiJYm7BLVVGFi5X` READY with clean errors-only build.
+This proves the refund path is idempotent and synchronizes Namdar state correctly.
 
-Fix behavior:
-- stream the Vercel request first;
-- do not access lazy `req.body` on stream-capable requests;
-- preserve exact signed bytes;
-- retain bounded body-size protection;
-- regression test ensures body getter is never touched before streaming.
+## Cleanup — COMPLETE
+The one-time sandbox Payment Link is disabled.
 
-Initial CI `34759643914` passed syntax/tests but failed the handoff requirement because continuity docs were not yet updated. These docs now satisfy that gate; require the new exact-head CI/preview before merge.
-
-## Temporary sandbox data
-Remove after payment + refund verification:
-- quote `b1057c1c-d417-43aa-9fe9-3483ba31126d`
-- booking `4eb3100f-d05a-4f5c-977b-b569f25c3cb2`
-- invoice `805706a9-d9ff-4ed1-9cc6-8721a2454eb6`
+Temporary test quote/booking/invoice/payment rows were deleted. Final database check:
+- zero Stripe payment rows;
+- zero payment-policy rows;
+- Window live, all five future services still planned.
 
 ## Immediate next work
-1. get PR #54 exact-head CI green and preview READY;
-2. merge/deploy;
-3. confirm Stripe retry/fresh sandbox event reaches webhook with HTTP 200;
-4. confirm exactly one payment ledger row, paid invoice/booking and captured processor fee;
-5. verify duplicate delivery is idempotent;
-6. perform sandbox refund and verify refund ledger/state sync;
-7. delete temporary sandbox test records;
-8. only then decide whether to enable Window online payments;
-9. separately decide whether to enable headline price allowance.
+1. choose the Window online-payment policy: optional, deposit required, or full payment required;
+2. choose deposit percentage/minimum and full-payment option if deposit mode is selected;
+3. keep Stripe in sandbox while testing the normal signed-in My Namdar Checkout flow under that policy;
+4. after normal-flow sandbox testing passes, connect/verify the Stripe live account and live webhook secret;
+5. deliberately swap to live provider credentials;
+6. enable the payment policy only when ready for real customers;
+7. separately decide whether to enable the headline price allowance;
+8. continue Window real-job evidence/pricing calibration.
+
+## Other open work
+- official Google review-request URL;
+- fresh privileged password/CAPTCHA/MFA interactive completion;
+- SMS, legal and remaining launch checks;
+- address-data pilot remains parked.
 
 ## Handoff rule
 Every substantial product/provider/data change updates `docs/AI_START.md`, `docs/AI_HANDOFF.md`, and this file. Never store credentials, raw API keys, customer secrets, TOTP codes or one-time Auth links.
