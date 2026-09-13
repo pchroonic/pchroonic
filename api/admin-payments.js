@@ -1,5 +1,5 @@
 const { json, parseBody, db, requireStaff, ensureInvoiceForBooking, syncInvoicePaymentState, sendEmail, escapeHtml, cancelPendingBusinessNotifications, auditLog, safeError } = require('../lib/server');
-const METHODS=new Set(['cash','bank_transfer','card','stripe','other']);
+const METHODS=new Set(['cash','bank_transfer','card','other']);
 const KINDS=new Set(['deposit','balance','full','adjustment','refund']);
 async function invoiceContext(invoiceId){
   const invoice=(await db(`invoices?id=eq.${encodeURIComponent(invoiceId)}&select=*&limit=1`))?.[0];
@@ -34,6 +34,7 @@ module.exports=async function handler(req,res){
       if(ctx.invoice.status==='void')return json(res,409,{ok:false,error:'A void invoice cannot accept payments.'});
       const amount=Number(b.amount),method=String(b.method||'other'),direction=action==='record_refund'?'refund':'payment',kind=direction==='refund'?'refund':String(b.kind||'balance');
       if(!Number.isFinite(amount)||amount<=0)return json(res,400,{ok:false,error:'Enter a valid payment amount.'});
+      if(method==='stripe')return json(res,400,{ok:false,error:'Stripe payments are recorded automatically from verified Stripe webhooks and cannot be entered manually.'});
       if(!METHODS.has(method)||!KINDS.has(kind))return json(res,400,{ok:false,error:'Choose a valid payment method and type.'});
       const state=await syncInvoicePaymentState(invoiceId),outstanding=state.outstanding,net=state.net;
       if(direction==='payment'&&amount>outstanding+.005)return json(res,400,{ok:false,error:`Payment cannot exceed the outstanding balance of £${outstanding.toFixed(2)}.`});

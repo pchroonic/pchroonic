@@ -38,10 +38,10 @@ test('quote wrapper links tracked visitors without weakening service gate',async
   assert.match(src,/safeVisitor/);
 });
 
-test('performance API reports full Stage 1 funnel and direct contribution',async()=>{
+test('performance API reports full Stage 1 funnel and contribution after processor costs',async()=>{
   const src=await read('api/admin-window-performance.js');
   for(const key of ['postcode','quote','final','accepted','booked','completed'])assert.match(src,new RegExp(`stage\\('${key}'`));
-  assert.match(src,/directContribution=round\(reviewedValue-directCosts\)/);
+  assert.match(src,/provider_fee/);assert.match(src,/paymentProcessingFee/);assert.match(src,/processorState/);assert.match(src,/economicsReady/);assert.match(src,/directContribution=round\(reviewedValue-directCosts\)/);
   assert.match(src,/valuePerWorkHour/);
   assert.match(src,/trackingStartNote/);
   assert.match(src,/requireStaff\(req,['"]analytics['"]\)/);
@@ -56,10 +56,11 @@ test('job economics edits require bookings permission, Window scope and audit lo
   assert.match(src,/auditLog/);
 });
 
-test('admin labels direct contribution as not net profit',async()=>{
+test('admin labels direct contribution as not net profit and shows Stripe processing cost',async()=>{
   const src=await read('admin-window-performance.js');
   assert.match(src,/not net profit/i);
   assert.match(src,/labour, overheads, tax/i);
+  assert.match(src,/Stripe processing/i);
   assert.match(src,/admin-job-economics/);
 });
 

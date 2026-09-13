@@ -4,21 +4,24 @@ Last updated: 2026-09-13 UTC
 
 ## Production baseline
 - Repo: `pchroonic/pchroonic`, default `main`.
-- Current main: `ebca3eb768e80a7104ff74169bce4337d49eec11`.
-- Latest product release: PR #47 booking-notification resilience, merge `43f2db200463083cd9736485700c27a3d80974b8`.
-- PR #47 CI `34719427324` SUCCESS; exact-head preview `dpl_7QMQLeXV8rEF1qBcyS7d2FyLeLKX` READY; product production `dpl_7UXKtKqyitKF5xiGADPcwN9MwgZk` READY.
-- Final handoff production from PR #48: `dpl_BhUY6TcpjfCk3XsV8cwcsZ1uE5g1` READY on `https://namdar.co.uk`.
+- Latest deployed product release: PR #49 `Add secure Window Stripe payment foundation`.
+- Exact tested PR #49 head: `3423e99ae7e7924f7cae7d60c908d4fdb6badfa9`.
+- CI `34741505277`: SUCCESS.
+- Exact-head preview `dpl_AtV51rETngSfh77isxD7hTWTBp45`: READY / clean build.
+- Merge `94572eaabcb5f876a75c0123653f73a144ef54e2`.
+- Production `dpl_ALo78vUX3j9xwVZ8PnMjC9mAASmw`: READY on `https://namdar.co.uk`, no alias error.
 - Supabase: `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
 - Window Cleaning is the only live/quotable/bookable service; five future services remain planned.
 - Address-data work remains parked.
 
 ## Window Cleaning Stage 1 — LIVE
-Product sequence:
-- PR #38: Window quote/recurring journey and quote-gate hardening.
-- PR #40: server-enforced booking operations and postcode-area route density.
-- PR #42: consent-aware acquisition funnel + direct-contribution reporting.
-- PR #45: completed-job close-out + neutral feedback/Google-review foundation.
-- PR #47: booking-notification cron resilience and business-reminder batching.
+Product sequence includes:
+- PR #38: Window quote/recurring journey and quote-gate hardening;
+- PR #40: server-enforced booking operations and postcode-area route density;
+- PR #42: consent-aware acquisition funnel + direct-contribution reporting;
+- PR #45: completed-job close-out + neutral feedback/Google-review foundation;
+- PR #47: booking-notification resilience;
+- PR #49: secure Stripe payment foundation, code-live but provider-disabled.
 
 Live booking defaults remain 21 days, 24h notice, Mon–Sat, 08–11 / 11–14 / 14–17, max 3 jobs/day and postcode-area route density.
 
@@ -27,85 +30,95 @@ Staff uses On my way → Start → Complete, then saves direct costs/travel. Imm
 
 Google review CTA is still disabled because no official review URL is configured. Never selectively solicit only positive reviews or offer incentives.
 
-## Performance / economics — LIVE
-Admin reporting measures consented acquisition funnel, completed jobs, invoice/collected value, work time, travel, reviewed direct costs, direct contribution and margin.
+## Stripe payment foundation — LIVE CODE / DISABLED PROVIDER
+Production after PR #49 has:
+- Stripe aggregate readiness false;
+- Stripe secret false;
+- Stripe webhook secret false;
+- no `site_settings.payments` row;
+- zero Stripe payment records;
+- Window Cleaning still sole live service.
 
-**Direct contribution is not net profit.** Missing cost reviews are excluded, not treated as £0.
+Therefore customers cannot yet make Stripe payments. Provider setup/test-mode verification is still required before Admin can deliberately activate payments.
 
-## Notification 504 resilience — containment working, upstream 504 persists
-PR #47 replaced per-candidate business notification DB round trips with batch writes and isolated the four hourly notification stages.
+Core security remains: verified webhook writes Stripe money, browser redirect cannot; Checkout amount is server-calculated; required payment policies are server-enforced before confirmation; no card data is stored by Namdar.
 
-A real authenticated cron invocation on **13 September 2026 at 05:00:02 UTC** returned HTTP 200 but logged a `booking_delivery` 504 Gateway Timeout. This confirms the resilience behavior works—the rest of the cron can continue—but the transient Supabase REST failure still occurs.
+## CURRENT CANDIDATE — processor fees as internal cost, not customer surcharge
+Branch: `feat/stripe-fee-accounting-20260913`.
+
+### Customer pricing rule
+Namdar does not add a separate consumer-facing Stripe/card processing charge at Checkout.
+
+The candidate adds an optional Window **headline price allowance**, default OFF. If deliberately enabled, the configured percentage/fixed allowance is absorbed into the ordinary Window service price before promos/rewards. The resulting service price applies regardless of the customer's later payment method and is not itemised as a payment fee.
+
+Default configured suggestion in code: 1.5% + £0.20, but disabled by default.
+
+### Actual provider economics
+The real Stripe cost is taken from Stripe balance-transaction data, not estimated from the allowance.
+
+Pending migration:
+`supabase/migrations/20260913103500_stripe_processor_fee_accounting.sql`
+
+It adds nullable internal fields to existing `payment_records`:
+- provider payment ID;
+- provider balance transaction;
+- actual provider fee;
+- provider net;
+- provider fee currency;
+plus a partial provider-payment lookup index.
+
+No new finance table is created. RLS/security model remains unchanged.
+
+### Webhook reliability
+The candidate records payment/refund money and synchronises invoice/booking state before attaching processor economics. If Stripe fee/net data is temporarily unavailable, the webhook returns retryable HTTP 503 after the money record is safely written. A replay uses the existing unique provider reference, cannot duplicate money/receipts and can patch the missing processor economics.
+
+Staff manual payment entry cannot use method `stripe`; verified webhooks are the only source of Stripe ledger records.
+
+Customer Billing explicitly omits all processor-cost/provider-balance fields.
+
+### Performance/economics
+Window reporting now plans to include actual captured Stripe processing fees in direct costs.
+
+A completed job is contribution-ready only when:
+1. staff has reviewed/saved job direct costs; and
+2. every Stripe transaction linked to the job has known GBP provider-fee data.
+
+If processor fee is missing or non-GBP, the job is excluded from aggregate direct contribution instead of assuming £0.
+
+**Direct contribution remains not net profit.** Labour, overheads, tax and other business costs remain outside this metric.
+
+## Notification 504 resilience — containment works, upstream 504 persists
+A real authenticated cron invocation on 13 September 2026 at 05:00:02 UTC returned HTTP 200 but logged `booking_delivery 504 Gateway Timeout`. Stage isolation prevented whole-cron failure, but the transient Supabase REST issue remains.
 
 Keep `Namdar Cron Watch` active. Do not mark the underlying 504 resolved.
 
-## Stripe Window payment foundation — CURRENT CANDIDATE
-Branch: `feat/stripe-payment-foundation-20260913`.
+## Candidate release gate
+1. finish source/tests/docs;
+2. open PR;
+3. require full exact-head GitHub CI and exact-head Vercel preview clean;
+4. apply and verify the additive Stripe processor-accounting migration;
+5. confirm no synthetic Stripe records/payment-policy row and service catalog unchanged;
+6. merge exact tested head;
+7. verify production READY, clean build/runtime and Stripe still provider-disabled;
+8. sync final handoff with exact release IDs.
 
-### Existing finance system reused
-Namdar already has the v5.2 finance foundation:
-- one invoice per booking;
-- payment/refund ledger;
-- unique provider reference;
-- derived booking payment states;
-- Admin Payments workspace;
-- customer Billing workspace and PDF invoices/receipts.
+## Stripe activation after code release
+Only later:
+1. connect/configure Stripe account securely;
+2. store `STRIPE_SECRET_KEY` in Vercel;
+3. configure production webhook `/api/stripe-webhook` and store `STRIPE_WEBHOOK_SECRET`;
+4. test Checkout, delayed/duplicate webhook, actual processor-fee capture and refunds end-to-end in test mode;
+5. deliberately enable Window online-payment policy;
+6. independently decide whether to enable the headline price allowance.
 
-The Stripe candidate layers verified provider payments onto that system. **No database migration or new accounting table is required.**
-
-Production pre-candidate state:
-- Stripe readiness false;
-- no payments policy setting row found;
-- zero Stripe payment ledger rows.
-
-### Candidate capabilities
-- Fail-safe payment policy in `site_settings.payments`, default disabled.
-- Window-only optional/deposit-required/full-required modes.
-- Configurable deposit percentage and minimum deposit.
-- Online payments only become effective when `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` exist and Admin deliberately enables them.
-- Server-calculated Checkout amount; customers cannot submit arbitrary payment values.
-- Stripe Checkout creation uses idempotency key and internal metadata.
-- Verified raw-body webhook is the only authoritative Stripe payment/refund writer.
-- Existing unique `payment_records.provider_reference` prevents duplicate webhook money entries.
-- Browser success/status endpoint is read-only for money.
-- Payment/refund webhook resynchronises existing invoice and booking payment state.
-- Failed/abandoned Checkout does not mark paid or confirm work.
-- Required deposit/full-payment policy is enforced server-side before Window booking confirmation.
-- My Namdar can show deposit, Pay in full and balance actions once provider/policy are enabled.
-- Admin → Payments exposes provider readiness and policy controls under AAL2/Settings protection.
-- Health endpoint reports Stripe secret/webhook readiness as booleans without exposing values.
-- Card details never pass through or persist in Namdar.
-
-### Activation status
-The code is being prepared but **Stripe is not live**. Do not enable payment policy until:
-1. branch CI and exact-head preview are clean;
-2. candidate is merged/deployed;
-3. Stripe account/provider is connected securely;
-4. production webhook `/api/stripe-webhook` is configured in Stripe and `STRIPE_WEBHOOK_SECRET` is stored in Vercel;
-5. Checkout, duplicate/delayed webhook and refund flows are tested end-to-end;
-6. Admin deliberately switches the policy on.
-
-Never request Stripe secret keys in chat or commit them to GitHub.
-
-## Database/security
-No schema change is planned for the Stripe candidate. Existing `invoices`, `payment_records`, `bookings`, `site_settings`, audit logs and customer/staff notification systems are reused.
-
-Privileged Admin payment configuration remains AAL2/MFA protected. Payment confirmation is derived from the server-side ledger rather than editable browser state.
-
-## Immediate next work
-1. complete Stripe candidate CI/preview and release gate;
-2. verify production remains safely payment-disabled after deployment;
-3. connect/configure Stripe and webhook securely, then run test-mode end-to-end payment/refund verification;
-4. deliberately enable Window payment policy only after verification;
-5. continue real-job Window evidence collection and pricing/capacity calibration;
-6. keep monitoring intermittent cron 504s;
-7. Stage 2 remains blocked until deliberate business decision.
+Never request provider secrets in chat or commit them.
 
 ## Other open work
 - official Google review-request URL;
 - fresh privileged password/CAPTCHA/MFA interactive completion;
 - SMS, legal and remaining launch checks;
-- address-data pilot remains parked.
+- address-data pilot remains parked;
+- Stage 2 remains blocked until deliberate business decision.
 
 ## Handoff rule
 Every substantial product/provider/data change updates `docs/AI_START.md`, `docs/AI_HANDOFF.md`, and this file. Never store credentials, raw API keys, customer secrets, TOTP codes or one-time Auth links.
