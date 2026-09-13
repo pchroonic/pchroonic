@@ -6,70 +6,80 @@ Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PR
 
 ## Production baseline
 - Repository: `pchroonic/pchroonic`, default `main`.
-- Current product release: PR #62 `Add intelligent receipt-driven expense ledger`, merge `a6b73927f1649f2ad167cda4410f2f5632b78212`.
-- PR #63 is docs-only continuity sync, merge `aabcb88d3ee24a92a3af3770e256550f692d32af`.
-- Production deployment: `dpl_B4nhdmgLZ13n813rUMWQfJRj2KUN`, READY on `https://namdar.co.uk`.
-- Production Admin loader: `6.4.26-intelligent-receipts-1`.
+- Current product release: PR #64 `Add Admin System Health and reliability history`.
+- Exact tested PR head: `c840436aeb3363b263135867e11f1551e71cf6f4`.
+- GitHub CI run `34767328622`: SUCCESS.
+- Exact-head preview `dpl_HXjuMhD58ngJBtu2HmXrTXdgk9Mg`: READY; errors-only build clean.
+- Preview `/api/health` cannot exercise DB because Preview lacks `SUPABASE_SERVICE_ROLE_KEY`; runtime logs confirmed environment configuration, not a code regression.
+- PR #64 merge/main HEAD: `c9028003b68095b7ef4c9d601980afe359017448`.
+- Production deployment: `dpl_BsZbTcWLNHYgP9hrCxLUgPsXHLas`, READY on `https://namdar.co.uk`.
+- Production `/api/health`: HTTP 200 with database, Stripe, email, reminders and followups healthy after deploy.
+- Production Admin loader: `6.4.27-system-health-1`, including `admin-system-health.js`.
 - Supabase production: `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
-- Window Cleaning is the only live service. Future services remain planned. Address work remains parked.
+- Window Cleaning only live; future services planned; address work parked.
 - Privileged Staff/Admin requires AAL2/MFA.
 
 ## Stripe / finance safety
-- Stripe sandbox normal signed-in deposit -> balance -> refund flow is fully verified.
+- Stripe sandbox deposit -> balance -> refund flow verified.
 - Four retained Stripe rows are sandbox and excluded from Business Finance.
-- `site_settings.payments` absent; customer online-payment policy OFF; no live Stripe credentials.
-- Namdar finance mode: sole trader first, limited company later from the real incorporation date.
-- Old £106 Window fixture was confirmed test data and fully removed.
-- Clean finance state before System Health work: £0 outstanding, £0 rolling invoice turnover, 0 expenses, 0 receipts, 0 merchant rules.
+- Customer payment policy OFF; no live Stripe credentials.
+- Sole trader first, limited company later from the real incorporation date.
+- Confirmed £106 test fixture removed.
 
-## Intelligent Expense Receipts — LIVE / receipt test deferred by user
-PR #62 added private review-first smart receipts: JPG/PNG/WebP/PDF up to 10 MB, SHA-256 duplicate checks, local browser OCR, PDF text/OCR fallback, supplier/date/total/VAT/category/tax suggestions, private storage, receipt attachment and learned merchant rules. Nothing posts automatically; staff reviews before saving. Receipt pixels are not sent to a third-party AI provider in v1.
+## Intelligent receipts — LIVE / user deferred test
+PR #62 smart receipt workflow is live. It is private, OCR/review-first, duplicate-aware and never auto-posts an expense. The user chose to test it later.
 
-## Reliability / System Health — IN PROGRESS
-User chose reliability and monitoring as the next priority.
+## System Health — LIVE
+Migration: `20260913154800 system_health_reliability_history`.
 
-Branch: `feat/system-health-reliability-20260913`.
-
-Live evidence gathered before implementation:
-- Vercel 7-day error groups show the main real reliability issue is intermittent Supabase/PostgREST `504 Gateway Timeout`, especially the hourly `/api/booking-notifications` pipeline.
-- Common staff/customer 401s are expected auth/session events and must not be treated as platform incidents.
-- Historical missing-env and old Stripe raw-body errors came from older deployments; do not present them as current incidents.
-
-Applied Supabase migration:
-- `20260913154800 system_health_reliability_history`.
-
-New private server-only tables:
-- `system_health_runs`: component/status/summary/timing/details history;
-- `system_health_incidents`: grouped open/resolved incidents with occurrence counts and latest run;
+Private server-only tables:
+- `system_health_runs` for actual scheduled-run history;
+- `system_health_incidents` for grouped open/resolved incidents;
 - RLS enabled with no direct browser policies;
-- one open incident per fingerprint via partial unique index.
+- one open incident per fingerprint.
 
-Code on branch:
-- `lib/system-health.js`: health classification, freshness checks, persistent runs, grouped incidents, recovery resolution and one staff alert per incident;
-- `api/booking-notifications.js`: records hourly notification/follow-up health; degraded/failing runs open or touch `notification-cron-degraded`; healthy run resolves it;
-- `api/account-purge.js`: records daily purge health similarly;
-- `api/admin-system-health.js`: AAL2 + settings-protected live checks for DB, Stripe config/mode, email, cron config, notification cron freshness, purge freshness, notification queues and private receipt Storage;
-- `admin-system-health.js`: private Admin System Health tab, live component cards, incident history, scheduled-run history and 60-second refresh while open;
-- Admin loader target on branch: `6.4.27-system-health-1`.
+Live behavior:
+- hourly notification/follow-up cron records healthy/warning/failing results and DB retry metrics;
+- daily account-purge cron records results;
+- cron health persistence is awaited before the response finishes;
+- first warning/failing incident sends one staff/settings alert to `/admin?tab=health`;
+- repeat failures increment the same incident without alert spam;
+- later healthy execution resolves the incident;
+- history begins with this release; older Vercel logs are not backfilled.
 
-Health incidents create a deduped high/urgent staff notification linking to `/admin?tab=health`. Expected auth 401s are explicitly described as noise rather than incidents.
+Private Admin `System health` view monitors:
+- database availability and latency;
+- Stripe configured state + sandbox/live mode only;
+- email readiness;
+- cron configuration;
+- scheduled-job freshness;
+- booking/business notification queue backlog/failures;
+- private receipt Storage reachability;
+- incident history and scheduled-run history.
+
+Important interpretation:
+- intermittent Supabase/PostgREST 504s were the primary recent reliability issue motivating this release;
+- expected signed-out/expired-session 401s are authentication events, not platform incidents;
+- no secrets or customer identifiers are exposed in health history/UI.
+
+## Current verification state
+- New health tables were 0 runs / 0 incidents before production deployment by design.
+- Both tables have RLS enabled, zero browser policies and expected indexes.
+- Supabase advisors show no new System Health missing-FK issue. Existing project-wide advisor items remain separate work.
+- Await/observe the first real hourly `:07` notification cron record; never fabricate run history.
 
 ## Next action
-1. Finish branch CI/static checks and continuity docs.
-2. Open PR for System Health.
-3. Require green GitHub CI + READY exact-head Vercel preview + clean errors-only build.
-4. Merge only if green; verify production loader `6.4.27-system-health-1` and `/api/health`.
-5. Open authenticated Admin -> System health and verify live checks.
-6. Wait for/observe the next hourly notification cron so the first persistent run appears; do not fabricate history.
-7. Confirm real degradation opens one incident + one staff alert and later healthy execution resolves the incident.
-8. Keep Stripe commercial policy OFF.
+1. Confirm the first real post-release `notification_cron` row appears after an actual scheduled run.
+2. User can open authenticated Admin -> System health to inspect live component cards.
+3. If a genuine degradation occurs, verify one grouped incident + one staff alert; a later healthy run should resolve it.
+4. Keep Stripe commercial policy OFF.
 
 ## Do not break
-- No secrets in health API/UI/history.
+- No secrets/customer identifiers in health API/UI/history.
+- Expected auth 401s are not platform failures.
+- No fabricated/backfilled operational history.
 - No customer exposure of operational health, finance or receipt data.
-- Expected 401 auth events are not platform failures.
-- System Health history is recorded from this release onward; do not backfill old Vercel logs as if Namdar recorded them.
-- Receipt suggestions remain review-first.
-- Sandbox Stripe activity never enters revenue/tax reporting.
+- Smart receipts remain review-first.
+- Sandbox Stripe never enters revenue/tax reporting.
 - No separate consumer card surcharge; verified Stripe webhook remains authoritative.
-- Window Cleaning only until deliberate next-stage activation; address work stays parked.
+- Window Cleaning only until deliberate activation of later services; address work stays parked.
