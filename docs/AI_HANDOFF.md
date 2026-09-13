@@ -1,157 +1,209 @@
 # Namdar AI handoff
 
-Last verified: 2026-09-12 UTC
+Last verified: 2026-09-13 UTC
 
 Read `docs/AI_START.md` first.
 
 ## Production source of truth
 - Repo: `pchroonic/pchroonic`, default `main`.
-- Latest product release: PR #47, `Harden booking notification cron against gateway timeouts`.
-- Exact feature head: `437ab7e56b8e74f4c68d92fe096b646110018b95`.
-- GitHub Actions: `34719427324` — SUCCESS.
-- Exact-head preview: `dpl_7QMQLeXV8rEF1qBcyS7d2FyLeLKX` — READY, clean errors-only build, `aliasError: null`.
-- Product merge: `43f2db200463083cd9736485700c27a3d80974b8`.
-- Product production: `dpl_7UXKtKqyitKF5xiGADPcwN9MwgZk` — READY on `https://namdar.co.uk`, canonical alias present, `aliasError: null`.
+- Current main: `ebca3eb768e80a7104ff74169bce4337d49eec11` (PR #48 docs sync).
+- Latest product release: PR #47, merge `43f2db200463083cd9736485700c27a3d80974b8`.
+- PR #47 exact head `437ab7e56b8e74f4c68d92fe096b646110018b95`; CI `34719427324` SUCCESS; preview `dpl_7QMQLeXV8rEF1qBcyS7d2FyLeLKX` READY; product production `dpl_7UXKtKqyitKF5xiGADPcwN9MwgZk` READY.
+- Final docs production from PR #48: `dpl_BhUY6TcpjfCk3XsV8cwcsZ1uE5g1`, READY on `namdar.co.uk`.
 - Supabase: `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
-- Only `windows` is live; gutters/jetwash/roof/handyman/tour3d remain planned.
-- Address-data work is parked.
-- Staff/Admin privileged API access requires AAL2/MFA.
+- Only `windows` is live. Gutters/jetwash/roof/handyman/tour3d remain planned.
+- Address work remains parked.
+- Privileged Staff/Admin access requires AAL2/MFA.
 
-## Window Stage 1 baseline
-Live through PR #47:
-- Window-specific quote inputs and server-side service/live enforcement;
-- one-off/4/8/12-week guide pricing;
-- server-enforced customer booking operations and postcode-area route density;
-- Staff On my way / Start / Complete workflow, photos and notes;
-- completed-job direct-cost/travel close-out;
-- neutral post-job private feedback / optional Google review workflow;
-- consent-aware acquisition funnel;
-- actual job timing and direct-contribution reporting.
+## Window Stage 1 live baseline
+Keep the existing Window quote/recurring pricing, service-live gates, route-aware booking rules, Staff On my way → Start → Complete, completed-job direct-cost/travel review, consent-aware conversion funnel, direct-contribution reporting and neutral post-job review flow.
 
-`booking_job_costs` remains the single Stage 1 direct-cost source of truth. Missing rows mean “not reviewed”, not £0 cost. Direct contribution is not net profit.
+`booking_job_costs` is the direct-cost source of truth. Missing review is not £0 cost. Direct contribution is not net profit.
 
-## PR #45 post-job workflow — remains live
-### Staff close-out
-`staff-closeout.js` augments completed Window jobs. `api/staff-jobs.js` exposes existing economics; `api/staff-job-action.js` accepts `action='economics'` only for the authenticated staff member's assigned, completed Window booking.
+Public Google review requests remain disabled until the official Business Profile review-request URL is entered. Never restore positive-only review gating or incentives.
 
-Bounds:
-- consumables / parking / travel / other direct cost: non-negative, max £100,000;
-- travel minutes: 0–1440;
-- travel miles: 0–10,000;
-- note: max 1500 chars.
+## Booking-notification resilience — live; containment verified, upstream 504 persists
+PR #47 replaced per-event business reminder queueing with batched conflict-ignore writes and isolated four cron stages.
 
-The action upserts `booking_job_costs`, records `updated_by`, and audit logs `booking.economics`.
+A real scheduled authenticated run at **2026-09-13 05:00:02 UTC** returned HTTP 200 on `/api/booking-notifications` while logging:
+`Notification cron stage failed: booking_delivery 504 Gateway Timeout`
 
-### Neutral review flow
-Completion continues to schedule `booking_notifications.notification_type='follow_up'` 24 hours after completion. `lib/post-job-followup.js` validates the current completed booking event, ensures the secure `booking_feedback` invite and sends a neutral follow-up.
+Interpretation:
+- stage isolation/containment is working because the whole hourly run no longer aborts;
+- the underlying intermittent Supabase REST 504 is still present, now observed in generic booking delivery as well as earlier business-notification paths;
+- keep `Namdar Cron Watch` running and do not declare the 504 permanently resolved.
 
-If `publicReviewUrl()` is configured, every completed customer gets the same optional honest Google review choice regardless of private rating. Low ratings still trigger private support attention. Do not restore positive-only review gating or add review incentives.
+## Current candidate — Stripe Window payment foundation
+Branch: `feat/stripe-payment-foundation-20260913`.
 
-Admin → Bookings exposes a Settings/AAL2-protected Google Business Profile review-link setting. Production currently has no `site_settings.reviews` row, so public Google review CTAs remain disabled until the official URL is deliberately added.
+### Verified production state before candidate
+- `https://namdar.co.uk/api/health` reported `stripe:false`.
+- Production did not expose a `site_settings` row with `key='payments'` in the verification query.
+- Production `payment_records` contained **0** rows with `method='stripe'`.
+- Existing v5.2 payment schema is already present: one invoice per booking, payment/refund ledger, unique `provider_reference`, and booking payment states `unpaid|deposit_paid|paid|refunded`.
 
-## PR #47 booking-notification resilience — LIVE
-### Evidence / root cause
-Before PR #47, Vercel production runtime errors showed 21 `Gateway Timeout` errors on `/api/booking-notifications` from 2026-09-09 through 2026-09-12 21:00 UTC.
+No new finance table is required. This candidate deliberately reuses the existing ledger.
 
-Observed stacks were in Supabase REST access from:
-- `queueBusinessNotification()` during `scanBusinessFollowUps()`;
-- `processDueBusinessNotifications()` in one sample.
+### `lib/payment-policy.js`
+Adds a fail-safe online payment policy:
+- default `active:false`;
+- modes: `optional`, `deposit_required`, `full_required`;
+- default deposit 20%;
+- default minimum deposit £10;
+- optional full-payment choice;
+- provider readiness requires **both** `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`;
+- `effectiveActive` requires stored Admin activation plus both provider secrets;
+- DB/settings failure falls back to disabled.
 
-The failure was therefore in business-notification database access, not the new post-job review processor.
+### `lib/stripe-payments.js`
+Dependency-free Stripe helper using native `fetch` and Node `crypto`:
+- Stripe REST requests never expose the secret to browser code;
+- Checkout creation uses an `Idempotency-Key` derived from a SHA-256 hash of invoice/payment state, not customer PII;
+- Checkout metadata links booking, invoice, customer, Window service and expected amount;
+- PaymentIntent receives the same internal metadata for later refund reconciliation;
+- raw-body reader for webhook requests;
+- Stripe signature parser + HMAC SHA-256 verification with timestamp tolerance and `timingSafeEqual`.
 
-Production scale at investigation time was small:
-- pending final quotes: 1;
-- overdue invoices: 0;
-- upcoming unassigned bookings (24h): 0;
-- stale scheduled bookings: 1;
-- `business_notifications`: 4 sent rows, no pending backlog.
+Stripe official docs were checked during implementation: webhook signatures require the unmodified raw body + `Stripe-Signature` + endpoint secret; POST creation supports idempotency keys.
 
-Existing indexes were already appropriate:
-- pending due index on `(status, due_at)`;
-- entity index on `(entity_type, entity_id, created_at desc)`;
-- unique event index on `(notification_type, entity_type, entity_id, event_key)`.
+### `api/create-checkout.js`
+Hardened customer Checkout creation:
+- authenticated customer only;
+- booking ownership checked server-side;
+- Window Cleaning only;
+- booking must be pending, confirmed or completed, not cancelled;
+- online policy must be effectively active;
+- invoice is created/issued through existing ledger;
+- deposit/full/balance amount is calculated server-side; arbitrary customer amount is impossible;
+- optional customer full-payment choice only when policy allows;
+- deterministic Stripe idempotency key prevents duplicate Checkout session creation for the same invoice/payment state;
+- success redirect is not trusted as payment proof;
+- latest Checkout session id may be stored on booking only as a reference, never as proof of payment.
 
-No new index or schema change was warranted.
+### `api/stripe-webhook.js` — authoritative Stripe writer
+New production webhook endpoint, with Vercel body parsing disabled to preserve raw request bytes.
 
-### Live implementation
-New `lib/business-followup-batched.js` is used by the hourly cron business scan. It:
-- preserves quote reminder stages at 2 and 7 days;
-- preserves overdue invoice stages at 1, 8, 15 and 29 days;
-- preserves upcoming-unassigned and stale-scheduled booking alerts;
-- bulk-loads invoice quote context once;
-- builds candidates in memory and de-duplicates by the existing unique event identity;
-- inserts candidates in `business_notifications` using conflict-ignore batches (default 50, max 100);
-- relies on the existing unique constraint `(notification_type, entity_type, entity_id, event_key)`;
-- retries once on transient 502/503/504 only for the idempotent conflict-ignore batch insert;
-- reports partial source/queue failures as degraded instead of discarding healthy sources.
+It:
+- requires `STRIPE_WEBHOOK_SECRET` and `STRIPE_SECRET_KEY`;
+- verifies Stripe signature before JSON parsing/processing;
+- handles successful `checkout.session.completed` / async success only when Stripe says paid;
+- validates GBP, internal metadata, booking/invoice/customer relationship and Window service;
+- validates Stripe `amount_total` against the expected checkout metadata;
+- writes Stripe payments into existing `payment_records` with conflict-ignore on unique `provider_reference`;
+- resynchronises invoice and booking payment status using `syncInvoicePaymentState()`;
+- cancels pending overdue reminders when balance reaches zero;
+- creates staff payment notification and customer receipt/message only on the first ledger insert;
+- does **not** auto-confirm a booking;
+- handles successful Stripe refunds (`refund.created`, `refund.updated`, and `charge.refunded`) by reconciling PaymentIntent metadata and inserting idempotent refund ledger records.
 
-### Cron stage isolation
-`api/booking-notifications.js` now runs four isolated stages:
-1. `processPostJobFollowUps(10)`;
-2. `processDueBookingNotifications(10)`;
-3. `scanBusinessFollowUpsBatched({db,env,isManagedInboxAddress})`;
-4. `processDueBusinessNotifications(10)`.
+A duplicate Stripe webhook delivery cannot create a duplicate money record because `payment_records.provider_reference` is already unique and inserts use conflict-ignore semantics.
 
-Each stage returns its own `ok/data` or `ok:false/error`. A partial database/provider failure marks the response degraded but does not prevent the remaining stages from running. HTTP 503 is reserved for all four stages failing.
+### `api/payment-status.js`
+The customer return/status endpoint is now **read-only for money**:
+- retrieves Checkout session from Stripe;
+- verifies booking belongs to signed-in customer and is Window Cleaning;
+- checks whether the webhook-created Stripe payment ledger row exists;
+- can report `pendingWebhook` when Stripe reports paid but Namdar ledger has not received the verified webhook yet;
+- may call `syncInvoicePaymentState()` to refresh derived totals;
+- can no longer insert `payment_records`.
 
-This is specifically intended to stop a transient business reminder gateway error from blocking unrelated post-job or generic booking notifications in the same hourly invocation.
+Therefore a success URL/browser redirect cannot mark a booking paid.
 
-### Tests and CI history
-New `scripts/booking-notification-resilience.test.mjs` covers:
-- in-memory event de-duplication;
-- conflict-ignore batch insert behavior;
-- one transient 504 retry for the idempotent batch write;
-- bulk invoice quote context / batched queueing rather than per-event queue lookups;
-- partial source failure reported as degraded without throwing.
+### `api/customer-billing.js` + `account-payments.js`
+Customer Billing now receives safe payment policy/readiness only, never secrets.
 
-Initial CI `34719266923` failed because the existing PR #45 regression still expected the old combined `processBusinessFollowUps(10)` call. That test was updated to the isolated-stage contract.
+When policy is actually enabled, My Namdar supports:
+- pending Window booking initial payment;
+- deposit button with server-calculated amount;
+- optional Pay in full button if allowed;
+- remaining balance payment after a deposit;
+- completed-job outstanding balance payment;
+- payment history and existing PDF invoice/receipt downloads.
 
-Second CI `34719348831` failed because the updated stage-order assertion matched the scanner import instead of its handler invocation. The assertion was corrected to the exact invocation.
+The online payment action is absent when policy/provider is disabled.
 
-Final exact head `437ab7e56b8e74f4c68d92fe096b646110018b95` passed GitHub Actions run `34719427324`.
+### Admin settings + confirmation enforcement
+`api/admin-payment-settings.js` and `admin-payment-settings.js` add Admin → Payments controls.
 
-### PR #47 release verification
-- local resilience suite: 5/5 passed before final CI;
-- exact-head GitHub Actions `34719427324`: SUCCESS;
-- exact-head Vercel preview `dpl_7QMQLeXV8rEF1qBcyS7d2FyLeLKX`: READY, errors-only clean, no alias error;
-- merge `43f2db200463083cd9736485700c27a3d80974b8`;
-- production `dpl_7UXKtKqyitKF5xiGADPcwN9MwgZk`: READY on `namdar.co.uk`, canonical alias present, no alias error;
-- production build errors-only log clean;
-- unauthenticated `/api/booking-notifications` → 401 as expected;
-- Vercel runtime-error query from the new production deployment time found no `/api/booking-notifications` errors at release smoke-check time;
-- `business_notifications` still contained only the four previously sent rows; no synthetic queue records were created;
-- service catalog rechecked: Window live, five future services planned;
-- no database migration required.
+GET requires Payments/AAL2. Editing requires Settings/AAL2. Settings updates are audit logged as `payments.settings_update`.
 
-Do **not** yet call the historical 504 permanently resolved. The code fix is live and immediate post-deploy runtime checks are clean, but the remaining observation gate is at least one real authenticated scheduled cron execution on the new production deployment.
+Admin can configure:
+- active/disabled;
+- optional vs deposit-required vs full-required;
+- deposit percentage;
+- minimum deposit;
+- customer full-payment choice.
 
-## Existing performance/security rules
-Keep these Stage 1 rules:
-- acquisition tracking is consent-aware and session-only;
-- funnel endpoint is Window-only;
-- direct contribution is not net profit;
-- jobs without cost review are excluded from direct contribution/margin;
-- productivity requires valid `started_at → completed_at`;
-- `conversion_events`, `quote_funnel_links`, `booking_job_costs` remain server-only/RLS protected;
-- service/booking restrictions remain server-side enforced;
-- support tickets stay customer-only;
-- address-data work stays parked unless deliberately resumed.
+Attempting to activate online payments without both Stripe secret + webhook secret is rejected.
 
-Closed duplicate PR #43 remains superseded. Do not revive it.
+`api/admin-booking-update.js` now enforces required Window payment policy server-side:
+- if deposit/full payment is required and active, a brand-new staff-created appointment cannot be created directly as Confirmed; create Pending first;
+- when Pending → Confirmed, the invoice ledger is resynchronised and confirmation is rejected unless required deposit/full payment is satisfied;
+- optional mode and inactive provider preserve existing booking behavior;
+- non-Window services are unaffected (and remain planned/non-live anyway).
 
-## Next recommended work
-1. observe the next authenticated hourly `/api/booking-notifications` cron run and inspect runtime errors/degraded status;
-2. enter the official Google Business Profile review-request URL when available;
-3. complete every real Window job with Start → Complete and save its direct-cost/travel review;
-4. collect authentic before/after evidence and customer feedback;
-5. calibrate price/capacity/route rules from real conversion, work time, travel and direct contribution;
-6. consider Stage 2 only after the user deliberately decides the Window evidence supports it.
+No browser or manually editable booking payment field is trusted; confirmation checks the invoice ledger.
+
+### Health / activation safety
+`api/health.js` now distinguishes `stripeSecret`, `stripeWebhook` and aggregate `stripe` readiness using booleans only.
+
+Production must remain payment-disabled until all of these are true:
+1. Stripe account is connected/configured securely;
+2. `STRIPE_SECRET_KEY` is stored server-side in Vercel;
+3. Stripe webhook endpoint points to `https://namdar.co.uk/api/stripe-webhook`;
+4. its signing secret is stored as `STRIPE_WEBHOOK_SECRET` in Vercel;
+5. Checkout success, duplicate webhook, delayed webhook and refund behavior are tested end-to-end;
+6. only then set Admin → Payments active.
+
+Never ask the user to paste Stripe secrets into chat or commit them.
+
+### Database / migration impact
+No database migration in this candidate. Reuses:
+- `site_settings` for `key='payments'` policy;
+- `bookings.stripe_checkout_session_id` reference;
+- `bookings.payment_status`;
+- `invoices`;
+- `payment_records` unique `provider_reference`;
+- existing audit/customer/staff notification infrastructure.
+
+No production payment policy row or synthetic Stripe payment record was inserted during implementation.
+
+### Candidate files
+New:
+- `lib/payment-policy.js`
+- `lib/stripe-payments.js`
+- `api/admin-payment-settings.js`
+- `api/stripe-webhook.js`
+- `admin-payment-settings.js`
+- `account-payments.js`
+- `scripts/stripe-payments.test.mjs`
+
+Changed:
+- `api/create-checkout.js`
+- `api/payment-status.js`
+- `api/customer-billing.js`
+- `api/admin-booking-update.js`
+- `api/health.js`
+- `account.js`
+- `admin.js`
+- `.github/workflows/ai-handoff-check.yml`
+- continuity docs.
+
+CI now syntax-checks all payment modules and runs `scripts/stripe-payments.test.mjs`.
+
+## Immediate release/next action
+1. open the Stripe foundation PR;
+2. require full GitHub CI + exact-head Vercel preview/build clean;
+3. merge/deploy only if green;
+4. verify production remains Stripe-disabled with no payment policy/ledger fabrication;
+5. then connect Stripe securely and perform provider/webhook test-mode activation before enabling Admin payment policy.
 
 ## Non-negotiables
-- Window Cleaning remains the only current commercial service.
-- Do not activate another service without deliberate user decision.
-- Address-data work stays parked unless deliberately resumed.
-- Existing accepted work survives later service pauses.
-- Privileged access remains AAL2/MFA protected.
-- Review solicitation remains neutral and equally available; no incentives or positive-only gating.
-- Never expose secrets.
+- Window Cleaning only.
+- Stripe verified webhook is authoritative for Stripe money; browser success redirect is not.
+- No card details or provider secrets in Namdar data/browser/logs/docs/chat.
+- Privileged changes remain AAL2/MFA protected.
+- Existing service/booking security and accepted commitments remain intact.
+- Address work remains parked.
+- Support tickets customer-only; public inbound email stays Admin Email inbox.
+- Review solicitation remains neutral/equal.
