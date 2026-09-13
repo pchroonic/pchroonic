@@ -4,93 +4,90 @@ Last updated: 2026-09-13 UTC
 
 ## Production baseline
 - Repo: `pchroonic/pchroonic`, default `main`.
-- Latest product release: PR #52 `Harden notification cron against transient PostgREST 504s`.
-- Exact tested head: `0cc73a93772d99f38eedc5287b7901fb14853185`.
-- CI `34753702507`: SUCCESS.
-- Exact-head preview `dpl_HPyvguMrtVaXT8Aw8BnrnFNU9g6J`: READY / clean build.
+- Latest merged product release: PR #52 `Harden notification cron against transient PostgREST 504s`.
 - Merge `2efca178f49221d3ca819b3c4df9d1780d759579`.
-- Production `dpl_HSbQuHWcKxVQLPHJKZFb9RDctkVm`: READY on `https://namdar.co.uk`, canonical alias present, no alias error.
+- Current production deployment after Stripe sandbox env redeploy: `dpl_DiD8jChsRaA64fRBdovzr3euKHj8` READY on `https://namdar.co.uk`.
 - Supabase: `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
 - Window Cleaning is the only live/quotable/bookable service; five future services remain planned.
 - Address-data work remains parked.
 
 ## Window Cleaning Stage 1 — LIVE
 Product sequence includes:
-- PR #38: Window quote/recurring journey and quote-gate hardening;
-- PR #40: server-enforced booking operations and postcode-area route density;
-- PR #42: consent-aware acquisition funnel + direct-contribution reporting;
-- PR #45: completed-job close-out + neutral feedback/Google-review foundation;
-- PR #47: first booking-notification resilience layer;
-- PR #49: secure Stripe payment foundation;
-- PR #50: actual Stripe processor-cost accounting + no-surcharge headline pricing option;
-- PR #52: bounded transient PostgREST/Data API recovery for notification cron + schedule moved to minute 7.
+- PR #38 Window quote/recurring journey and quote-gate hardening;
+- PR #40 server-enforced booking operations and postcode-area route density;
+- PR #42 consent-aware acquisition funnel + direct-contribution reporting;
+- PR #45 completed-job close-out + neutral feedback/review foundation;
+- PR #47 first booking-notification resilience layer;
+- PR #49 secure Stripe payment foundation;
+- PR #50 processor-cost accounting + no-surcharge headline pricing option;
+- PR #52 bounded transient PostgREST/Data API recovery for notification cron + schedule moved to minute 7.
 
-Live booking defaults remain 21 days, 24h notice, Mon–Sat, 08–11 / 11–14 / 14–17, max 3 jobs/day and postcode-area route density.
+## Notification 504 resilience — LIVE / MONITORED
+PR #52 remains deployed. A real scheduled run at 2026-09-13 12:07 UTC completed non-degraded, so the Stripe setup gate was cleared. `Namdar Cron Watch` stays active because the upstream 504 source may still recur transiently.
 
-## Notification 504 resilience — RELEASED, OBSERVATION PENDING
-Before PR #52, production notification cron had repeated random 504s across post-job, booking delivery, admin contact, quote reminders, overdue invoices, unassigned bookings, booking attention and business delivery. The issue was still present at 11:00 UTC on 13 September 2026.
+## Stripe sandbox — CONNECTED, CUSTOMER PAYMENTS OFF
+Stripe test credentials and webhook signing secret are present in Vercel Production env solely for sandbox verification.
 
-Database diagnosis found tiny tables, no backlog and SQL execution in milliseconds, so the evidence did not support slow SQL. The failure pattern is consistent with transient PostgREST/Data API connection-pool acquisition failures.
+Current live health:
+- `stripe:true`
+- `stripeSecret:true`
+- `stripeWebhook:true`
 
-PR #52 is now live with:
-- max-three-attempt transient recovery for idempotent cron reads;
-- GET/HEAD/OPTIONS only in the generic read wrapper;
-- no generic automatic replay of mutation methods;
-- bounded recovery for thrown transient post-job / booking-delivery / business-delivery stage reads;
-- resilient business-scan reads;
-- retry/recovery telemetry;
-- hourly Vercel schedule `7 * * * *` instead of top-of-hour.
-
-Release smoke:
-- production READY and clean build;
-- `/api/health` 200;
-- database/email/reminders/follow-ups healthy;
-- no due pending booking/business notification backlog;
-- Window remains only live service;
-- Stripe still disabled/no Stripe ledger rows/no payment-policy row.
-
-The 504 problem is **not yet declared permanently resolved**. The required proof is a real authenticated scheduled run on PR #52 production. Clean with no retries = healthy run. Clean after recovered retries = resilience worked but upstream transient remains. Any degraded stage after retries = issue still active.
-
-Keep `Namdar Cron Watch` active.
-
-## Stripe — CODE READY, PROVIDER DISABLED
-Stripe connection remains paused until the cron observation gate passes.
-
-Production remains:
-- `stripe:false`;
-- `stripeSecret:false`;
-- `stripeWebhook:false`;
+Still inactive commercially:
 - no `site_settings.payments` row;
-- zero Stripe payment records.
+- Window online payment policy not enabled;
+- headline-price allowance OFF;
+- no real customer payment path deliberately activated.
 
-Core security remains: verified webhook writes Stripe money, browser return/status cannot, Checkout amount is server-calculated, and card data is never stored by Namdar.
+## Sandbox payment verification — BLOCKED ON RAW BODY BUG
+A £1.23 one-time Stripe sandbox payment completed successfully in Stripe using a temporary Namdar test quote/booking/invoice.
 
-## Processor-fee accounting / no-surcharge pricing — LIVE FOUNDATION
-Internal Stripe processor-cost columns/reporting remain deployed. Staff cannot manually create Stripe payment rows and customers do not see internal processor economics.
+Stripe state:
+- Checkout Session paid/complete;
+- GBP 123 pence;
+- sandbox only.
 
-Namdar does not add a separate customer payment surcharge. Optional Window headline-price allowance remains OFF; if later enabled it applies to the normal service price for every payment method.
+Namdar state immediately after payment:
+- booking still unpaid;
+- invoice still issued with amount_paid 0;
+- no Stripe payment ledger row.
 
-## Performance/economics — LIVE
-Window reporting includes actual captured Stripe processing fees when available. Missing reviewed direct costs or incomplete processor-fee data excludes affected jobs from contribution rather than assuming £0.
+Production logs showed webhook POST 400 with `Webhook raw body is unavailable.`
 
-**Direct contribution is not net profit.**
+Root cause: `readRawBody()` touched Vercel's lazy `request.body` getter before streaming, causing JSON parsing before Stripe signature verification.
 
-## Post-job / reviews — LIVE
-Immediate completion and 24-hour neutral feedback/review workflows remain. Google review CTA stays disabled until the official review URL is configured. Never selectively solicit only positive reviews or offer incentives.
+## PR #54 — RAW BODY FIX IN REVIEW
+Branch `fix/stripe-webhook-raw-body-20260913`.
+PR #54 `Fix Stripe webhook raw body handling on Vercel`.
+
+Code head before continuity commits: `fcd149882d604e5b3865246e22fc5324c258e634`.
+Preview `dpl_76VaZhk28MRTWKiJYm7BLVVGFi5X` READY with clean errors-only build.
+
+Fix behavior:
+- stream the Vercel request first;
+- do not access lazy `req.body` on stream-capable requests;
+- preserve exact signed bytes;
+- retain bounded body-size protection;
+- regression test ensures body getter is never touched before streaming.
+
+Initial CI `34759643914` passed syntax/tests but failed the handoff requirement because continuity docs were not yet updated. These docs now satisfy that gate; require the new exact-head CI/preview before merge.
+
+## Temporary sandbox data
+Remove after payment + refund verification:
+- quote `b1057c1c-d417-43aa-9fe9-3483ba31126d`
+- booking `4eb3100f-d05a-4f5c-977b-b569f25c3cb2`
+- invoice `805706a9-d9ff-4ed1-9cc6-8721a2454eb6`
 
 ## Immediate next work
-1. inspect first real PR #52 production cron at minute 7;
-2. after a healthy observation, resume secure Stripe provider/webhook setup and test-mode verification;
-3. deliberately enable Window online-payment policy only after Stripe tests pass;
-4. separately decide whether to enable headline price allowance;
-5. continue real-job Window evidence/pricing calibration;
-6. Stage 2 remains blocked until deliberate business decision.
-
-## Other open work
-- official Google review-request URL;
-- fresh privileged password/CAPTCHA/MFA interactive completion;
-- SMS, legal and remaining launch checks;
-- address-data pilot remains parked.
+1. get PR #54 exact-head CI green and preview READY;
+2. merge/deploy;
+3. confirm Stripe retry/fresh sandbox event reaches webhook with HTTP 200;
+4. confirm exactly one payment ledger row, paid invoice/booking and captured processor fee;
+5. verify duplicate delivery is idempotent;
+6. perform sandbox refund and verify refund ledger/state sync;
+7. delete temporary sandbox test records;
+8. only then decide whether to enable Window online payments;
+9. separately decide whether to enable headline price allowance.
 
 ## Handoff rule
 Every substantial product/provider/data change updates `docs/AI_START.md`, `docs/AI_HANDOFF.md`, and this file. Never store credentials, raw API keys, customer secrets, TOTP codes or one-time Auth links.
