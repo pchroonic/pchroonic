@@ -7,6 +7,7 @@ const clean=(v,max=500)=>String(v||'').trim().slice(0,max);
 const money=(v,max=1000000)=>{const n=Number(v);return Number.isFinite(n)?Math.min(max,Math.max(0,Number(n.toFixed(2)))):0};
 const pct=v=>{const n=Number(v);return Number.isFinite(n)?Math.min(100,Math.max(0,Number(n.toFixed(2)))):100};
 function date(v){const s=String(v||'');if(!/^\d{4}-\d{2}-\d{2}$/.test(s))return null;const d=new Date(`${s}T00:00:00Z`);return Number.isFinite(d.getTime())?s:null}
+function badRequest(message){return Object.assign(new Error(message),{status:400})}
 function normalize(body,staff,existing=null){
   const category=CATEGORIES.has(body.category)?body.category:(existing?.category||'other');
   const treatment=TAX_TREATMENTS.has(body.taxTreatment||body.tax_treatment)?(body.taxTreatment||body.tax_treatment):(existing?.tax_treatment||'allowable');
@@ -14,9 +15,9 @@ function normalize(body,staff,existing=null){
   const amount=money(body.amount??existing?.amount);
   const description=clean(body.description??existing?.description,240);
   const expenseDate=date(body.expenseDate||body.expense_date||existing?.expense_date);
-  if(!expenseDate)throw Object.assign(new Error('A valid expense date is required.'),{statusCode:400});
-  if(!description)throw Object.assign(new Error('Expense description is required.'),{statusCode:400});
-  if(amount<=0)throw Object.assign(new Error('Expense amount must be greater than £0.'),{statusCode:400});
+  if(!expenseDate)throw badRequest('A valid expense date is required.');
+  if(!description)throw badRequest('Expense description is required.');
+  if(amount<=0)throw badRequest('Expense amount must be greater than £0.');
   const vat=Math.min(amount,money(body.vatAmount??body.vat_amount??existing?.vat_amount));
   return{expense_date:expenseDate,category,description,supplier:clean(body.supplier??existing?.supplier,160)||null,amount,vat_amount:vat,business_use_percent:pct(body.businessUsePercent??body.business_use_percent??existing?.business_use_percent),tax_treatment:treatment,payment_method:method,booking_id:clean(body.bookingId||body.booking_id||existing?.booking_id,80)||null,reference:clean(body.reference??existing?.reference,160)||null,receipt_reference:clean(body.receiptReference||body.receipt_reference||existing?.receipt_reference,500)||null,notes:clean(body.notes??existing?.notes,1500)||null,source:existing?.source||'manual',updated_by:staff.user.id,updated_at:new Date().toISOString()};
 }
