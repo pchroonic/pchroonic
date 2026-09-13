@@ -1,5 +1,5 @@
 (()=>{
-  const v='6.4.22-stripe-fee-accounting-1';
+  const v='6.4.24-business-finance-1';
   document.write(`<link rel="stylesheet" href="/admin-inbox-safety.css?v=${v}">`);
   document.write(`<script src="/privileged-login-captcha.js?v=${v}"><\/script>`);
   document.write(`<script src="/admin-original.js?v=${v}"><\/script>`);
@@ -11,4 +11,5 @@
   document.write(`<script src="/admin-post-job-followup.js?v=${v}"><\/script>`);
   document.write(`<script src="/admin-payment-settings.js?v=${v}"><\/script>`);
   document.write(`<script src="/admin-window-performance.js?v=${v}"><\/script>`);
+  document.write(`<script src="/admin-business-finance.js?v=${v}"><\/script>`);
 })();

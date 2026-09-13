@@ -60,9 +60,10 @@ test('Checkout creation is Window-only, policy-gated and idempotent',()=>{
   assert.ok(key.startsWith('namdar_checkout_'));assert.equal(key.includes('invoice-private-id'),false);
 });
 
-test('verified webhook is authoritative, idempotent and records actual processor cost',()=>{
+test('verified webhook is authoritative, idempotent and records actual processor cost plus Stripe environment',()=>{
   const webhook=read('api/stripe-webhook.js'),status=read('api/payment-status.js'),migration=read('supabase/migrations/20260913103500_stripe_processor_fee_accounting.sql');
   assert.match(webhook,/verifyStripeSignature/);assert.match(webhook,/bodyParser:false/);assert.match(webhook,/payment_records\?on_conflict=provider_reference/);assert.match(webhook,/resolution=ignore-duplicates/);assert.match(webhook,/syncInvoicePaymentState/);assert.match(webhook,/stripe_refund:/);assert.match(webhook,/retrievePaymentProcessorDetails/);assert.match(webhook,/provider_fee/);assert.match(webhook,/provider_net/);assert.match(webhook,/provider_balance_transaction/);
+  assert.match(webhook,/provider_livemode:session\.livemode===true/);assert.match(webhook,/provider_livemode:pi\.livemode===true/);
   assert.match(webhook,/attachProcessorDetails/);assert.match(webhook,/processor-cost data is not ready yet/);assert.match(webhook,/err\.status=503/);
   for(const column of ['provider_payment_id','provider_balance_transaction','provider_fee','provider_net','provider_fee_currency'])assert.match(migration,new RegExp(column));
   assert.doesNotMatch(status,/db\('payment_records',\{method:'POST'/);assert.match(status,/pendingWebhook/);assert.match(status,/provider_reference=eq\./);

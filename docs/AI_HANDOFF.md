@@ -4,144 +4,145 @@ Last verified: 2026-09-13 UTC
 
 Read `docs/AI_START.md` first.
 
-## Production source of truth
-- Repo: `pchroonic/pchroonic`, default `main`.
-- Current product release: PR #57 `Pin lockless Supabase runtime for My Namdar auth`.
-- Merge/main HEAD: `52979eab757db23bed21416c9ec5a520b57c72c2`.
-- CI run `34762049828`: SUCCESS.
-- Production deployment `dpl_AFyzoBkodBAZD5qqLjx2z73yHTvg`: READY on `https://namdar.co.uk`.
-- Production `/api/health`: database healthy, Stripe sandbox secret + webhook configured.
-- Supabase production: `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
-- Only `windows` is live; gutters/jetwash/roof/handyman/tour3d remain `planned`.
-- Address work remains parked.
-- Staff/Admin privileged API access requires AAL2/MFA.
+## Production source of truth before PR #59
+- Repo `pchroonic/pchroonic`, default `main`.
+- Product release PR #57 merge `52979eab757db23bed21416c9ec5a520b57c72c2`.
+- PR #58 docs-only merge/main HEAD `24d041864fd31b31a76aa559ebdae1c85c330acc`.
+- Production deployment `dpl_bhvyvNbhjoi1JFgpYt3x46bjSkfW` READY.
+- Supabase production `qjigldxjcpnrlyxgmlqq`.
+- Window Cleaning only live; future services planned; address work parked.
+- Staff/Admin privileged APIs require AAL2/MFA.
 
-## Notification cron
-PR #52 remains deployed with bounded transient Data API retries and schedule `7 * * * *`. Keep `Namdar Cron Watch` active; upstream 504s may still recur transiently.
+## Stripe state
+Sandbox provider connected; commercial customer payment policy OFF; no live-money credentials. Normal signed-in deposit + balance + refund flow passed end-to-end with authoritative webhooks, exact processor-fee capture and corrected multi-tab browser return. `site_settings.payments` absent.
 
-## Stripe provider state — SANDBOX CONNECTED, COMMERCIAL PAYMENTS OFF
-Vercel Production has Stripe test-mode secret + webhook signing secret so the real `namdar.co.uk` webhook path can be tested safely. These are not live-money credentials.
+## Business Finance product decision
+Namdar starts as a **sole trader** and later becomes a **limited company after success**.
+- preserve dated sole-trader history;
+- incorporation requires a date;
+- switch future reporting only from that date;
+- never retroactively reinterpret historic sole-trader activity as company activity;
+- refresh current Corporation Tax rules when incorporation happens.
 
-Webhook destination:
-`https://namdar.co.uk/api/stripe-webhook`
+## PR #59
+Title: `Add sole trader Business Finance dashboard`
+Branch: `feat/sole-trader-finance-dashboard-20260913`.
 
-Selected events remain:
-- `checkout.session.completed`
-- `checkout.session.async_payment_succeeded`
-- `refund.created`
-- `refund.updated`
-- `charge.refunded`
+Earlier code head `9944e7dcac5db197aa3023cdbfda785fb5f881fd` passed CI `34763503689`; Vercel preview `dpl_DgPUvMYTXjmDzDdEp5VaC1L3tVo2` was READY with clean build output. Final Stripe-environment separation commits were added afterward and must pass the same gates before merge.
 
-PR #54 remains the verified raw-body fix. For Stripe money, verified webhook processing is authoritative; browser return is informational only.
+## Applied Supabase finance migrations
+- `20260913143525 business_finance_expense_ledger`
+- `20260913144052 business_finance_expense_updated_by_index`
+- `20260913144632 stripe_payment_environment_tracking`
 
-Current commercial safety:
-- zero `site_settings` rows where `key='payments'`;
-- customer online-payment policy OFF;
-- headline allowance OFF;
-- no live Stripe credentials;
-- no real customer money was charged during verification.
+### `business_expenses`
+Private table, RLS enabled, no browser policies. Records actual paid expenses: date/category/description/supplier, amount, VAT amount, business-use %, tax treatment, payment method, optional booking/reference/receipt reference/private notes, source and audit users/timestamps.
 
-## My Namdar session restore — RESOLVED / VERIFIED
-The first real signed-in Stripe deposit exposed a browser return hang on `Opening My Namdar… Restoring your secure session.`.
+Tax treatments:
+- `allowable`: deducted by simple sole-trader estimate;
+- `capital_allowance`: visible/cash-impacting but excluded from simple tax deduction pending proper treatment;
+- `non_allowable`: visible/cash-impacting but excluded from taxable-profit deduction.
 
-PR #56 fixed the failure mode:
-- loads `/account-auth-hotfix.js` before `/account-original.js`;
-- bounds `auth.getSession()` to 5 seconds;
-- clears timeout timers when the real session wins;
-- permits at most one Stripe-return reload per Checkout session with `sessionStorage` guard;
-- replaces endless spinner with recovery guidance;
-- adds deterministic regression tests.
+The second migration fixed the finance-specific missing FK covering index on `updated_by`; performance advisor no longer reports it.
 
-After PR #56 went live, a real multi-tab `/account` refresh still reached the timeout. This proved the underlying Supabase session restore was still stalling.
+### Stripe environment tracking
+`payment_records.provider_livemode` now records provider environment:
+- `false`: sandbox/test Stripe row;
+- `true`: live Stripe row;
+- null is allowed for non-Stripe/manual rows.
 
-PR #57 addressed the underlying browser-runtime variable:
-- `account.js` version `6.4.23-supabase-lockless-1`;
-- synchronously loads exact `@supabase/supabase-js@2.116.0` before the auth guard and before any account client is created;
-- current Supabase Auth defaults to lockless coordination when no custom lock is supplied;
-- retains PR #56 bounded timeout as defense-in-depth;
-- regression tests assert exact runtime pin and load order.
+All existing Stripe rows were safely backfilled `false` because no live Stripe credentials have ever been connected. Verified state: 4 sandbox Stripe rows, 0 live Stripe rows, 0 unknown Stripe rows.
 
-Production multi-tab verification passed: with several Namdar tabs open, hard-refreshing `/account?tab=billing` restored the signed-in My Namdar portal normally.
+Verified Stripe webhooks now persist:
+- Checkout payments: `provider_livemode = session.livemode === true`;
+- refunds: `provider_livemode = paymentIntent.livemode === true`.
 
-`account.html` still has the older floating `@supabase/supabase-js@2` include. It is overwritten by exact `2.116.0` before client creation. Removing the duplicate include is optional cleanup and should not be treated as an auth blocker.
+Business Finance filters Stripe rows so only `provider_livemode=true` counts as real revenue/refunds/processor costs. Sandbox audit rows remain in Billing/payment history but never enter business finance or tax estimates.
 
-## Normal signed-in My Namdar Checkout — FULL E2E PASSED
-A controlled £1.00 Window invoice was used with the real authenticated My Namdar flow.
+GitHub SQL migration-file creation was blocked by the connector safety gate. Do not invent repo migration files for these schema changes. Supabase migration history plus these continuity docs are authoritative.
 
-Temporary sandbox policy used only during controlled test windows:
-- `active:true`;
-- `mode:'deposit_required'`;
-- `deposit_percent:20`;
-- `minimum_deposit:0.50`;
-- `allow_full_payment:true`;
-- headline allowance OFF.
+## Finance implementation
+### Tax engine
+`lib/uk-tax.js` supports 2026/27 England/Wales/Northern Ireland:
+- UK tax year starts 6 April;
+- Personal Allowance £12,570; taper above £100,000; zero at £125,140;
+- Income Tax 20% / 40% / 45%;
+- Class 4 NI 6% £12,570–£50,270, then 2% above;
+- VAT threshold metadata £90,000;
+- MTD staged thresholds metadata;
+- illustrative payments-on-account warning only.
 
-Before activation, database checks showed no eligible Window bookings on any other customer account.
+Income Tax attributable to Namdar is incremental:
+`tax(other taxable income + Namdar profit) - tax(other taxable income)`.
 
-### Deposit
-Customer clicked the real `Pay £0.50 deposit` button.
-- `/api/create-checkout` 200;
-- Stripe test Checkout completed;
-- `/api/stripe-webhook` 200;
-- invoice £0.50 paid / £0.50 outstanding / `part_paid`;
-- booking `payment_status='deposit_paid'`;
-- one £0.50 Stripe deposit record;
-- provider fee £0.22 GBP;
-- provider net £0.28 GBP.
+### Private finance settings
+`api/admin-finance-settings.js`
+- GET requires `analytics`;
+- POST requires `settings`;
+- stores under non-public `site_settings.finance_private`;
+- audit metadata redacts private values;
+- limited-company switch requires incorporation date.
 
-### Balance
-After PR #57 production verification, the same controlled invoice was used for the remaining £0.50.
-- `/api/create-checkout` 200 at 14:18:00 UTC;
-- `/api/stripe-webhook` 200 at 14:18:19 UTC;
-- invoice £1.00 paid / £0.00 outstanding / `paid`;
-- booking `payment_status='paid'`;
-- exactly two payment ledger rows total: £0.50 deposit + £0.50 balance;
-- second fee £0.22 GBP;
-- second net £0.28 GBP;
-- browser returned to signed-in Billing correctly while other Namdar tabs remained open.
+Defaults: sole trader, cash basis, England/Wales/NI, no start date, no incorporation date, other taxable income £0, tax reserved £0, not VAT registered.
 
-No duplicate payment rows were created.
+### Expense ledger API
+`api/admin-finance-expenses.js`
+- GET `analytics`;
+- POST/PATCH/DELETE `settings`;
+- audited mutations;
+- bad date/description/non-positive amount return HTTP 400 via `error.status`.
 
-## Refund verification / cleanup — PASSED
-Both £0.50 sandbox PaymentIntents were fully refunded after the flow completed.
+### Business Finance API
+`api/admin-business-finance.js`
+- cash-basis receipts/refunds from real payment ledger rows;
+- excludes every Stripe row unless `provider_livemode===true`;
+- actual live GBP Stripe fees deducted automatically;
+- expense ledger prorated by business-use %;
+- cash surplus = net receipts - all business-use ledger cash expenses - live Stripe fees;
+- estimated taxable profit = net receipts - allowable expenses - live Stripe fees;
+- outstanding invoices stay outside cash-basis income until paid;
+- indicative rolling-12-month VAT monitor;
+- MTD indicator does not infer legal obligation from current turnover alone;
+- monthly cash movement + expense-category breakdown;
+- operational `booking_job_costs` are reference-only, never silently tax-deducted.
 
-Verified result:
-- both Stripe refunds returned `status='succeeded'`;
-- refund webhook deliveries returned HTTP 200;
-- exactly two refund ledger rows were created, one per original payment;
-- no duplicate refund records;
-- each refund provider fee £0.00 / provider net -£0.50;
-- invoice synchronized to `status='refunded'`, `amount_paid=0.00`, `paid_at=null`;
-- booking synchronized to `payment_status='refunded'`;
-- temporary `site_settings.payments` row deleted after the test.
+### Admin UI
+`admin-business-finance.js` adds Business Finance under Reports: cash KPIs, tax reserve estimate, VAT/MTD monitor, monthly table, expense mix, private settings, expense entry/delete.
 
-The sandbox ledger is intentionally kept as the audit record of this verification. Do not manually create/delete Stripe payment rows to make the UI look clean; processor history must remain traceable.
+`admin.js` loader version `6.4.24-business-finance-1`.
 
-## Current code/runtime notes
-- PR #54: exact raw Stripe webhook body on Vercel.
-- PR #56: bounded My Namdar auth restore / no endless spinner.
-- PR #57: exact Supabase JS 2.116.0 before account client creation.
-- One Node/Vercel `url.parse()` deprecation warning is still visible on some API requests; it did not affect this verification and can be handled separately.
+## Public/private boundary
+`api/public-data.js` allow-lists only `brand`, `appearance`, `maintenance`, `advertising`, `contact`; `finance_private` is never public.
 
-## Next sequence
-1. decide the actual Window launch policy: optional, deposit required, or full required;
-2. if deposit required, decide percentage/minimum and whether pay-in-full is allowed;
-3. keep Stripe in sandbox until the commercial policy is deliberately approved;
-4. connect the Stripe live account and live webhook signing secret only after that decision;
-5. perform a live-readiness checklist before enabling real customer payments;
-6. separately decide whether the same-price headline allowance should remain permanently OFF or be enabled;
-7. continue other launch checks: Google review URL, privileged password/CAPTCHA/MFA interactive verification, SMS/legal checks and real-job Window pricing evidence;
-8. address-data work stays parked unless deliberately resumed.
+Verified current production data before merge:
+- 4 sandbox Stripe rows;
+- 0 live Stripe rows;
+- 0 unknown Stripe rows;
+- 0 business expenses;
+- 0 `finance_private` rows.
+
+## Explicit limitations
+Management estimate only, not HMRC assessment. V1 does not model loss relief/carry-forward, student loans, pension/Gift Aid adjusted-net-income effects beyond simple PA taper, savings/dividend tax, Marriage Allowance/other reliefs, combined employment/self-employment NI interactions, detailed capital allowances, VAT scheme/input-tax rules, Scottish bands, or traditional-accounting accrual adjustments.
+
+If Scotland or traditional accounting is selected, numeric tax estimate is withheld. If switched to limited company, company tax estimate is withheld until incorporation-time rules are deliberately refreshed.
+
+## Post-merge verification
+1. production deployment READY + `/api/health` healthy;
+2. production `admin.js` contains Business Finance loader;
+3. finance API excludes all 4 retained sandbox Stripe audit rows;
+4. expense ledger remains clean unless user adds real costs;
+5. no `finance_private` row is required until user enters real settings;
+6. user enters actual sole-trader start date and optional private other-income/tax-reserve values through Admin; never invent them;
+7. begin logging real paid expenses;
+8. keep Stripe commercial policy OFF until finance validation is complete;
+9. then return to Window payment-policy/live-Stripe rollout.
 
 ## Non-negotiables
-- Window Cleaning only.
-- No separate customer card/Stripe surcharge.
-- Verified Stripe webhook is authoritative for Stripe money; browser success is never payment proof.
-- No blind replay of non-idempotent writes.
-- No secrets in source, logs, docs or chat.
-- Sandbox-ready does not mean live-money-ready.
-- Missing Stripe processor cost is not £0; direct contribution is not net profit.
-- Staff cannot manually impersonate Stripe payments.
-- Privileged changes remain AAL2/MFA protected.
-- Review solicitation stays neutral/equal.
-- Address work remains parked.
+- No customer exposure of private finance settings/expense ledger.
+- Sandbox Stripe activity never counts as revenue/tax activity.
+- No separate customer card surcharge.
+- Stripe webhook authoritative for money state.
+- No secrets or unnecessary personal finance details in source/logs/docs/chat.
+- Direct contribution != net profit; finance estimate != filed tax return.
+- Privileged finance mutations remain AAL2/settings-permission protected.
+- Window only live; address work parked.
