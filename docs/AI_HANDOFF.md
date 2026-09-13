@@ -6,8 +6,12 @@ Read `docs/AI_START.md` first.
 
 ## Production source of truth
 - Repo: `pchroonic/pchroonic`, default `main`.
-- Latest merged product release: PR #52, merge `2efca178f49221d3ca819b3c4df9d1780d759579`.
-- Current production deployment after sandbox env redeploy: `dpl_DiD8jChsRaA64fRBdovzr3euKHj8` READY on `https://namdar.co.uk`.
+- Latest product release: PR #54 `Fix Stripe webhook raw body handling on Vercel`.
+- Exact tested head: `d9a7d2cdded5905e032b53a38b725e30f50be531`.
+- CI: `34759777343` SUCCESS.
+- Exact-head preview: `dpl_F38E2rKUyZsnG2afqhsdsMEo1eNx` READY / clean errors-only build.
+- Merge: `3dfdd4cb7cbf244dc450631c23273792b3b82853`.
+- Product production: `dpl_9maand6wJHASgET55huV2EtauFjp` READY on `https://namdar.co.uk`.
 - Supabase: `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
 - Only `windows` is live; gutters/jetwash/roof/handyman/tour3d remain `planned`.
 - Address work remains parked.
@@ -16,20 +20,22 @@ Read `docs/AI_START.md` first.
 ## Notification cron status
 PR #52 remains deployed with bounded transient Data API read retries and schedule `7 * * * *`.
 
-A real scheduled run at 2026-09-13 12:07 UTC completed non-degraded. That cleared the temporary gate for beginning Stripe sandbox setup. Continue `Namdar Cron Watch`; do not assume upstream 504s can never recur.
+A real scheduled run at 2026-09-13 12:07 UTC completed non-degraded and cleared the Stripe setup gate. Keep `Namdar Cron Watch` active; do not assume upstream 504s can never recur.
 
 ## Stripe provider state — SANDBOX CONNECTED, COMMERCIAL PAYMENTS OFF
-The user connected Stripe test mode (`New business`) and added sandbox `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` to Vercel Production env, then redeployed.
+The user connected Stripe test mode (`New business`) and added sandbox `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` to Vercel Production env so the real `namdar.co.uk` webhook path could be tested safely.
 
 Live `/api/health` now returns:
 - `stripe:true`
 - `stripeSecret:true`
 - `stripeWebhook:true`
 
-Stripe webhook destination exists and is enabled at:
+These are sandbox credentials only, not live-money credentials.
+
+Webhook destination is enabled at:
 `https://namdar.co.uk/api/stripe-webhook`
 
-Events currently selected:
+Selected events:
 - `checkout.session.completed`
 - `checkout.session.async_payment_succeeded`
 - `refund.created`
@@ -38,74 +44,93 @@ Events currently selected:
 
 Commercial safety remains:
 - no `site_settings.payments` row;
-- online payment policy not active;
-- no customer-facing Stripe checkout route available from normal Namdar flow;
-- headline allowance remains OFF;
-- no real card details pass through Namdar.
+- customer online payment policy not active;
+- headline allowance OFF;
+- no real customer payment flow deliberately activated;
+- card details never pass through Namdar.
 
-## First sandbox payment test
-Because ChatGPT's Stripe connector exposes Checkout Sessions read-only, a one-time Stripe sandbox Payment Link was created as a test harness. It was limited to one successful completion and linked to temporary Namdar metadata.
+## Sandbox test harness
+Because the ChatGPT Stripe connector exposes Checkout Sessions read-only, a one-time Stripe sandbox Payment Link was used purely as a test harness. It created a normal Stripe Checkout Session and carried the same internal metadata the Namdar webhook expects.
 
-Temporary Namdar records:
-- quote `b1057c1c-d417-43aa-9fe9-3483ba31126d`
-- booking `4eb3100f-d05a-4f5c-977b-b569f25c3cb2`
-- invoice `805706a9-d9ff-4ed1-9cc6-8721a2454eb6`
-- £1.23, no real customer/service
+Test amount: £1.23 GBP. No real customer or real service was involved.
 
-Stripe result:
-- Payment Link `plink_1UFDFECu9tojH31yXfYKohbS`
-- Checkout Session `cs_test_a1rhCJPgb8NFQHyLHbE2sXRSMTL9Vmb71XE78YyAbUefryGboc7uxuIEQm`
-- PaymentIntent `pi_3UFDH1Cu9tojH31y1wLg0gaK`
-- Stripe session status `complete`
-- Stripe payment status `paid`
-- amount 123 pence GBP
+## Failure discovered during first payment
+The Stripe payment itself completed successfully, but Namdar initially remained unpaid.
 
-Namdar result before fix:
-- booking remained `payment_status='unpaid'`
-- invoice remained `issued`, `amount_paid=0`
-- no `payment_records` row
+Production Vercel logs at 13:16:49 and 13:17:03 UTC showed POST `/api/stripe-webhook` HTTP 400 with:
+`Webhook raw body is unavailable.`
 
-Production logs at 13:16:49 and 13:17:03 UTC showed POST `/api/stripe-webhook` HTTP 400 with `Webhook raw body is unavailable.`
+Root cause: Vercel's Node request body helper is lazy. Existing `readRawBody()` touched `req.body` first, which caused JSON parsing and destroyed the exact raw byte sequence required for Stripe signature verification.
 
-## Root cause
-Vercel's Node request body helper is lazy: reading `request.body` triggers parsing. Existing `readRawBody()` checked `req.body` before streaming the request. On Stripe JSON requests that parsed the payload first and lost the exact byte sequence Stripe signed.
+For signed webhooks, never reconstruct JSON from a parsed object. Signature verification must use the exact bytes received.
 
-For signed webhooks, never reconstruct raw JSON from a parsed object. Signature verification must use the exact request bytes.
-
-## PR #54 — webhook raw body fix CANDIDATE
-Branch: `fix/stripe-webhook-raw-body-20260913`
-PR #54: `Fix Stripe webhook raw body handling on Vercel`
-
-Current head before docs commits: `fcd149882d604e5b3865246e22fc5324c258e634`.
-Exact-head Vercel preview for that code head: `dpl_76VaZhk28MRTWKiJYm7BLVVGFi5X` READY, clean errors-only build.
-
+## PR #54 — LIVE raw-body fix
 Implementation in `lib/stripe-payments.js`:
-- if request is async-iterable, stream it immediately;
-- never touch `req.body` on the Vercel stream path;
-- enforce 1 MiB limit while streaming;
-- retain Buffer/string/Uint8Array fallback only for non-stream adapters.
+- stream async-iterable/Vercel requests before any `req.body` access;
+- preserve exact raw bytes;
+- enforce the existing body-size limit while streaming;
+- retain Buffer/string/Uint8Array fallback for non-stream adapters only.
 
 Regression in `scripts/stripe-payments.test.mjs`:
-- uses an async-iterable mock whose `body` getter throws;
-- asserts `readRawBody()` returns exact bytes and never touches the getter.
+- async-iterable request mock has a `body` getter that throws;
+- `readRawBody()` must return exact bytes without touching that getter.
 
-First CI run `34759643914`:
-- syntax/tests passed;
-- failed only at continuity gate because these three docs had not yet been changed.
+Release identities:
+- exact head `d9a7d2cdded5905e032b53a38b725e30f50be531`;
+- CI `34759777343` SUCCESS;
+- preview `dpl_F38E2rKUyZsnG2afqhsdsMEo1eNx` READY;
+- merge `3dfdd4cb7cbf244dc450631c23273792b3b82853`;
+- production `dpl_9maand6wJHASgET55huV2EtauFjp` READY / clean build.
 
-After docs commits, require a new exact-head CI success and exact-head READY preview before merge.
+## End-to-end payment verification — PASSED
+After PR #54 deployed, Stripe automatically retried the already-paid Checkout event.
 
-## Post-merge verification sequence
-1. deploy PR #54 to production;
-2. wait for Stripe automatic retry of the already-paid Checkout event or create a fresh one-time sandbox test if necessary;
-3. require webhook HTTP 200;
-4. confirm exactly one Stripe `payment_records` row for the Checkout Session;
-5. confirm invoice paid / booking payment_status paid;
-6. confirm processor fee/net/balance transaction captured;
-7. verify duplicate webhook does not duplicate ledger/notifications;
-8. issue sandbox refund and verify exactly one refund ledger row + invoice/booking sync;
-9. clean up temporary Namdar test records after verification;
-10. only then consider enabling the Window payment policy.
+Production result:
+- 13:30:39 UTC POST `/api/stripe-webhook` -> HTTP 200;
+- exactly one Stripe `payment_records` row created;
+- invoice became paid with amount_paid £1.23;
+- booking `payment_status` became paid;
+- provider PaymentIntent/balance-transaction identifiers stored;
+- actual Stripe sandbox fee captured from the balance transaction: £0.24;
+- provider net captured: £0.99;
+- browser success page was not used as payment proof.
+
+This confirms the verified webhook is the authoritative Stripe money writer.
+
+## End-to-end refund verification — PASSED
+A full £1.23 sandbox refund was created against the PaymentIntent.
+
+Production result:
+- refund succeeded in Stripe;
+- refund-related webhook POSTs at 13:32:23 UTC returned HTTP 200;
+- exactly one refund ledger row was created despite multiple relevant Stripe refund events;
+- invoice status synchronized to refunded, amount_paid 0;
+- booking `payment_status` synchronized to refunded;
+- refund balance transaction captured;
+- refund provider fee £0.00 and provider net -£1.23 in this sandbox transaction.
+
+This validates refund idempotency and state synchronization.
+
+## Cleanup / current state
+The one-time sandbox Payment Link was deactivated after the test.
+
+Temporary test quote/booking/invoice/payment rows were deleted. Final DB check:
+- zero Stripe `payment_records` rows;
+- zero `site_settings` rows where `key='payments'`;
+- `windows` remains the only live service;
+- five future services remain `planned`.
+
+No real customer data was used for the test records.
+
+## Next sequence
+1. choose Window payment policy: optional payment, required deposit, or full payment required;
+2. if deposit is chosen, choose deposit percentage/minimum and whether customers can pay in full instead;
+3. keep sandbox credentials while testing Namdar's real signed-in customer Checkout route under that policy;
+4. verify deposit/full/balance behavior through the normal My Namdar flow;
+5. only then connect the Stripe live account and configure the live webhook signing secret;
+6. replace sandbox credentials with live credentials deliberately;
+7. enable payment policy only when ready for real money;
+8. separately decide whether to enable the headline-price allowance.
 
 ## Non-negotiables
 - Window Cleaning only.
@@ -113,7 +138,7 @@ After docs commits, require a new exact-head CI success and exact-head READY pre
 - Verified Stripe webhook is authoritative for Stripe money; browser success is never payment proof.
 - No blind replay of non-idempotent writes.
 - No secrets in source, logs, docs or chat.
-- Customer online payments remain disabled until sandbox payment/refund verification passes.
+- Sandbox-ready does not mean live-money-ready.
 - Missing Stripe processor cost is not £0; direct contribution is not net profit.
 - Privileged changes remain AAL2/MFA protected.
 - Address work remains parked.
