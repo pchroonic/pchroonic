@@ -4,10 +4,11 @@ import fs from 'node:fs';
 
 const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
 
-test('admin loader includes private Business Finance module',()=>{
+test('admin loader includes private Business Finance module and setup polish',()=>{
   const source=read('admin.js');
   assert.match(source,/admin-business-finance\.js/);
-  assert.match(source,/6\.4\.24-business-finance-1/);
+  assert.match(source,/admin-business-finance-polish\.js/);
+  assert.match(source,/6\.4\.25-business-finance-setup-1/);
 });
 
 test('public site settings never expose private finance settings',()=>{
@@ -30,6 +31,17 @@ test('finance UI warns that operational job-cost estimates are not tax expenses'
   const source=read('admin-business-finance.js');
   assert.match(source,/operational job-cost estimates exist/);
   assert.match(source,/not automatically treated as tax expenses/);
+});
+
+test('finance setup polish hides premature tax timeline and irrelevant dates',()=>{
+  const source=read('admin-business-finance-polish.js');
+  assert.match(source,/Finish finance setup/);
+  assert.match(source,/Tax timeline not activated yet/);
+  assert.match(source,/financeIncorporationDate/);
+  assert.match(source,/limited_company/);
+  assert.match(source,/financeVatDate/);
+  assert.match(source,/financeVatRegistered/);
+  assert.match(source,/defaultValue/);
 });
 
 test('expense mutations require settings permission, reads require analytics and validation returns 400',()=>{
