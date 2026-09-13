@@ -6,204 +6,167 @@ Read `docs/AI_START.md` first.
 
 ## Production source of truth
 - Repo: `pchroonic/pchroonic`, default `main`.
-- Current main: `ebca3eb768e80a7104ff74169bce4337d49eec11` (PR #48 docs sync).
-- Latest product release: PR #47, merge `43f2db200463083cd9736485700c27a3d80974b8`.
-- PR #47 exact head `437ab7e56b8e74f4c68d92fe096b646110018b95`; CI `34719427324` SUCCESS; preview `dpl_7QMQLeXV8rEF1qBcyS7d2FyLeLKX` READY; product production `dpl_7UXKtKqyitKF5xiGADPcwN9MwgZk` READY.
-- Final docs production from PR #48: `dpl_BhUY6TcpjfCk3XsV8cwcsZ1uE5g1`, READY on `namdar.co.uk`.
+- Latest deployed product release: PR #49 `Add secure Window Stripe payment foundation`.
+- PR #49 exact tested head: `3423e99ae7e7924f7cae7d60c908d4fdb6badfa9`.
+- CI: `34741505277` SUCCESS.
+- Exact-head preview: `dpl_AtV51rETngSfh77isxD7hTWTBp45` READY / clean build.
+- Merge: `94572eaabcb5f876a75c0123653f73a144ef54e2`.
+- Production: `dpl_ALo78vUX3j9xwVZ8PnMjC9mAASmw` READY on `https://namdar.co.uk`, canonical alias present, no alias error.
 - Supabase: `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
-- Only `windows` is live. Gutters/jetwash/roof/handyman/tour3d remain planned.
+- Only `windows` is live. Gutters/jetwash/roof/handyman/tour3d remain `planned`.
 - Address work remains parked.
-- Privileged Staff/Admin access requires AAL2/MFA.
+- Staff/Admin privileged access requires AAL2/MFA.
 
 ## Window Stage 1 live baseline
 Keep the existing Window quote/recurring pricing, service-live gates, route-aware booking rules, Staff On my way → Start → Complete, completed-job direct-cost/travel review, consent-aware conversion funnel, direct-contribution reporting and neutral post-job review flow.
 
-`booking_job_costs` is the direct-cost source of truth. Missing review is not £0 cost. Direct contribution is not net profit.
+`booking_job_costs` remains the source for staff-reviewed job costs. Missing review is not £0 cost. Direct contribution is not net profit.
 
-Public Google review requests remain disabled until the official Business Profile review-request URL is entered. Never restore positive-only review gating or incentives.
+Public Google review requests remain disabled until the official Business Profile review-request URL is deliberately entered. Never restore positive-only review gating or incentives.
 
-## Booking-notification resilience — live; containment verified, upstream 504 persists
-PR #47 replaced per-event business reminder queueing with batched conflict-ignore writes and isolated four cron stages.
+## Booking-notification resilience
+PR #47 isolated four hourly notification stages and batched business reminder work. A real scheduled authenticated run at 2026-09-13 05:00:02 UTC returned HTTP 200 while logging `Notification cron stage failed: booking_delivery 504 Gateway Timeout`.
 
-A real scheduled authenticated run at **2026-09-13 05:00:02 UTC** returned HTTP 200 on `/api/booking-notifications` while logging:
-`Notification cron stage failed: booking_delivery 504 Gateway Timeout`
+Interpretation: containment is working, but the underlying intermittent Supabase REST 504 persists. Keep the hourly Namdar Cron Watch and do not declare it permanently resolved.
 
-Interpretation:
-- stage isolation/containment is working because the whole hourly run no longer aborts;
-- the underlying intermittent Supabase REST 504 is still present, now observed in generic booking delivery as well as earlier business-notification paths;
-- keep `Namdar Cron Watch` running and do not declare the 504 permanently resolved.
+## PR #49 Stripe foundation — deployed but provider disabled
+PR #49 reused the existing invoice/payment ledger and added secure Stripe readiness without activating Stripe.
 
-## Current candidate — Stripe Window payment foundation
-Branch: `feat/stripe-payment-foundation-20260913`.
+Production verification immediately after release:
+- `/api/health`: `stripe:false`, `stripeSecret:false`, `stripeWebhook:false`;
+- no `site_settings.payments` row;
+- zero Stripe payment ledger rows;
+- no service activation beyond Window Cleaning.
 
-### Verified production state before candidate
-- `https://namdar.co.uk/api/health` reported `stripe:false`.
-- Production did not expose a `site_settings` row with `key='payments'` in the verification query.
-- Production `payment_records` contained **0** rows with `method='stripe'`.
-- Existing v5.2 payment schema is already present: one invoice per booking, payment/refund ledger, unique `provider_reference`, and booking payment states `unpaid|deposit_paid|paid|refunded`.
+Important PR #49 security behavior:
+- `lib/payment-policy.js` defaults online payments to disabled;
+- effective activation requires stored Admin activation plus `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`;
+- `api/create-checkout.js` is authenticated/customer-owned/Window-only and server-calculates deposit/full/balance amounts;
+- Checkout uses deterministic Stripe idempotency keys;
+- `api/stripe-webhook.js` preserves raw body and verifies Stripe signature before writing money;
+- `api/payment-status.js` is read-only for money;
+- `payment_records.provider_reference` uniqueness + conflict-ignore makes webhook replay idempotent;
+- required deposit/full policy is enforced server-side before a Window booking can be confirmed;
+- card details never pass through or persist in Namdar.
 
-No new finance table is required. This candidate deliberately reuses the existing ledger.
+Do not call Stripe payments live until the provider is securely connected and test-mode end-to-end verification is complete.
 
-### `lib/payment-policy.js`
-Adds a fail-safe online payment policy:
-- default `active:false`;
-- modes: `optional`, `deposit_required`, `full_required`;
-- default deposit 20%;
-- default minimum deposit £10;
-- optional full-payment choice;
-- provider readiness requires **both** `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`;
-- `effectiveActive` requires stored Admin activation plus both provider secrets;
-- DB/settings failure falls back to disabled.
+## Current candidate — Stripe processing cost as Namdar internal cost
+Branch: `feat/stripe-fee-accounting-20260913`.
 
-### `lib/stripe-payments.js`
-Dependency-free Stripe helper using native `fetch` and Node `crypto`:
-- Stripe REST requests never expose the secret to browser code;
-- Checkout creation uses an `Idempotency-Key` derived from a SHA-256 hash of invoice/payment state, not customer PII;
-- Checkout metadata links booking, invoice, customer, Window service and expected amount;
-- PaymentIntent receives the same internal metadata for later refund reconciliation;
-- raw-body reader for webhook requests;
-- Stripe signature parser + HMAC SHA-256 verification with timestamp tolerance and `timingSafeEqual`.
+### Business rule
+There must be no separate consumer-facing Stripe/card surcharge in the Namdar payment journey. Customer-visible invoices/Checkout use one service price.
 
-Stripe official docs were checked during implementation: webhook signatures require the unmodified raw body + `Stripe-Signature` + endpoint secret; POST creation supports idempotency keys.
+Namdar may optionally build an estimated processing-cost allowance into its normal Window headline price, provided that same service price applies regardless of the customer's eventual payment method. The allowance is a pricing buffer, not an itemised payment fee.
 
-### `api/create-checkout.js`
-Hardened customer Checkout creation:
-- authenticated customer only;
-- booking ownership checked server-side;
-- Window Cleaning only;
-- booking must be pending, confirmed or completed, not cancelled;
-- online policy must be effectively active;
-- invoice is created/issued through existing ledger;
-- deposit/full/balance amount is calculated server-side; arbitrary customer amount is impossible;
-- optional customer full-payment choice only when policy allows;
-- deterministic Stripe idempotency key prevents duplicate Checkout session creation for the same invoice/payment state;
-- success redirect is not trusted as payment proof;
-- latest Checkout session id may be stored on booking only as a reference, never as proof of payment.
+Actual processor cost for reporting comes from Stripe's balance-transaction data, not from the configured allowance or an assumed card rate.
 
-### `api/stripe-webhook.js` — authoritative Stripe writer
-New production webhook endpoint, with Vercel body parsing disabled to preserve raw request bytes.
+### Payment policy extension
+`lib/payment-policy.js` adds disabled-by-default fields:
+- `headlineAllowanceActive:false`;
+- `headlineAllowancePercent:1.5`;
+- `headlineAllowanceFixed:0.20`.
 
-It:
-- requires `STRIPE_WEBHOOK_SECRET` and `STRIPE_SECRET_KEY`;
-- verifies Stripe signature before JSON parsing/processing;
-- handles successful `checkout.session.completed` / async success only when Stripe says paid;
-- validates GBP, internal metadata, booking/invoice/customer relationship and Window service;
-- validates Stripe `amount_total` against the expected checkout metadata;
-- writes Stripe payments into existing `payment_records` with conflict-ignore on unique `provider_reference`;
-- resynchronises invoice and booking payment status using `syncInvoicePaymentState()`;
-- cancels pending overdue reminders when balance reaches zero;
-- creates staff payment notification and customer receipt/message only on the first ledger insert;
-- does **not** auto-confirm a booking;
-- handles successful Stripe refunds (`refund.created`, `refund.updated`, and `charge.refunded`) by reconciling PaymentIntent metadata and inserting idempotent refund ledger records.
+`headlinePriceWithAllowance(base, policy)` calculates `(base + fixed) / (1 - rate)` when enabled, rounded to two decimals. Existing quote pricing continues to round the resulting guide amount through its established whole-pound guide-price behavior. With the allowance disabled, pricing is unchanged.
 
-A duplicate Stripe webhook delivery cannot create a duplicate money record because `payment_records.provider_reference` is already unique and inserts use conflict-ignore semantics.
+`api/admin-payment-settings.js` stores the allowance inside `site_settings.payments` and audit-logs its state. `admin-payment-settings.js` clearly labels it as part of the normal service price for everyone, never a card/Stripe surcharge. The allowance can remain configured independently of Stripe provider activation, but default is off.
 
-### `api/payment-status.js`
-The customer return/status endpoint is now **read-only for money**:
-- retrieves Checkout session from Stripe;
-- verifies booking belongs to signed-in customer and is Window Cleaning;
-- checks whether the webhook-created Stripe payment ledger row exists;
-- can report `pendingWebhook` when Stripe reports paid but Namdar ledger has not received the verified webhook yet;
-- may call `syncInvoicePaymentState()` to refresh derived totals;
-- can no longer insert `payment_records`.
+`api/quote-core.js` applies the allowance only to Window Cleaning and before promo/reward reductions. It stores internal allowance metadata inside quote inputs when applied, but customer messaging never itemises a Stripe/card fee.
 
-Therefore a success URL/browser redirect cannot mark a booking paid.
+### Actual Stripe provider economics
+New additive migration:
+`supabase/migrations/20260913103500_stripe_processor_fee_accounting.sql`
 
-### `api/customer-billing.js` + `account-payments.js`
-Customer Billing now receives safe payment policy/readiness only, never secrets.
+It adds nullable internal fields to existing `payment_records`:
+- `provider_payment_id`;
+- `provider_balance_transaction`;
+- `provider_fee`;
+- `provider_net`;
+- `provider_fee_currency`.
 
-When policy is actually enabled, My Namdar supports:
-- pending Window booking initial payment;
-- deposit button with server-calculated amount;
-- optional Pay in full button if allowed;
-- remaining balance payment after a deposit;
-- completed-job outstanding balance payment;
-- payment history and existing PDF invoice/receipt downloads.
+It also adds a partial index on `provider_payment_id`. Existing RLS/security model is unchanged. No new finance table is introduced.
 
-The online payment action is absent when policy/provider is disabled.
+`lib/stripe-payments.js` can retrieve PaymentIntent/Charge/Refund/balance-transaction details and normalises Stripe balance-transaction `fee`, `net`, currency and reference into internal decimal values.
 
-### Admin settings + confirmation enforcement
-`api/admin-payment-settings.js` and `admin-payment-settings.js` add Admin → Payments controls.
+### Retry-safe webhook cost capture
+`api/stripe-webhook.js` keeps money recording idempotent and makes processor-cost reconciliation retry-safe:
+1. validate signed webhook + metadata/currency/amount;
+2. insert the payment/refund ledger row using unique provider reference, initially with provider payment ID and nullable fee fields;
+3. synchronise invoice/booking payment state and send first-insert notifications/receipt only once;
+4. fetch actual processor economics from Stripe balance transaction;
+5. patch the existing ledger row with actual fee/net/currency/balance-transaction reference;
+6. if provider-cost data is temporarily unavailable, return retryable HTTP 503 **after** the money/state is safely recorded. Stripe replay cannot duplicate the payment or customer receipt and can complete the missing processor-cost fields.
 
-GET requires Payments/AAL2. Editing requires Settings/AAL2. Settings updates are audit logged as `payments.settings_update`.
+This prevents a transient Stripe API lookup problem from permanently treating processor cost as £0.
 
-Admin can configure:
-- active/disabled;
-- optional vs deposit-required vs full-required;
-- deposit percentage;
-- minimum deposit;
-- customer full-payment choice.
+### Manual Stripe entries blocked
+`api/admin-payments.js` no longer allows staff to manually record `method='stripe'`. Such records must come from verified webhooks so provider cost remains trustworthy. `admin-payment-settings.js` removes the Stripe option from the existing manual-payment dropdown at runtime.
 
-Attempting to activate online payments without both Stripe secret + webhook secret is rejected.
+Cash, bank transfer, manually recorded card and other payment methods remain available through the existing staff workflow.
 
-`api/admin-booking-update.js` now enforces required Window payment policy server-side:
-- if deposit/full payment is required and active, a brand-new staff-created appointment cannot be created directly as Confirmed; create Pending first;
-- when Pending → Confirmed, the invoice ledger is resynchronised and confirmation is rejected unless required deposit/full payment is satisfied;
-- optional mode and inactive provider preserve existing booking behavior;
-- non-Window services are unaffected (and remain planned/non-live anyway).
+### Customer privacy
+`api/customer-billing.js` uses an explicit payment-record field selection and does not expose any provider-fee/net/payment-intent/balance-transaction fields. The customer's invoice total is not increased at checkout based on payment method and no processor fee line is shown.
 
-No browser or manually editable booking payment field is trusted; confirmation checks the invoice ledger.
+### Window contribution reporting
+`api/admin-window-performance.js` now:
+- groups payment records per completed Window booking;
+- sums actual GBP `provider_fee` from Stripe ledger rows;
+- treats non-Stripe methods as having no Stripe processor cost;
+- marks processor economics incomplete when any Stripe transaction lacks fee data or is non-GBP;
+- requires both reviewed job costs and complete processor-cost data before including a job in direct contribution;
+- computes direct costs as reviewed job costs + captured Stripe processing fees;
+- exposes processor-fee data quality counters.
 
-### Health / activation safety
-`api/health.js` now distinguishes `stripeSecret`, `stripeWebhook` and aggregate `stripe` readiness using booleans only.
+`admin-window-performance.js` shows Stripe processing cost and flags jobs whose contribution is excluded because processor-cost reconciliation is incomplete.
 
-Production must remain payment-disabled until all of these are true:
-1. Stripe account is connected/configured securely;
+Direct contribution still explicitly excludes labour, overheads, tax and other business costs, so it must never be called net profit.
+
+### Tests
+`scripts/stripe-payments.test.mjs` covers:
+- disabled allowance defaults;
+- headline allowance formula;
+- no card/Stripe fee wording in customer quote source;
+- Stripe balance-transaction fee/net conversion;
+- provider-accounting migration fields;
+- customer Billing not exposing provider fields;
+- staff manual Stripe entries blocked;
+- existing signature/idempotency/payment confirmation safeguards.
+
+`scripts/window-performance.test.mjs` now checks that processor cost participates in direct-contribution readiness and Admin labels remain accurate.
+
+### Release sequence
+Do not merge code before the additive migration exists in production, because the new webhook/report API selects/writes the new columns.
+
+Release gate:
+1. finish candidate docs/UI/cache version;
+2. open PR;
+3. require exact-head GitHub CI SUCCESS and exact-head Vercel preview READY/clean;
+4. apply `stripe_processor_fee_accounting` migration to production;
+5. verify columns/index/RLS/no synthetic Stripe rows/no payment-policy row/service catalog unchanged;
+6. merge the exact tested PR head;
+7. verify production build/runtime and `/api/health` still show Stripe disabled;
+8. perform a final docs sync with exact release IDs.
+
+## Stripe activation later
+After this code release, Stripe itself still remains disabled until:
+1. Stripe account is configured securely;
 2. `STRIPE_SECRET_KEY` is stored server-side in Vercel;
-3. Stripe webhook endpoint points to `https://namdar.co.uk/api/stripe-webhook`;
-4. its signing secret is stored as `STRIPE_WEBHOOK_SECRET` in Vercel;
-5. Checkout success, duplicate webhook, delayed webhook and refund behavior are tested end-to-end;
-6. only then set Admin → Payments active.
+3. webhook points to `https://namdar.co.uk/api/stripe-webhook`;
+4. `STRIPE_WEBHOOK_SECRET` is stored in Vercel;
+5. Checkout, delayed/duplicate webhook, fee capture and refund are tested end-to-end in test mode;
+6. Admin deliberately enables the payment policy;
+7. headline allowance is separately enabled only if desired.
 
-Never ask the user to paste Stripe secrets into chat or commit them.
-
-### Database / migration impact
-No database migration in this candidate. Reuses:
-- `site_settings` for `key='payments'` policy;
-- `bookings.stripe_checkout_session_id` reference;
-- `bookings.payment_status`;
-- `invoices`;
-- `payment_records` unique `provider_reference`;
-- existing audit/customer/staff notification infrastructure.
-
-No production payment policy row or synthetic Stripe payment record was inserted during implementation.
-
-### Candidate files
-New:
-- `lib/payment-policy.js`
-- `lib/stripe-payments.js`
-- `api/admin-payment-settings.js`
-- `api/stripe-webhook.js`
-- `admin-payment-settings.js`
-- `account-payments.js`
-- `scripts/stripe-payments.test.mjs`
-
-Changed:
-- `api/create-checkout.js`
-- `api/payment-status.js`
-- `api/customer-billing.js`
-- `api/admin-booking-update.js`
-- `api/health.js`
-- `account.js`
-- `admin.js`
-- `.github/workflows/ai-handoff-check.yml`
-- continuity docs.
-
-CI now syntax-checks all payment modules and runs `scripts/stripe-payments.test.mjs`.
-
-## Immediate release/next action
-1. open the Stripe foundation PR;
-2. require full GitHub CI + exact-head Vercel preview/build clean;
-3. merge/deploy only if green;
-4. verify production remains Stripe-disabled with no payment policy/ledger fabrication;
-5. then connect Stripe securely and perform provider/webhook test-mode activation before enabling Admin payment policy.
+Never ask the user to paste provider secrets into chat or commit them.
 
 ## Non-negotiables
 - Window Cleaning only.
-- Stripe verified webhook is authoritative for Stripe money; browser success redirect is not.
-- No card details or provider secrets in Namdar data/browser/logs/docs/chat.
+- No separate customer card/Stripe surcharge.
+- Actual Stripe fee is internal accounting data and comes from provider balance transactions.
+- Verified Stripe webhook is authoritative for Stripe money; browser redirect is not.
+- Missing processor cost is not £0 and blocks contribution for the affected job.
+- No card details or provider secrets in browser/logs/docs/chat.
 - Privileged changes remain AAL2/MFA protected.
-- Existing service/booking security and accepted commitments remain intact.
-- Address work remains parked.
-- Support tickets customer-only; public inbound email stays Admin Email inbox.
-- Review solicitation remains neutral/equal.
+- Address work stays parked.
+- Support tickets stay customer-only; public inbound email stays Admin Email inbox.
+- Review solicitation stays neutral/equal.
