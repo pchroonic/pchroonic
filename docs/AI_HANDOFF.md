@@ -6,167 +6,167 @@ Read `docs/AI_START.md` first.
 
 ## Production source of truth
 - Repo: `pchroonic/pchroonic`, default `main`.
-- Latest deployed product release: PR #49 `Add secure Window Stripe payment foundation`.
-- PR #49 exact tested head: `3423e99ae7e7924f7cae7d60c908d4fdb6badfa9`.
-- CI: `34741505277` SUCCESS.
-- Exact-head preview: `dpl_AtV51rETngSfh77isxD7hTWTBp45` READY / clean build.
-- Merge: `94572eaabcb5f876a75c0123653f73a144ef54e2`.
-- Production: `dpl_ALo78vUX3j9xwVZ8PnMjC9mAASmw` READY on `https://namdar.co.uk`, canonical alias present, no alias error.
+- Latest product release: PR #50 `Account for Stripe fees without customer surcharges`.
+- Exact tested head: `17892e015f8e7f8b7c9a6b0b577292bb950d5c64`.
+- GitHub Actions: `34752824319` SUCCESS.
+- Exact-head Vercel preview: `dpl_2py2f1pDzH8YK5YD6GRkiD2hojfi` READY, clean errors-only build.
+- Merge: `32e13016601492eae3daa2021f35195298b00f5b`.
+- Product production: `dpl_Ce8kShg3ikTXVubaTYMKcgAFjztT` READY on `https://namdar.co.uk`, canonical alias present, `aliasError:null`, clean errors-only build.
+- Runtime errors/fatal logs on that deployment during release verification: none.
 - Supabase: `namdar-production` (`qjigldxjcpnrlyxgmlqq`).
-- Only `windows` is live. Gutters/jetwash/roof/handyman/tour3d remain `planned`.
+- Only `windows` is live; gutters/jetwash/roof/handyman/tour3d remain `planned`.
 - Address work remains parked.
-- Staff/Admin privileged access requires AAL2/MFA.
+- Staff/Admin privileged API access requires AAL2/MFA.
 
 ## Window Stage 1 live baseline
-Keep the existing Window quote/recurring pricing, service-live gates, route-aware booking rules, Staff On my way → Start → Complete, completed-job direct-cost/travel review, consent-aware conversion funnel, direct-contribution reporting and neutral post-job review flow.
+Keep the existing Window quote/recurring pricing, service-live gates, route-aware booking rules, Staff On my way → Start → Complete, completed-job direct-cost/travel review, consent-aware conversion funnel, direct-contribution reporting, neutral post-job review flow, Stripe foundation and processor-cost accounting.
 
-`booking_job_costs` remains the source for staff-reviewed job costs. Missing review is not £0 cost. Direct contribution is not net profit.
+`booking_job_costs` remains the staff-reviewed job-cost source. Missing review is not £0. Missing/incomplete Stripe processor cost is also not £0. Direct contribution is not net profit.
 
 Public Google review requests remain disabled until the official Business Profile review-request URL is deliberately entered. Never restore positive-only review gating or incentives.
 
 ## Booking-notification resilience
-PR #47 isolated four hourly notification stages and batched business reminder work. A real scheduled authenticated run at 2026-09-13 05:00:02 UTC returned HTTP 200 while logging `Notification cron stage failed: booking_delivery 504 Gateway Timeout`.
+PR #47 isolated the four hourly notification stages and batched business reminder work. A real scheduled authenticated run at 2026-09-13 05:00:02 UTC returned HTTP 200 while logging `Notification cron stage failed: booking_delivery 504 Gateway Timeout`.
 
-Interpretation: containment is working, but the underlying intermittent Supabase REST 504 persists. Keep the hourly Namdar Cron Watch and do not declare it permanently resolved.
+Containment is working, but the intermittent upstream/Supabase REST 504 persists. Keep `Namdar Cron Watch`; do not declare it permanently resolved.
 
-## PR #49 Stripe foundation — deployed but provider disabled
-PR #49 reused the existing invoice/payment ledger and added secure Stripe readiness without activating Stripe.
+## PR #49 secure Stripe foundation — LIVE CODE, PROVIDER DISABLED
+PR #49 added Window-only secure Checkout/payment policy without activating Stripe.
 
-Production verification immediately after release:
-- `/api/health`: `stripe:false`, `stripeSecret:false`, `stripeWebhook:false`;
-- no `site_settings.payments` row;
-- zero Stripe payment ledger rows;
-- no service activation beyond Window Cleaning.
-
-Important PR #49 security behavior:
-- `lib/payment-policy.js` defaults online payments to disabled;
-- effective activation requires stored Admin activation plus `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`;
-- `api/create-checkout.js` is authenticated/customer-owned/Window-only and server-calculates deposit/full/balance amounts;
-- Checkout uses deterministic Stripe idempotency keys;
-- `api/stripe-webhook.js` preserves raw body and verifies Stripe signature before writing money;
-- `api/payment-status.js` is read-only for money;
-- `payment_records.provider_reference` uniqueness + conflict-ignore makes webhook replay idempotent;
-- required deposit/full policy is enforced server-side before a Window booking can be confirmed;
+Core rules retained after PR #50:
+- online payments default disabled;
+- effective activation needs Admin activation + `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET`;
+- Checkout is customer-owned, Window-only and server-calculated;
+- deterministic idempotency key prevents duplicate Checkout creation for the same payment state;
+- webhook preserves raw body and verifies Stripe signature before money writes;
+- browser payment return/status is read-only for money;
+- `payment_records.provider_reference` is unique and webhook inserts use conflict-ignore semantics;
+- required deposit/full payment is enforced server-side before Window booking confirmation;
 - card details never pass through or persist in Namdar.
 
-Do not call Stripe payments live until the provider is securely connected and test-mode end-to-end verification is complete.
+Latest production health after PR #50 still reports `stripe:false`, `stripeSecret:false`, `stripeWebhook:false`; there is no payment-policy row and there are zero Stripe payment rows.
 
-## Current candidate — Stripe processing cost as Namdar internal cost
-Branch: `feat/stripe-fee-accounting-20260913`.
-
+## PR #50 processor-fee accounting — LIVE
 ### Business rule
-There must be no separate consumer-facing Stripe/card surcharge in the Namdar payment journey. Customer-visible invoices/Checkout use one service price.
+There is no separate consumer-facing Stripe/card surcharge in the Namdar journey. Customer-visible invoice/Checkout uses one ordinary service price.
 
-Namdar may optionally build an estimated processing-cost allowance into its normal Window headline price, provided that same service price applies regardless of the customer's eventual payment method. The allowance is a pricing buffer, not an itemised payment fee.
+An optional Window **headline price allowance** may be deliberately enabled in Admin. When enabled it applies to the ordinary service price regardless of eventual payment method and is never itemised as a card/Stripe fee. It is currently OFF because no `site_settings.payments` row exists.
 
-Actual processor cost for reporting comes from Stripe's balance-transaction data, not from the configured allowance or an assumed card rate.
+Default allowance suggestion in code:
+- 1.5%;
+- £0.20 fixed;
+- disabled by default.
 
-### Payment policy extension
-`lib/payment-policy.js` adds disabled-by-default fields:
-- `headlineAllowanceActive:false`;
-- `headlineAllowancePercent:1.5`;
-- `headlineAllowanceFixed:0.20`.
+`headlinePriceWithAllowance(base, policy)` uses `(base + fixed) / (1 - rate)` before the existing whole-pound guide-price rounding. Promo/reward discounts are applied after the headline allowance. This allowance is a configurable pricing buffer only; it is not used as the accounting source of truth for actual Stripe cost.
 
-`headlinePriceWithAllowance(base, policy)` calculates `(base + fixed) / (1 - rate)` when enabled, rounded to two decimals. Existing quote pricing continues to round the resulting guide amount through its established whole-pound guide-price behavior. With the allowance disabled, pricing is unchanged.
+### Production migration
+Migration `stripe_processor_fee_accounting` was applied successfully before PR #50 merge.
 
-`api/admin-payment-settings.js` stores the allowance inside `site_settings.payments` and audit-logs its state. `admin-payment-settings.js` clearly labels it as part of the normal service price for everyone, never a card/Stripe surcharge. The allowance can remain configured independently of Stripe provider activation, but default is off.
-
-`api/quote-core.js` applies the allowance only to Window Cleaning and before promo/reward reductions. It stores internal allowance metadata inside quote inputs when applied, but customer messaging never itemises a Stripe/card fee.
-
-### Actual Stripe provider economics
-New additive migration:
+Migration file:
 `supabase/migrations/20260913103500_stripe_processor_fee_accounting.sql`
 
-It adds nullable internal fields to existing `payment_records`:
-- `provider_payment_id`;
-- `provider_balance_transaction`;
-- `provider_fee`;
-- `provider_net`;
-- `provider_fee_currency`.
+Added nullable internal `payment_records` columns:
+- `provider_payment_id text`;
+- `provider_balance_transaction text`;
+- `provider_fee numeric(12,2)`;
+- `provider_net numeric(12,2)`;
+- `provider_fee_currency text`.
 
-It also adds a partial index on `provider_payment_id`. Existing RLS/security model is unchanged. No new finance table is introduced.
+Added partial index:
+`payment_records_provider_payment_idx` on `provider_payment_id` where non-null.
 
-`lib/stripe-payments.js` can retrieve PaymentIntent/Charge/Refund/balance-transaction details and normalises Stripe balance-transaction `fee`, `net`, currency and reference into internal decimal values.
+Post-migration verification:
+- all 5 columns present;
+- index present;
+- `payment_records` RLS still enabled;
+- 0 Stripe ledger rows;
+- 0 `site_settings.payments` rows;
+- service catalog unchanged: Window live, five future services planned.
 
-### Retry-safe webhook cost capture
-`api/stripe-webhook.js` keeps money recording idempotent and makes processor-cost reconciliation retry-safe:
-1. validate signed webhook + metadata/currency/amount;
-2. insert the payment/refund ledger row using unique provider reference, initially with provider payment ID and nullable fee fields;
-3. synchronise invoice/booking payment state and send first-insert notifications/receipt only once;
-4. fetch actual processor economics from Stripe balance transaction;
-5. patch the existing ledger row with actual fee/net/currency/balance-transaction reference;
-6. if provider-cost data is temporarily unavailable, return retryable HTTP 503 **after** the money/state is safely recorded. Stripe replay cannot duplicate the payment or customer receipt and can complete the missing processor-cost fields.
+No new finance table was created.
 
-This prevents a transient Stripe API lookup problem from permanently treating processor cost as £0.
+### Stripe actual-cost source
+`lib/stripe-payments.js` retrieves PaymentIntent, Charge, Refund and BalanceTransaction objects and normalises balance-transaction economics:
+- actual `fee`;
+- actual `net`;
+- currency;
+- balance-transaction reference.
 
-### Manual Stripe entries blocked
-`api/admin-payments.js` no longer allows staff to manually record `method='stripe'`. Such records must come from verified webhooks so provider cost remains trustworthy. `admin-payment-settings.js` removes the Stripe option from the existing manual-payment dropdown at runtime.
+These provider values are internal accounting data. Do not infer actual fee from the headline allowance or a generic Stripe rate.
 
-Cash, bank transfer, manually recorded card and other payment methods remain available through the existing staff workflow.
+### Retry-safe webhook reconciliation
+`api/stripe-webhook.js` now processes successful payments/refunds in this order:
+1. verify signed raw webhook, GBP, amount and Window ownership/metadata;
+2. insert the idempotent payment/refund record with provider payment ID and nullable cost fields;
+3. synchronise existing invoice/booking payment state;
+4. send first-insert customer/staff notification only once;
+5. retrieve actual Stripe processor economics;
+6. patch the same ledger row with balance transaction, fee, net and currency.
+
+If step 5/6 cannot complete because Stripe cost data is temporarily unavailable, the handler returns retryable HTTP 503 **after** the payment/refund and derived money state are already safely recorded. Stripe replay hits the same unique provider reference, does not duplicate money or receipts, and can finish processor-cost reconciliation.
+
+### Manual Stripe rows prohibited
+`api/admin-payments.js` rejects staff-created `method='stripe'` records. `admin-payment-settings.js` also removes Stripe from the manual payment dropdown. Stripe records must originate from the verified webhook so provider-fee data remains trustworthy.
+
+Cash, bank transfer, manual card and other existing staff methods remain available.
 
 ### Customer privacy
-`api/customer-billing.js` uses an explicit payment-record field selection and does not expose any provider-fee/net/payment-intent/balance-transaction fields. The customer's invoice total is not increased at checkout based on payment method and no processor fee line is shown.
+`api/customer-billing.js` explicitly selects only customer-safe payment fields and omits all processor-cost/provider-balance identifiers.
 
-### Window contribution reporting
-`api/admin-window-performance.js` now:
-- groups payment records per completed Window booking;
-- sums actual GBP `provider_fee` from Stripe ledger rows;
-- treats non-Stripe methods as having no Stripe processor cost;
-- marks processor economics incomplete when any Stripe transaction lacks fee data or is non-GBP;
-- requires both reviewed job costs and complete processor-cost data before including a job in direct contribution;
-- computes direct costs as reviewed job costs + captured Stripe processing fees;
-- exposes processor-fee data quality counters.
+`api/billing-document.js` may fetch full records internally but renders only ordinary receipt/invoice fields; it does not render `provider_fee`, `provider_net`, `provider_payment_id` or `provider_balance_transaction`. Regression tests cover both JSON Billing and PDFs.
 
-`admin-window-performance.js` shows Stripe processing cost and flags jobs whose contribution is excluded because processor-cost reconciliation is incomplete.
+### Window direct contribution
+`api/admin-window-performance.js` now groups ledger rows by completed Window booking and calculates processor-cost completeness.
 
-Direct contribution still explicitly excludes labour, overheads, tax and other business costs, so it must never be called net profit.
+Contribution-ready requires:
+- reviewed `booking_job_costs`; and
+- every linked Stripe transaction to have known GBP `provider_fee` data.
 
-### Tests
-`scripts/stripe-payments.test.mjs` covers:
-- disabled allowance defaults;
-- headline allowance formula;
-- no card/Stripe fee wording in customer quote source;
-- Stripe balance-transaction fee/net conversion;
-- provider-accounting migration fields;
-- customer Billing not exposing provider fields;
-- staff manual Stripe entries blocked;
-- existing signature/idempotency/payment confirmation safeguards.
+For contribution-ready jobs:
+`direct costs = reviewed consumables + parking + travel + other job cost + actual Stripe processing fee`
 
-`scripts/window-performance.test.mjs` now checks that processor cost participates in direct-contribution readiness and Admin labels remain accurate.
+`direct contribution = job value - direct costs`
 
-### Release sequence
-Do not merge code before the additive migration exists in production, because the new webhook/report API selects/writes the new columns.
+If any Stripe fee is missing or non-GBP, affected job is excluded from direct-contribution aggregates rather than assuming £0. Admin reporting displays processor fees and data-quality counters.
 
-Release gate:
-1. finish candidate docs/UI/cache version;
-2. open PR;
-3. require exact-head GitHub CI SUCCESS and exact-head Vercel preview READY/clean;
-4. apply `stripe_processor_fee_accounting` migration to production;
-5. verify columns/index/RLS/no synthetic Stripe rows/no payment-policy row/service catalog unchanged;
-6. merge the exact tested PR head;
-7. verify production build/runtime and `/api/health` still show Stripe disabled;
-8. perform a final docs sync with exact release IDs.
+Direct contribution remains **not net profit**; labour, overheads, tax and other business costs remain outside this metric.
 
-## Stripe activation later
-After this code release, Stripe itself still remains disabled until:
-1. Stripe account is configured securely;
-2. `STRIPE_SECRET_KEY` is stored server-side in Vercel;
-3. webhook points to `https://namdar.co.uk/api/stripe-webhook`;
-4. `STRIPE_WEBHOOK_SECRET` is stored in Vercel;
-5. Checkout, delayed/duplicate webhook, fee capture and refund are tested end-to-end in test mode;
-6. Admin deliberately enables the payment policy;
-7. headline allowance is separately enabled only if desired.
+### Release verification
+- PR: #50 `Account for Stripe fees without customer surcharges`;
+- exact head: `17892e015f8e7f8b7c9a6b0b577292bb950d5c64`;
+- CI: `34752824319` SUCCESS;
+- exact-head preview: `dpl_2py2f1pDzH8YK5YD6GRkiD2hojfi` READY / clean;
+- production migration applied and verified before merge;
+- merge: `32e13016601492eae3daa2021f35195298b00f5b`;
+- production: `dpl_Ce8kShg3ikTXVubaTYMKcgAFjztT` READY, canonical alias, no alias error;
+- product production build clean;
+- release-time runtime error/fatal query clean;
+- `/api/health` after deploy still `stripe:false`, `stripeSecret:false`, `stripeWebhook:false`;
+- Admin serves `6.4.22-stripe-fee-accounting-1`;
+- post-deploy DB recheck: 0 Stripe rows, 0 payment-policy rows, service catalog unchanged.
+
+## Stripe activation next
+Stripe itself is still disabled. Activation sequence:
+1. create/configure the Stripe account securely;
+2. store `STRIPE_SECRET_KEY` in Vercel server-side environment;
+3. configure Stripe webhook URL `https://namdar.co.uk/api/stripe-webhook`;
+4. store `STRIPE_WEBHOOK_SECRET` in Vercel;
+5. test in Stripe test mode: deposit/full Checkout, successful webhook, delayed/duplicate webhook, processor-fee capture, balance payment and refund;
+6. confirm Admin reporting shows the actual fee and customer Billing/PDFs do not;
+7. deliberately enable Window payment policy in Admin;
+8. separately decide whether headline price allowance should be enabled. It remains OFF by default.
 
 Never ask the user to paste provider secrets into chat or commit them.
 
 ## Non-negotiables
 - Window Cleaning only.
 - No separate customer card/Stripe surcharge.
-- Actual Stripe fee is internal accounting data and comes from provider balance transactions.
+- Actual Stripe fee is internal accounting data from provider balance transactions.
 - Verified Stripe webhook is authoritative for Stripe money; browser redirect is not.
-- Missing processor cost is not £0 and blocks contribution for the affected job.
-- No card details or provider secrets in browser/logs/docs/chat.
+- Missing processor cost is not £0 and blocks contribution for that job.
+- No card details/provider secrets in browser, source, logs, docs or chat.
 - Privileged changes remain AAL2/MFA protected.
-- Address work stays parked.
+- Existing accepted work survives service pauses.
+- Address work remains parked.
 - Support tickets stay customer-only; public inbound email stays Admin Email inbox.
 - Review solicitation stays neutral/equal.
