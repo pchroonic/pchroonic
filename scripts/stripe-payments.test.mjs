@@ -49,5 +49,5 @@ test('required Window payment policy is enforced server-side before booking conf
 test('Admin and customer payment surfaces are extensions and do not expose secret values',()=>{
   const adminApi=read('api/admin-payment-settings.js'),admin=read('admin-payment-settings.js'),account=read('account-payments.js');
   assert.match(adminApi,/requireStaff\(req,'settings'\)/);assert.match(adminApi,/!provider\.ready/);assert.match(adminApi,/payments\.settings_update/);assert.doesNotMatch(adminApi,/STRIPE_SECRET_KEY.*return/);
-  assert.match(read('admin.js'),/admin-payment-settings\.js/);assert.match(read('account.js'),/account-payments\.js/);assert.match(admin,/Card details are never stored by Namdar/);assert.match(account,/checkout\.stripe\.com/);
+  assert.match(read('admin.js'),/admin-payment-settings\.js/);assert.match(read('account.js'),/account-payments\.js/);assert.match(admin,/Card details are never stored by Namdar/);assert.match(account,/checkout\\\.stripe\\\.com/);
 });
