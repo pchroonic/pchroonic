@@ -44,7 +44,9 @@ jobs:
           node --check admin-business-finance.js
           node --check admin-business-finance-polish.js
           node --check admin-finance-receipts.js
+          node --check admin-system-health.js
           node --check api/address-harvest-cron.js
+          node --check api/account-purge.js
           node --check api/admin-address-harvest.js
           node --check api/admin-address-harvest-export.js
           node --check api/admin-services.js
@@ -58,6 +60,7 @@ jobs:
           node --check api/admin-finance-settings.js
           node --check api/admin-finance-expenses.js
           node --check api/admin-finance-receipts.js
+          node --check api/admin-system-health.js
           node --check api/staff-job-action.js
           node --check api/staff-jobs.js
           node --check api/feedback.js
@@ -98,6 +101,7 @@ jobs:
           node --check lib/stripe-payments.js
           node --check lib/uk-tax.js
           node --check lib/receipt-intelligence.js
+          node --check lib/system-health.js
           node --check scripts/os-open-data-import.mjs
           node --test scripts/address-harvest-priority.test.mjs
           node --test scripts/address-commercial-foundation.test.mjs
@@ -113,6 +117,7 @@ jobs:
           node --test scripts/business-finance.test.mjs
           node --test scripts/receipt-intelligence.test.mjs
           node --test scripts/business-finance-receipts.test.mjs
+          node --test scripts/system-health.test.mjs
           node --check lib/server.js
           node --check lib/server-original.js
           node --check staff.js

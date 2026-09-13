@@ -6,90 +6,117 @@ Read `docs/AI_START.md` first.
 
 ## Production source of truth
 - Repo `pchroonic/pchroonic`, default `main`.
-- Product release: PR #62 `Add intelligent receipt-driven expense ledger`.
-- Tested PR head `2496e80a085f3acf812a4e865f5befb72eec02a8`; CI `34766157941` SUCCESS; exact preview `dpl_4adpSAC33DWg2oawWeqWPqUW78KM` READY with clean errors-only build.
-- Merge/main HEAD `a6b73927f1649f2ad167cda4410f2f5632b78212`.
+- Product release PR #62 `Add intelligent receipt-driven expense ledger`, merge `a6b73927f1649f2ad167cda4410f2f5632b78212`.
+- PR #63 docs-only continuity merge `aabcb88d3ee24a92a3af3770e256550f692d32af`.
 - Production deployment `dpl_B4nhdmgLZ13n813rUMWQfJRj2KUN` READY on `https://namdar.co.uk`.
-- Production `/api/health` HTTP 200 after deploy.
-- Production Admin loader `6.4.26-intelligent-receipts-1`, including `admin-finance-receipts.js`.
+- Production Admin loader `6.4.26-intelligent-receipts-1`.
 - Supabase production `qjigldxjcpnrlyxgmlqq`.
-- Window Cleaning only live; future services planned; address work parked.
-- Staff/Admin privileged APIs require AAL2/MFA.
+- Window Cleaning only live; address work parked; AAL2/MFA required for privileged Staff/Admin.
 
-## Stripe state
-Sandbox provider connected; commercial customer payment policy OFF; no live-money credentials. Normal signed-in deposit + balance + refund passed end-to-end with authoritative webhooks. Four retained Stripe rows are sandbox and excluded from Business Finance.
+## Existing safety state
+- Stripe customer policy OFF; no live Stripe credentials.
+- Four retained Stripe rows are sandbox and excluded from finance.
+- Business structure: sole trader first, limited company later from real incorporation date.
+- Confirmed £106 test fixture removed.
+- Smart receipts live; first authenticated receipt test deferred by user.
 
-## Business Finance
-Business structure: **sole trader first, limited company after success**. Preserve historical sole-trader activity and switch future reporting only from the real incorporation date. PR #61 setup gating stays live; do not invent the sole-trader start date or private financial assumptions.
+## Reliability evidence
+Vercel 7-day runtime-error review before implementation:
+- meaningful current issue: intermittent Supabase/PostgREST 504s, especially `/api/booking-notifications` stages;
+- 401 staff/customer sign-in errors are expected auth/session noise, not reliability incidents;
+- missing env errors and webhook raw-body errors were tied to older deployments and must not be surfaced as current state.
 
-### £106 test fixture removed
-User confirmed the old £106 Sep-11 Window booking/invoice was test data. It had no payments, job costs, feedback, project links or promo use. Quote, booking, invoice, notifications and matching archived reminder were deleted together.
+## System Health branch
+Branch: `feat/system-health-reliability-20260913`.
+Admin loader target: `6.4.27-system-health-1`.
 
-Verified post-release finance state:
-- outstanding invoices £0;
-- rolling invoice turnover £0;
-- business expenses 0;
-- receipt rows 0;
-- merchant rules 0;
-- Stripe 4 sandbox / 0 live;
-- payment-policy rows 0.
+Applied migration:
+- `20260913154800 system_health_reliability_history`.
 
-## Intelligent receipts — LIVE, awaiting first authenticated receipt test
-Applied migrations:
-- `20260913152601 intelligent_expense_receipts`;
-- `20260913153443 intelligent_expense_receipt_fk_indexes`.
+### Database
+`system_health_runs`
+- server-only operational run history;
+- fields include component, healthy/warning/failing status, summary, source, start/finish, duration and non-secret JSON details;
+- RLS enabled, no direct browser policies.
 
-Both have matching SQL files in git. Receipt-specific unindexed-FK advisor findings are cleared. Receipt/merchant tables have RLS enabled with no browser table policies by design; their data is mediated by privileged server APIs. Original documents are stored in private bucket `finance-receipts` (JPG/PNG/WebP/PDF, 10 MB), with AAL2 + Admin/active-settings-staff storage policies.
+`system_health_incidents`
+- grouped incident lifecycle with fingerprint, component, warning/failing severity, open/resolved state, title/message, occurrence count, first/last seen, resolved timestamp and latest run link;
+- partial unique index allows only one open incident per fingerprint;
+- RLS enabled, no direct browser policies.
 
-### Browser flow
-`admin-finance-receipts.js` adds `Smart receipt` above the expense form:
-1. select/drop receipt;
-2. SHA-256 fingerprint and exact-file duplicate check;
-3. authenticated upload to private Supabase Storage;
-4. image OCR in browser via pinned Tesseract.js 7.0.0;
-5. PDF embedded-text extraction via pinned PDF.js 4.10.38; scanned PDFs fall back to OCR;
-6. receipt text sent only to Namdar's own protected analysis API;
-7. fields suggested: supplier/date/total/VAT/reference/payment method/category/tax treatment/business-use %;
-8. confidence and duplicate warnings shown;
-9. existing expense form populated but nothing saved automatically;
-10. reviewed submit attaches receipt to expense and learns final merchant choices;
-11. recent documents reopen via short-lived signed URLs.
+### `lib/system-health.js`
+Exports:
+- `statusFromFailures(failed,total)`;
+- `freshnessStatus(lastSeen,warningAfterMs,failingAfterMs,now)`;
+- `recordHealthState(...)`;
+- incident open/touch/resolve helpers.
 
-### Backend
-`lib/receipt-intelligence.js`
-- deterministic field extraction/category rules;
-- fine/penalty non-allowable warning;
-- merchant-key normalization and learned-rule application;
-- confidence/review warnings.
+Behavior:
+- every scheduled-run health record inserts `system_health_runs`;
+- warning/failing states open or increment one incident fingerprint;
+- first open creates one staff notification with `permission_key='settings'` and target `/admin?tab=health`;
+- repeat failures update occurrence count without notification spam;
+- healthy run resolves the open incident.
 
-`api/admin-finance-receipts.js`
-- GET: analytics permission;
-- prepare/analyze/error/discard: settings permission via AAL2 `requireStaff`;
-- MIME/size/hash validation, exact-file duplicate detection, expense duplicate candidates, audit logs.
+### Notification cron instrumentation
+`api/booking-notifications.js` keeps existing four isolated stages and retry logic, then records:
+- component `notification_cron`;
+- `healthy` when all stages succeed;
+- `warning` when some stages degrade/fail;
+- `failing` when all stages fail or an authorized scheduled run stops before completion;
+- fingerprint `notification-cron-degraded`;
+- details contain stage ok/attempt/recovered/failed counts and DB retry counters only, no customer data/secrets.
 
-`api/admin-finance-expenses.js`
-- accepts reviewed `receiptId`;
-- creates receipt-backed expense with `source='receipt'`;
-- attaches receipt and learns reviewed merchant/category/tax/business-use/payment-method values;
-- deleting a receipt-backed expense returns the receipt to review rather than destroying document history.
+### Account purge instrumentation
+`api/account-purge.js` records component `account_purge`, fingerprint `account-purge-degraded`, counts only, and marks failures without exposing customer IDs in health history.
 
-Privacy: no third-party AI service receives receipt pixels/document content in v1. OCR happens in the authenticated Admin browser; original files remain private in Supabase. jsDelivr is used only for pinned OCR/PDF runtime assets.
+### Private health API
+`api/admin-system-health.js`
+- GET only;
+- requires `requireStaff(req,'settings')` (therefore AAL2 through wrapped server helper);
+- live components:
+  - Database latency/availability;
+  - Stripe configured + sandbox/live mode only, never secret values;
+  - Email provider readiness;
+  - CRON_SECRET presence as boolean state only;
+  - notification cron freshness (warning after 90m, failing after 150m);
+  - account purge freshness (warning after 30h, failing after 42h);
+  - booking/business notification queue backlog/stuck/failed counts;
+  - private `finance-receipts` bucket reachability via service-role server call;
+- returns open/resolved incident history and recent health runs;
+- notes explicitly distinguish expected auth 401 noise.
 
-## Next test
-1. User hard-refreshes Admin -> Reports.
-2. Confirm `Smart receipt` panel appears.
-3. Upload a controlled receipt.
-4. Verify OCR/suggestions and correct anything wrong before saving.
-5. After save, verify `business_expenses`, `business_expense_receipts`, merchant rule, private reopen link and duplicate handling.
-6. If sample is not a genuine business expense, clean it after testing.
-7. Keep customer Stripe policy OFF until finance/receipt workflow is validated.
+### Admin UI
+`admin-system-health.js`
+- loaded after existing Admin modules;
+- dynamically adds a Settings-only `System health` tab without modifying the large legacy Admin file;
+- deep link `/admin?tab=health` works after access sync;
+- adds Overview button `Open System Health`;
+- component cards show Healthy/Warning/Failing, latency, schedules and last-run age;
+- incident history shows open/resolved cycles and occurrence count;
+- scheduled-run history table shows recent cron outcomes;
+- manual refresh + 60s refresh while tab is open.
+
+### Regression coverage
+- `scripts/system-health.test.mjs` tests health classification/freshness and static privacy/security wiring;
+- CI syntax checks include new UI/API/helper plus `api/account-purge.js`;
+- existing finance/receipt loader assertions updated to `6.4.27-system-health-1`.
+
+## Next verification
+1. Open PR only after branch code/docs are complete.
+2. Require green GitHub CI.
+3. Require exact-head Vercel preview READY and errors-only build clean.
+4. Merge, verify production `/api/health` and exact Admin loader.
+5. Authenticated Admin -> System health should initially show live components and no fabricated run history.
+6. After next hourly :07 cron, verify a `notification_cron` run exists.
+7. If a real cron degradation occurs, verify one incident + one staff alert; later healthy run must resolve it.
+8. Keep Stripe commercial policy OFF.
 
 ## Non-negotiables
-- No customer exposure of private finance settings, expenses or receipts.
-- Receipt extraction is suggestion-only; never silently post accounting/tax entries.
-- Sandbox Stripe activity never counts as business revenue/tax activity.
-- No separate customer card surcharge.
-- Stripe webhook authoritative for money state.
-- No secrets or unnecessary personal finance details in source/logs/docs/chat.
-- Direct contribution != net profit; finance estimate != filed tax return.
+- Do not expose env values, Stripe secrets, service-role keys, customer identifiers or raw provider errors in health UI/history.
+- Do not count expected 401 auth events as platform incidents.
+- Do not backfill runtime logs into Namdar history as if they were recorded live.
+- No customer exposure of health/finance/receipt data.
+- Sandbox Stripe excluded from business finance; Stripe webhook authoritative.
+- Smart receipts remain review-first.
 - Window only live; address work parked.
