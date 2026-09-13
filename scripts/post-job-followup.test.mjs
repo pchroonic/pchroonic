@@ -53,11 +53,15 @@ test('review settings are staff protected, Google-only and auditable',()=>{
 
 test('notification cron keeps post-job first while isolating bounded delivery and business scan stages',()=>{
   const api=read('api/booking-notifications.js');
-  const post=api.indexOf('processPostJobFollowUps(10)');
-  const generic=api.indexOf('processDueBookingNotifications(10)');
-  const scan=api.indexOf('scanBusinessFollowUpsBatched({db,env,isManagedInboxAddress})');
-  const business=api.indexOf('processDueBusinessNotifications(10)');
+  const post=api.indexOf("await runStage('post_job'");
+  const generic=api.indexOf("await runStage('booking_delivery'");
+  const scan=api.indexOf("await runStage('business_scan'");
+  const business=api.indexOf("await runStage('business_delivery'");
   assert.ok(post>=0&&generic>post&&scan>generic&&business>scan);
+  assert.match(api,/processPostJobFollowUps\(10\)/);
+  assert.match(api,/processDueBookingNotifications\(10\)/);
+  assert.match(api,/scanBusinessFollowUpsBatched\(\{db:cronReadDb,env,isManagedInboxAddress\}\)/);
+  assert.match(api,/processDueBusinessNotifications\(10\)/);
   assert.doesNotMatch(api,/processBusinessFollowUps\(10\)/);
 });
 
