@@ -32,6 +32,16 @@
     step.parentNode.insertBefore(details,step);details.appendChild(step);details.appendChild(fields);if(status)details.appendChild(status);
   }
 
+  function installAddressChoice(){
+    if(typeof window.chooseQuoteAddress!=='function'||window.chooseQuoteAddress.__bookingJourney)return;
+    const wrapped=async id=>{
+      selectedQuoteAddress=null;if(!id)return;
+      const option=$('#quoteAddressChoice')?.selectedOptions?.[0],displayAddress=safeText(option?.textContent);
+      if(displayAddress&&displayAddress!=='Choose an address…')selectedQuoteAddress={id,displayAddress};
+    };
+    wrapped.__bookingJourney=true;window.chooseQuoteAddress=wrapped;
+  }
+
   async function ensureCoverage(){
     const postcode=$('#postcode');if(!postcode)return true;
     if(postcode.dataset.verified!=='true'&&typeof verifyQuotePostcode==='function'){
@@ -51,19 +61,35 @@
     postcode.addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(run,650)});
   }
 
+  function selectedAddress(){
+    try{return safeText(selectedQuoteAddress?.displayAddress||selectedQuoteAddress?.address||'')}catch{return''}
+  }
+
+  function quoteOptionsWithAddress(options={}){
+    const address=selectedAddress();if(!address)return options;
+    try{
+      const body=typeof options.body==='string'?JSON.parse(options.body):(options.body||{}),inputs={...(body.inputs||{})};
+      const base=safeText(inputs.notes).replace(/\n?\[Requested address\][\s\S]*$/,'').trim().slice(0,1200);
+      inputs.notes=`${base?base+'\n\n':''}[Requested address]\n${address}`;
+      return {...options,body:JSON.stringify({...body,inputs})};
+    }catch{return options}
+  }
+
   function wrapApi(){
     if(typeof window.api!=='function'||window.api.__bookingJourney)return;
     const base=window.api;
     const wrapped=async(path,options={})=>{
-      if(path==='/api/quote'&&String(options?.method||'GET').toUpperCase()==='POST')await ensureCoverage();
-      return base(path,options);
+      let next=options;
+      if(path==='/api/quote'&&String(options?.method||'GET').toUpperCase()==='POST'){
+        await ensureCoverage();next=quoteOptionsWithAddress(options);
+      }
+      return base(path,next);
     };
     wrapped.__bookingJourney=true;window.api=wrapped;
   }
 
   function pendingContext(q){
-    const address=(()=>{try{return selectedQuoteAddress?.displayAddress||selectedQuoteAddress?.address||''}catch{return''}})();
-    return {quoteId:q?.id||'',email:safeText(q?.email||$('#quoteEmail')?.value),postcode:safeText($('#postcode')?.value),serviceKey:'windows',estimate:Number(q?.estimate||0),address:safeText(address),createdAt:Date.now()};
+    return {quoteId:q?.id||'',email:safeText(q?.email||$('#quoteEmail')?.value),postcode:safeText($('#postcode')?.value),serviceKey:'windows',estimate:Number(q?.estimate||0),address:selectedAddress(),createdAt:Date.now()};
   }
 
   function renderResultJourney(q){
@@ -96,5 +122,5 @@
     const top=document.querySelector('.quote-conversion-top span');if(top)top.textContent='Check coverage first, then complete the job details. Photos and codes are optional.';
   }
 
-  injectStyles();moveLocationFirst();collapseExtras();autoVerifyPostcode();wrapApi();wrapShowQuote();ownQuoteButton();updateSubmitCopy();
+  injectStyles();moveLocationFirst();collapseExtras();installAddressChoice();autoVerifyPostcode();wrapApi();wrapShowQuote();ownQuoteButton();updateSubmitCopy();
 })();
