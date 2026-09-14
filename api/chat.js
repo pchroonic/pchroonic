@@ -1,4 +1,5 @@
 const {json,parseBody,db,authUser,userProfile,requireStaff,verifyTurnstile,env,auditLog,safeError}=require('../lib/server');
+const {consumeRateLimit}=require('../lib/security');
 const {loadServiceCatalog}=require('../lib/service-catalog');
 const {classifyIntent,guidedReply,actionsForIntent,normaliseHistory,buildInstructions}=require('../lib/chat-assistant');
 
@@ -66,6 +67,7 @@ module.exports=async function(req,res){try{
   }
 
   if(action!=='message')return json(res,400,{ok:false,error:'Unknown chat action.'});
+  await consumeRateLimit(req,res,{scope:user?.id?'chat.message.user':'chat.message.ip',limit:user?.id?50:30,windowSeconds:600,identity:user?.id?`user:${user.id}`:null,message:'Too many chat messages were sent in a short time. Please wait a few minutes and try again.'});
   if(session?.status==='closed')session=null;
   if(!session&&!user?.id){const turn=await verifyTurnstile(body.turnstileToken,req);if(!turn.ok)return json(res,400,{ok:false,error:turn.error})}
   if(!session){
