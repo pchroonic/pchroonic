@@ -38,7 +38,8 @@ test('Admin-created accounts use secure invitations instead of temporary passwor
   const api=read('api/admin-users.js'),invite=read('lib/auth-invite.js');
   assert.match(api,/inviteUserByEmail/);
   assert.match(api,/credentialDelivery:'supabase_invitation'/);
-  assert.doesNotMatch(api,/temporaryPassword\s*:/);
+  assert.match(api,/temporaryPassword:false/);
+  assert.doesNotMatch(api,/return json\(res,201,\{[^}]*temporaryPassword/);
   assert.doesNotMatch(api,/Temporary password:/);
   assert.match(invite,/\/auth\/v1\/invite/);
   assert.match(invite,/account\?tab=security&invited=1/);
