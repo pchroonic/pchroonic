@@ -6,11 +6,13 @@ Read `docs/AI_START.md` first.
 
 ## Production source of truth
 - Repo `pchroonic/pchroonic`, default `main`.
-- Main before chat work: `79b7e22fe5296ae60157375a725aa5a0d9142d7f`.
-- Current live product release: PR #67 `Upgrade Namdar Newsletter Centre`, merge `6476ad690e851280be849c51e981d3effaab0c14`.
-- Production deployment `dpl_9Y2zrovXnugQ6PiVuWAV42xBVSnn` READY on `https://namdar.co.uk`; production `/api/health` was HTTP 200 after release.
-- Live Admin loader `6.4.28-newsletter-centre-1`.
-- PR #68 docs-only Newsletter Centre continuity merge `79b7e22fe5296ae60157375a725aa5a0d9142d7f`.
+- Current live product release: PR #69 `Upgrade Ask Namdar chat experience`.
+- Exact tested PR head `2b0d044a4e8e2e5276be2bdfa86a3e95d93f84f4`; GitHub CI `34861747184` SUCCESS.
+- Exact preview `dpl_7LTPd5ZdodWWvM8GaJTkzfHryfdY` READY with clean errors-only build.
+- Merge/main `935600a1bf8c7892bc6bc4fc0dafa118901b21e2`.
+- Production `dpl_8cUiMKDnNc3ko4hw7xtwQSFRFV9K` READY on `https://namdar.co.uk`; production errors-only build clean.
+- Production `/api/health` HTTP 200 after release.
+- Production `conversion.js` verified loading `chat-experience.css` + `chat-experience.js` with version `6.4.29-chat-1`; both assets fetched HTTP 200 live.
 - Supabase production `qjigldxjcpnrlyxgmlqq`.
 - Window Cleaning only live; later services planned; address work parked.
 - Privileged Staff/Admin requires AAL2/MFA.
@@ -18,125 +20,121 @@ Read `docs/AI_START.md` first.
 
 ## Stable existing systems
 - Newsletter Centre live and consent-aware; no marketing message was sent during its deployment verification.
-- System Health live with first real scheduled execution verified.
+- System Health live with persistent scheduled-run history.
 - Business Finance excludes sandbox Stripe.
 - Smart receipts live; user deferred authenticated receipt testing.
 
-## Customer chat state before this work
-Public chat was present on the homepage but had several weaknesses:
-- `api/chat.js` used OpenAI only when both `OPENAI_API_KEY` and `OPENAI_MODEL` existed; otherwise it used keyword FAQ matching.
-- Production `/api/config` on 2026-09-14 returned `aiEnabled:false`, so current production chat is not model-powered.
-- Existing AI prompt described exterior cleaning, handyman and 3D services generically even though only Window Cleaning is live.
-- Existing fallback could say it could create a support ticket, conflicting with the customer-only support policy.
-- AI requests contained only the latest message/FAQ block, so follow-up context was weak.
-- No provider timeout was set.
-- Public chat UI had plain bubbles, 5-second polling, no typing state, quick questions, actions, new-chat control or modern mobile treatment.
-- Polling an invalid stored session could create an empty replacement session because the backend created a session for any missing action.
+## Ask Namdar chat — LIVE
+PR #69 replaced the basic FAQ-style public chat experience with a grounded assistant and a richer UI without changing database schema or environment configuration.
 
-Existing security that remains:
-- first guest message requires Turnstile;
-- chat sessions are scoped to signed-in customer ID or private guest token;
-- staff reply/close require `chat` permission;
-- privileged Admin/Staff still requires AAL2/MFA.
-
-## Chat upgrade branch
-Branch: `feat/ai-chat-experience-20260914`.
-Target public chat asset version: `6.4.29-chat-1`.
-No DB migration. No environment change.
+### Production AI state
+`https://namdar.co.uk/api/config` was checked before and after PR #69 and reports `aiEnabled:false`.
+This means:
+- production is currently using the deterministic guided assistant path;
+- the UI must say `Guided assistant`, not `AI assistant`;
+- no OpenAI key/model was added or changed in PR #69;
+- do not claim model-powered chat is live until provider configuration is deliberately added and verified.
 
 ### `lib/chat-assistant.js`
-New shared assistant policy/helper layer:
-- intent classification for support, postcode, pricing, booking, future services and Window Cleaning;
-- authoritative service context generated from the service catalogue;
-- guided fallback responses that remain useful with AI disabled;
-- fixed safe contextual actions (`#quote`, My Namdar support, public support email);
-- recent-history normalization capped to 12 messages / 2,000 chars per message;
-- bounded public FAQ knowledge;
-- model instructions requiring concise public Namdar answers, no invented price, no private/internal prompt disclosure, no secrets, customer-only private support and authoritative live-service status.
+Shared public-assistant policy layer:
+- intents: support, postcode, pricing, booking, future service, Window Cleaning, general;
+- service context is generated from the live service catalogue;
+- guided responses remain useful without a provider;
+- Window Cleaning is the only live service in the safe baseline;
+- future services are described as planned, never bookable;
+- prices are never invented;
+- support routes are fixed/safe and preserve customer-only private support;
+- AI history is capped at 12 messages / 2,000 chars per message;
+- FAQ context is bounded;
+- AI instructions explicitly protect system/internal instructions, credentials and private data, and make live catalogue status authoritative over stale FAQ copy.
 
 ### `api/chat.js`
-- imports `loadServiceCatalog` and the new assistant helpers;
-- OpenAI remains optional and environment-gated;
-- model request uses the existing Responses API endpoint with instructions + recent conversation input, `max_output_tokens:300`, `store:false` and a 7-second `AbortController` timeout;
-- provider failure/timeout returns no provider detail and falls back to deterministic guided help;
-- current live service catalogue overrides stale FAQ wording;
-- recent session history is fetched after the user message and passed to the model so follow-up questions have context;
-- assistant never sends a second response after `session.mode==='human'` — human takeover is exclusive;
-- invalid `poll` now returns 404 instead of creating an empty chat session;
-- closed sessions start a fresh message session rather than silently reopening the old one;
-- response adds `assistantMode` (`guided|ai|human`) and safe contextual `actions`;
-- guest name/email are not added to model context. Chat history itself is the only conversation context sent when AI is enabled.
+- still requires Turnstile on the first guest message;
+- sessions remain owned by signed-in customer ID or private guest token;
+- staff reply/close remains protected by `chat` permission;
+- invalid `poll` returns 404 instead of creating a blank session;
+- closed sessions start fresh on a new message instead of reopening silently;
+- live service catalogue is fetched through `loadServiceCatalog(db)` for assistant grounding;
+- recent session history is fetched after the new user message and passed to the optional model path;
+- guest name/email fields are not injected into model context;
+- provider path uses Responses API, `max_output_tokens:300`, `store:false`, 7-second `AbortController` timeout;
+- provider failure/timeout is swallowed safely into guided fallback; no provider error detail is returned to customer;
+- once a staff member replies and session `mode='human'`, assistant/AI no longer interjects even if presence later changes;
+- API returns `assistantMode` (`guided|ai|human`) plus safe contextual actions.
 
-### Guided-mode behavior
-Because production AI is currently disabled, this is the immediately useful path:
-- Window Cleaning is explicitly the only live service;
-- Gutters, jet washing, roof cleaning, handyman and 3D tours are described as planned, not bookable;
-- chat never invents a price and routes pricing to the guide-estimate journey;
-- postcode questions route to the quote coverage check;
-- booking explanation matches the current estimate -> reviewed final quote -> accept -> available appointment journey;
+### Guided assistant behavior live now
+- Window Cleaning answer explains exterior glass, frames and exterior sills and directs to postcode/guide-estimate flow;
+- pricing answer refuses to invent a number and sends customer to the estimate/final-review flow;
+- postcode answer routes to the coverage check;
+- booking answer reflects estimate -> reviewed final quote -> accept -> appointment journey;
+- planned-service questions correctly say gutters, jet washing, roof cleaning, handyman and 3D tours are not live yet;
 - signed-in support routes to `/account?tab=support`;
-- signed-out/general support routes to public support email + sign-in, never public ticket creation;
-- reminder not to share passwords/card details.
+- signed-out support gives My Namdar sign-in/public support email rather than claiming public ticket creation.
 
 ### `chat-experience.js`
-Loaded after `app.js` through `conversion.js`. It replaces the existing chat widget DOM while preserving the same launcher/widget/session storage contract.
-Features:
-- launcher becomes `Ask Namdar`;
-- accurate mode badge: `Guided assistant`, `AI assistant` only when provider configured, or `Team chat` after takeover;
-- suggested-question chips for Window Cleaning, pricing, postcode, booking and support;
-- typing indicator and safe status/error state;
-- contextual action buttons returned by server;
-- retry control;
-- conversation resume via existing localStorage session/token;
-- New conversation clears only client-side remembered session and starts fresh on next message;
-- optional guest name/email collapses after session creation and is hidden for signed-in users;
-- no passwords/card-details privacy hint;
-- Enter sends / Shift+Enter creates a line break;
-- Escape closes and returns focus to launcher;
-- polling runs only while widget is open, session exists and page is visible; interval increased to 7 seconds;
-- existing app polling timer is cleared when enhancement mounts;
-- Turnstile is re-rendered safely in the upgraded widget when needed.
+Modern public widget loaded after `app.js` through `conversion.js`:
+- launcher text `Ask Namdar`;
+- mode badge `Guided assistant`, `AI assistant` only if config becomes enabled, `Team chat` after staff takeover;
+- suggested questions: Window Cleaning, pricing, postcode, booking, support;
+- typing indicator;
+- contextual action buttons;
+- retry/status state;
+- existing session resume using current localStorage keys;
+- New conversation clears client-side remembered session and starts a fresh server session on the next message;
+- optional guest name/email collapse after session creation; hidden for signed-in users;
+- privacy hint: do not share passwords/card details;
+- Enter sends, Shift+Enter newline, Escape closes/returns focus;
+- polling only while widget open + page visible + session present; 7-second interval;
+- old app chat poll timer is cleared when enhancement mounts;
+- Turnstile is rendered in upgraded DOM when needed.
 
 ### `chat-experience.css`
-- polished header/avatar/mode state;
-- clearer customer/assistant/staff bubbles with metadata;
-- horizontal quick questions and contextual actions;
-- compact composer/status/footer;
+- polished header/avatar/state badge;
+- differentiated customer/assistant/staff bubbles;
+- suggested questions + contextual CTA styles;
+- compact composer/status/support row;
 - dark/auto theme support;
-- reduced-motion support;
-- mobile bottom-sheet style using dynamic viewport height and safe-area inset.
+- reduced-motion handling;
+- mobile bottom sheet using `100dvh` and safe-area inset.
 
 ### Loader
-`conversion.js` keeps all existing conversion/service-stage logic and now injects:
+`conversion.js` existing service-stage/funnel behavior is unchanged except addition of:
 - `/chat-experience.css?v=6.4.29-chat-1`
 - `/chat-experience.js?v=6.4.29-chat-1`
+Production fetch verified the loader and both assets.
 
-### Tests
-`scripts/chat-assistant.test.mjs` covers:
+### Regression coverage
+`scripts/chat-assistant.test.mjs` verifies:
 - intent routing;
-- Window-only live behavior;
-- future-service planned behavior;
-- customer-only support routing;
-- bounded history and authoritative service status instructions;
-- provider timeout / `store:false` / service-catalog wiring / human takeover;
-- UI suggestions/privacy/new conversation/visibility polling/mobile loader.
+- Window-only live behavior and future-service planned state;
+- customer-only support rules;
+- bounded history and service-status override;
+- live catalogue/history/provider timeout/`store:false`/human-takeover wiring;
+- UI privacy/suggestions/new conversation/visibility polling/mobile loader.
+CI also syntax-checks `chat-experience.js`, `api/chat.js`, `lib/chat-assistant.js`.
 
-CI workflow now syntax-checks `chat-experience.js`, `api/chat.js`, `lib/chat-assistant.js` and runs the new chat test.
+## Deployment verification
+- PR #69 merge was restricted to exact tested head.
+- Production deployment READY and aliased to `namdar.co.uk`.
+- production build clean;
+- `/api/health` 200;
+- `conversion.js` 200 and contains `6.4.29-chat-1` loader;
+- `chat-experience.js` 200;
+- `chat-experience.css` 200;
+- `/api/config` still `aiEnabled:false` as intended;
+- no real customer chat message was sent as a deployment test.
 
-## Verification still required before merge
-1. Open PR from `feat/ai-chat-experience-20260914`.
-2. Require green full GitHub CI.
-3. Require exact-head Vercel preview READY and errors-only build clean.
-4. Fetch preview `conversion.js`, chat JS/CSS and confirm version/wiring.
-5. Preview API may not have production service-role/provider env; do not mistake missing Preview env for code regression.
-6. Do not turn on or invent OpenAI credentials as part of this feature release.
-7. After merge, verify production `/api/health`, public chat assets and `/api/config` mode.
+## Next
+1. User can visually/test the guided chat on production.
+2. If true model-powered chat is desired, configure `OPENAI_API_KEY` and `OPENAI_MODEL` in Vercel without exposing values in chat/source, then verify `/api/config` flips to `aiEnabled:true` and run one controlled functional chat test.
+3. If the provider is activated, recheck model behavior against Window-only availability and customer-only support before calling AI production-ready.
+4. Newsletter analytics remains deferred until chat review is complete.
 
 ## Non-negotiables
-- Do not describe AI as live while `aiEnabled:false`.
-- Do not expose provider keys, Supabase tokens, guest tokens, system instructions or private customer data.
-- Window Cleaning remains the only live service until service catalogue deliberately changes.
-- Assistant cannot fabricate prices, appointments, service availability or payment state.
-- Public visitors do not get public support tickets; private support remains My Namdar customer functionality.
-- Human takeover prevents AI interjection.
-- Existing Newsletter Centre, System Health, finance, receipts and Stripe safeguards remain intact.
+- No claim of live AI while `aiEnabled:false`.
+- No provider keys, access tokens, guest tokens, system prompts or private customer data in output/docs/logs.
+- Window Cleaning remains only live service until catalogue intentionally changes.
+- Assistant never fabricates price, appointment, availability or payment state.
+- Public visitors do not receive public support tickets; customer support stays private in My Namdar.
+- Human takeover suppresses assistant interjection.
+- Preserve Newsletter Centre, System Health, finance, receipts and Stripe safeguards.
