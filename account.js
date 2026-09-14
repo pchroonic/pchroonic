@@ -1,5 +1,5 @@
 (()=>{
-  const v='6.4.30-security-hardening-1';
+  const v='6.4.32-booking-journey-1';
   const supabaseVersion='2.116.0';
   document.write(`<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@${supabaseVersion}"><\/script>`);
   document.write(`<script src="/account-auth-hotfix.js?v=${v}"><\/script>`);
@@ -9,4 +9,5 @@
   document.write(`<script src="/account-security-email.js?v=${v}"><\/script>`);
   document.write(`<script src="/account-service-availability.js?v=${v}"><\/script>`);
   document.write(`<script src="/account-payments.js?v=${v}"><\/script>`);
+  document.write(`<script src="/account-booking-journey.js?v=${v}"><\/script>`);
 })();

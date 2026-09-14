@@ -146,4 +146,7 @@
   const chatVersion='6.4.29-chat-1';
   if(!document.querySelector('link[data-namdar-chat-experience]')){const link=document.createElement('link');link.rel='stylesheet';link.href=`/chat-experience.css?v=${chatVersion}`;link.dataset.namdarChatExperience='1';document.head.appendChild(link)}
   if(!document.querySelector('script[data-namdar-chat-experience]')){const script=document.createElement('script');script.src=`/chat-experience.js?v=${chatVersion}`;script.defer=true;script.dataset.namdarChatExperience='1';document.body.appendChild(script)}
+
+  const journeyVersion='6.4.32-booking-journey-1';
+  if(!document.querySelector('script[data-namdar-booking-journey]')){const script=document.createElement('script');script.src=`/booking-journey.js?v=${journeyVersion}`;script.defer=true;script.dataset.namdarBookingJourney='1';document.body.appendChild(script)}
 })();

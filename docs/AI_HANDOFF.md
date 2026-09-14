@@ -4,112 +4,124 @@ Last verified: 2026-09-14 UTC
 
 Read `docs/AI_START.md` first.
 
-## Production source of truth
+## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
 - Current live product release: PR #73 `Fix Staff My jobs auth recovery`.
-- Exact tested head `43c8b678f38549d9bce674c1e4ae8ab0eed889c4`.
-- GitHub CI `34886442615`: SUCCESS.
-- Exact preview `dpl_92WaxJ1yhL4kGuDusWrmTC7FhiXg`: READY, clean errors-only build; Vercel commit status SUCCESS.
-- Product merge `dc10aefc814f6aac8a6cb686597a01b682647deb`.
-- Production deployment `dpl_FP8WnzuPGtYwxNKLpMsGjpc7pPRo`: READY, clean errors-only build.
-- Production `/api/health`: HTTP 200 after release.
-- Live Staff version `6.4.31-staff-auth-recovery-1`; `/staff` pins Supabase JS `2.116.0`.
-- Live `staff.js`, `staff-auth-readiness.js`, and `staff-sw.js` verified HTTP 200.
-- Production error/fatal runtime-log check after release returned no matching logs.
+- Current main before this feature branch: `a8dfdf7b57eb0fcff6c183db7190483e961f9c47` (PR #74 continuity sync).
+- PR #73 exact tested head `43c8b678f38549d9bce674c1e4ae8ab0eed889c4`; CI `34886442615` SUCCESS; production deployment `dpl_FP8WnzuPGtYwxNKLpMsGjpc7pPRo` READY and clean; `/api/health` HTTP 200.
+- User subsequently confirmed the Staff My jobs issue is fixed in their browser.
 - Supabase production `qjigldxjcpnrlyxgmlqq`; Vercel project `prj_4fILo0pCaLGUSUIMWrBIVGzeWVDC`.
 - Window Cleaning only live. Stripe commercial payment policy OFF. Provider AI disabled (`aiEnabled:false`).
 - Privileged Staff/Admin requires CAPTCHA + AAL2/TOTP MFA.
 
-# Staff My jobs auth recovery — LIVE
+# Customer booking journey — IMPLEMENTED ON BRANCH, NOT YET LIVE
 
-## Original production failure
-User screenshot on `/staff` showed a completed Cloudflare Turnstile followed by:
-`Cannot read properties of null (reading 'auth')`
-when Sign in was pressed. A hard refresh then restored My jobs.
+Branch: `feature/customer-booking-journey-20260914`
+Version: `6.4.32-booking-journey-1`
 
-## Root cause
-1. `staff-original.js` initialized `sb=null` and its form handler passed `sb.auth` directly into the privileged CAPTCHA helper. If startup failed before the Supabase client was assigned, the UI could still expose the login form, so the next click threw the exact null-auth error.
-2. `staff.html` used floating `@supabase/supabase-js@2` rather than pinned `2.116.0`.
-3. `staff-sw.js` was still on the old `6.4.16` cache namespace and served auth-critical Staff scripts cache-first/stale-while-revalidate. This allowed an old/inconsistent Staff bundle to persist until hard refresh.
+## Why this work exists
+Audit of the real customer path found four conversion gaps:
+1. postcode/coverage checking happened late in the long quote form;
+2. the public address dropdown could display an address but guest selection then called customer-only `/api/address-get`, and the chosen address was not retained through the quote journey;
+3. a quote created while signed out had `customer_id = null`, so creating/signing into My Namdar afterward did not have a dedicated secure claim step;
+4. the guide-estimate result did not strongly explain the required sequence of review → decision → appointment.
 
-## Live fix
-### `staff-auth-readiness.js`
-- loaded after `staff-original.js`;
-- replaces the fragile Staff login submit path;
-- waits briefly for ordinary startup before entering recovery;
-- uses one shared recovery promise;
-- dynamically reloads pinned Supabase JS `2.116.0` only when the browser client is missing;
-- reuses `loadPublicConfig()` and the same persisted-session settings;
-- rebuilds the Supabase client when needed and calls `getSession()`;
-- restores an existing Staff session and opens My jobs automatically when possible;
-- otherwise leaves a valid login form and passes a resolved `auth` object to `NamdarPrivilegedCaptcha.signIn(...)`;
-- attaches an auth-state listener for the recovered-client path so refreshed tokens/sign-out remain synchronized;
-- never exposes passwords or MFA codes.
+## Homepage quote journey
+New `booking-journey.js` + `booking-journey.css` are loaded by `conversion.js`.
 
-### `staff.html`
-- pins `@supabase/supabase-js@2.116.0`;
-- current Staff cache-bust is `6.4.31-staff-auth-recovery-1`.
+Behavior:
+- physically moves the existing postcode/check/address controls to the beginning of the quote journey without duplicating form fields;
+- labels progress as Location → Property → Job → Photos → Details → Extras;
+- automatically checks a plausible postcode after input settles/blur and, before `/api/quote`, reuses existing `verifyQuotePostcode()`;
+- blocks the quote request client-side when configured coverage explicitly says Window Cleaning is unavailable, while the server remains authoritative;
+- optional promotion/reward fields are collapsed under an extras disclosure;
+- quote CTA copy is shortened to `Save my guide estimate`;
+- the selected public address is captured directly from the already-returned dropdown display value, so guest visitors do not need `/api/address-get` merely to select an address;
+- when the quote request is sent, the selected address is appended to the existing notes payload as:
+  `[Requested address]\n<display address>`;
+- this is intentional because `quotes.inputs` already persists notes and no schema migration is needed;
+- the result card adds a clear three-stage explanation: estimate saved → final quote reviewed → accept and choose a slot;
+- the Continue button always routes to `/account?tab=quotes&quote=<id>&journey=quote`;
+- guest-only continuity context (quote id, email, postcode, estimate, optional selected address) is stored in `sessionStorage`, not a server cookie or public URL.
 
-### `staff.js`
-Load order is now:
-1. privileged login CAPTCHA
-2. `staff-original.js`
-3. `staff-auth-readiness.js`
-4. `staff-closeout.js`
-5. `staff-mfa-guard.js`
+Pricing, live-service gating, final-review rules and payment policy are unchanged.
 
-### `staff-sw.js`
-- cache namespace `namdar-staff-v6.4.31-staff-auth-recovery-1`;
-- old Staff cache namespaces are removed during activation;
-- pinned Supabase JS `2.116.0` in remote asset cache;
-- Staff navigation remains network-first with offline fallback;
-- auth-critical files (`staff.js`, `staff-original.js`, readiness, CAPTCHA, MFA guard) are network-first while online and only fall back to cache on failure;
-- this removes the need for a hard refresh merely to escape a stale auth bundle.
+## Secure guest-quote claim
+New `api/customer-quote-claim.js`:
+- POST only;
+- requires `requireCustomer(req)`, so the account must be authenticated and active;
+- loads exactly the requested quote;
+- returns success without mutation if it already belongs to the signed-in customer;
+- refuses quotes already owned by a different customer;
+- for an unowned quote, requires an exact lower-cased match between Supabase Auth `user.email` and `quote.email`;
+- only then patches `quotes.customer_id` to the authenticated user id;
+- also best-effort links the exact archived quote email message (`recipient_email` + quote target path) if it was archived before an account existed;
+- does not change quote price, status, final price, customer response, expiry or booking state.
+
+This endpoint is the bridge between anonymous estimate creation and a later customer account without weakening ownership rules.
+
+## My Namdar continuation
+New `account-booking-journey.js` is loaded after the existing account modules by `account.js`.
+
+Behavior:
+- when `journey=quote` and a matching pending session context exists, shows a continuation banner and pre-fills both login and registration email fields;
+- masks the email in explanatory copy;
+- waits for the normal account auth client rather than creating a second client;
+- if a valid session already exists, calls the claim endpoint immediately;
+- also listens to `onAuthStateChange`, so an existing customer who signs in on the same page can claim the guest quote without a reload;
+- after successful claim/already-owned response, reloads portal data and applies the quote deep link;
+- displays a four-stage quote progress strip: Request → Final quote → Decision → Appointment;
+- next-step copy changes based on the actual quote/customer-response/booking state;
+- when scheduling an accepted quote, the saved profile address still has priority; if it is empty, the module parses the structured `[Requested address]` line from the stored quote notes and pre-fills the service address;
+- adds clarification that the accepted final price remains unchanged unless scope changes and that the selected slot is still a request until confirmed.
+
+## Files
+Added:
+- `booking-journey.js`
+- `booking-journey.css`
+- `account-booking-journey.js`
+- `api/customer-quote-claim.js`
+- `scripts/customer-booking-journey.test.mjs`
+
+Modified:
+- `conversion.js` to load the homepage journey;
+- `account.js` version bumped to `6.4.32-booking-journey-1` and loads the account journey;
+- `.github/workflows/ai-handoff-check.yml` syntax-checks new modules/API and runs the new regression suite;
+- all three continuity docs.
 
 ## Regression coverage
-`scripts/staff-auth-readiness.test.mjs` checks:
-- Staff page/loader current version and pinned Supabase build;
-- readiness file is loaded after original Staff code;
-- login uses `recoverAuthClient()` and passes a resolved `auth` object rather than direct `sb.auth`;
-- recovery can reload pinned Supabase and restore the session;
-- service worker has the current cache namespace and network-first auth-critical path.
+`scripts/customer-booking-journey.test.mjs` asserts:
+- coverage-first homepage behavior and optional-extras collapse;
+- selected-address retention without `/api/address-get` dependency;
+- claim endpoint requires an authenticated customer, refuses another owner and requires exact matching email;
+- My Namdar uses auth-state continuation and renders quote-to-appointment progress;
+- no payment enablement, automatic acceptance or booking bypass is introduced.
 
-CI also syntax-checks the new readiness file and Staff service worker.
+## Database / environment impact
+- No migration.
+- No new environment variables.
+- Existing tables only: `quotes` and targeted `customer_messages` ownership patch after verified email-match claim.
+- No change to Stripe configuration/payment policy.
 
-## Release verification
-- PR #73 exact head `43c8b678f38549d9bce674c1e4ae8ab0eed889c4`.
-- CI `34886442615` SUCCESS.
-- Preview `dpl_92WaxJ1yhL4kGuDusWrmTC7FhiXg` READY, clean build, Vercel status SUCCESS.
-- Preview content itself was SSO-protected from direct connector fetch; exact Git source + CI + build metadata were verified before merge.
-- Merge `dc10aefc814f6aac8a6cb686597a01b682647deb`.
-- Production `dpl_FP8WnzuPGtYwxNKLpMsGjpc7pPRo` READY, clean build.
-- `/api/health` HTTP 200.
-- Production `/staff` shows version `6.4.31-staff-auth-recovery-1` and pinned Supabase `2.116.0`.
-- Production `staff.js`, readiness asset and service worker all HTTP 200 with current code.
-- Post-release error/fatal runtime log check found no matching logs.
+## Release gate
+Not live until all of the following are true:
+1. PR exact head full GitHub CI SUCCESS;
+2. exact-head Vercel preview READY;
+3. errors-only preview build clean;
+4. PR merged from the exact tested head;
+5. production deployment READY + `/api/health` 200;
+6. live `conversion.js`, `booking-journey.js`, `account.js`, `account-booking-journey.js` and claim API presence verified.
 
-## What is still not interactively verified
-The authenticated browser journey should still be user-smoked once after release:
-- navigate normally to My jobs without hard refresh;
-- confirm an existing valid session opens the jobs page;
-- if signed out, confirm one ordinary CAPTCHA + sign-in works;
-- do not share password or MFA code in chat.
-
-Do not claim this browser interaction is verified until the user confirms it.
+Do not create a real customer/quote/booking/payment merely as a deployment test. Final interactive browser verification should be user-driven after release.
 
 ## Stable systems that must not regress
-- Security Hardening from PR #71: private server rate limits, secure invitations, owner-confirmed email changes, administrator lifecycle protections, Admin inactivity timeout.
-- Account auth stays pinned to Supabase JS `2.116.0` with bounded session restore.
-- Privileged APIs keep AAL2/TOTP MFA and CAPTCHA.
-- Business Finance remains private/sole-trader-first; Smart Receipts remain private and review-first.
-- System Health and Newsletter Centre remain live.
+- Security Hardening from PR #71: private rate limits, secure invitations, owner-confirmed email changes, administrator lifecycle safeguards and Admin inactivity timeout.
+- Account auth remains pinned to Supabase JS `2.116.0` through `account.js`.
+- Staff My jobs auth recovery from PR #73 remains live and user-confirmed fixed.
+- Privileged APIs keep AAL2/TOTP MFA + CAPTCHA.
 - Window Cleaning only live; later services planned.
-- Stripe sandbox remains excluded from Business Finance; payment policy OFF; no live Stripe credentials.
-- Supabase Leaked Password Protection still requires manual enablement/re-verification.
+- Business Finance / Smart Receipts private; Stripe sandbox excluded; commercial payments OFF.
+- Supabase Leaked Password Protection remains a manual enable/re-verify item.
 
-## Development rules
-- Verify current `main` and provider state before further substantial changes.
-- Preview/test before production.
-- Every substantial code/security/config change updates all three continuity docs.
-- Never place credentials, passwords, tokens or customer private data in repo/chat/docs.
-- Do not create real operational records just to smoke-test deployments.
+## Next action
+Open/verify the feature PR, run full CI + exact preview, merge only if clean, then verify production assets/health. Afterward ask the user to smoke postcode → estimate → My Namdar without sharing credentials.

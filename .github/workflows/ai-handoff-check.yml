@@ -21,8 +21,10 @@ jobs:
       - name: Check critical JavaScript syntax
         run: |
           node --check app.js
+          node --check booking-journey.js
           node --check account.js
           node --check account-original.js
+          node --check account-booking-journey.js
           node --check account-captcha-guard.js
           node --check account-auth-hotfix.js
           node --test scripts/account-auth-hotfix.test.mjs
@@ -80,6 +82,7 @@ jobs:
           node --check api/address-data-v1.js
           node --check api/quote.js
           node --check api/quote-core.js
+          node --check api/customer-quote-claim.js
           node --check api/postcode.js
           node --check api/postcode-core.js
           node --check api/subscription.js
@@ -136,6 +139,7 @@ jobs:
           node --test scripts/newsletter-center.test.mjs
           node --test scripts/chat-assistant.test.mjs
           node --test scripts/security-hardening.test.mjs
+          node --test scripts/customer-booking-journey.test.mjs
           node --check lib/server.js
           node --check lib/server-original.js
           node --check staff.js
