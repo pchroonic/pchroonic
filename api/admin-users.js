@@ -46,22 +46,20 @@ module.exports=async function(req,res){try{
     const staff=await requireStaff(req,(['staff','admin'].includes(existing.role)||['staff','admin'].includes(desiredRole)||roleOrPermissionChange)?'staff':'customers');
     if(existing.role==='admin'&&staff.profile.role!=='admin')return json(res,403,{ok:false,error:'Only an administrator can modify another administrator.'});
     if(desiredRole==='admin'&&staff.profile.role!=='admin')return json(res,403,{ok:false,error:'Only an administrator can promote another administrator.'});
+    const requestedEmail=b.email===undefined?String(existing.email||'').trim().toLowerCase():String(b.email||'').trim().toLowerCase();
+    if(requestedEmail!==String(existing.email||'').trim().toLowerCase())return json(res,409,{ok:false,error:'For security, email identity changes must be confirmed by the account owner in My Namdar → Security.'});
     if(id===staff.user.id&&(desiredRole!==existing.role||desiredStatus!==(existing.account_status||'active')))return json(res,400,{ok:false,error:'For safety, you cannot change the role or account status of the administrator account you are currently using.'});
     if(existing.role==='admin'&&(!existing.account_status||existing.account_status==='active')&&(desiredRole!=='admin'||desiredStatus!=='active')){
       if(!(await otherActiveAdmins(id)).length)return json(res,409,{ok:false,error:'Namdar must keep at least one other active administrator before this administrator can be demoted or suspended.'});
     }
     const patch={updated_at:new Date().toISOString(),role:desiredRole,account_status:desiredStatus};
-    for(const [k,v] of Object.entries({full_name:b.fullName,phone:b.phone,email:b.email,address_line1:b.address1,address_line2:b.address2,city:b.city,postcode:b.postcode===undefined?undefined:postcode(b.postcode),country_code:b.countryCode,region:b.region,district:b.district,property_type:b.propertyType}))if(v!==undefined)patch[k]=v===''?null:v;
+    for(const [k,v] of Object.entries({full_name:b.fullName,phone:b.phone,address_line1:b.address1,address_line2:b.address2,city:b.city,postcode:b.postcode===undefined?undefined:postcode(b.postcode),country_code:b.countryCode,region:b.region,district:b.district,property_type:b.propertyType}))if(v!==undefined)patch[k]=v===''?null:v;
     await db(`profiles?id=eq.${encodeURIComponent(id)}`,{method:'PATCH',body:patch});
-    if(b.email&&String(b.email).trim().toLowerCase()!==String(existing.email||'').trim().toLowerCase()){
-      if(['staff','admin'].includes(existing.role)&&staff.profile.role!=='admin')return json(res,403,{ok:false,error:'Only an administrator can change a privileged account email address.'});
-      await authAdmin(`users/${encodeURIComponent(id)}`,{method:'PUT',body:{email:String(b.email).trim().toLowerCase(),email_confirm:true}});
-    }
     if(desiredRole==='staff'){
       await db('staff_access',{method:'POST',prefer:'resolution=merge-duplicates',body:{user_id:id,permissions:b.permissions===undefined?(existingAccess?.permissions||{}):(b.permissions||{}),job_title:b.jobTitle===undefined?(existingAccess?.job_title||'Staff'):(b.jobTitle||'Staff'),active:b.staffActive===undefined?(existingAccess?.active!==false):b.staffActive!==false,created_by:staff.user.id,updated_at:new Date().toISOString()}});
     }else if(existingAccess){await db(`staff_access?user_id=eq.${encodeURIComponent(id)}`,{method:'DELETE'}).catch(()=>null)}
     const updatedProfile=await targetProfile(id),updatedAccess=desiredRole==='staff'?await targetStaffAccess(id):null;
-    await auditLog(req,staff,{action:'user.update',entityType:'profile',entityId:id,summary:`Updated ${updatedProfile?.full_name||existing.full_name||'user'} account`,before:{...existing,staff_access:existingAccess},after:{...updatedProfile,staff_access:updatedAccess},metadata:{roleOrPermissionChange}});
+    await auditLog(req,staff,{action:'user.update',entityType:'profile',entityId:id,summary:`Updated ${updatedProfile?.full_name||existing.full_name||'user'} account`,before:{...existing,staff_access:existingAccess},after:{...updatedProfile,staff_access:updatedAccess},metadata:{roleOrPermissionChange,emailIdentityChanged:false}});
     return json(res,200,{ok:true});
   }
   if(req.method==='DELETE'){
