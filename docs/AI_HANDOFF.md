@@ -4,118 +4,112 @@ Last verified: 2026-09-14 UTC
 
 Read `docs/AI_START.md` first.
 
-## Production baseline before this fix
+## Production source of truth
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current `main`: `5b4056db5a9b098cf0cfcd0744e17bf1ff2ec0d4`.
-- Current live product release: PR #71 `Harden Namdar public APIs and account security`; PR #72 is docs-only continuity.
-- PR #71 exact tested head `fee9f82c7912372e612b133a69924a5a01c7f9e4`; CI `34884232265` SUCCESS.
-- Product merge `ea61d8df2ed1110973580c4a0ab3bca09e05d7a8`.
-- Current production deployment after PR #72: `dpl_4ttWCLhEDsWUpqNhQqRwQQz57Acc`, READY and `/api/health` HTTP 200.
-- Production Admin/My Namdar loaders: `6.4.30-security-hardening-1`.
+- Current live product release: PR #73 `Fix Staff My jobs auth recovery`.
+- Exact tested head `43c8b678f38549d9bce674c1e4ae8ab0eed889c4`.
+- GitHub CI `34886442615`: SUCCESS.
+- Exact preview `dpl_92WaxJ1yhL4kGuDusWrmTC7FhiXg`: READY, clean errors-only build; Vercel commit status SUCCESS.
+- Product merge `dc10aefc814f6aac8a6cb686597a01b682647deb`.
+- Production deployment `dpl_FP8WnzuPGtYwxNKLpMsGjpc7pPRo`: READY, clean errors-only build.
+- Production `/api/health`: HTTP 200 after release.
+- Live Staff version `6.4.31-staff-auth-recovery-1`; `/staff` pins Supabase JS `2.116.0`.
+- Live `staff.js`, `staff-auth-readiness.js`, and `staff-sw.js` verified HTTP 200.
+- Production error/fatal runtime-log check after release returned no matching logs.
 - Supabase production `qjigldxjcpnrlyxgmlqq`; Vercel project `prj_4fILo0pCaLGUSUIMWrBIVGzeWVDC`.
 - Window Cleaning only live. Stripe commercial payment policy OFF. Provider AI disabled (`aiEnabled:false`).
-- Privileged Staff/Admin requires CAPTCHA and AAL2/TOTP MFA.
+- Privileged Staff/Admin requires CAPTCHA + AAL2/TOTP MFA.
 
-# Staff My jobs auth recovery
+# Staff My jobs auth recovery — LIVE
 
-## User-observed production bug
-On `https://namdar.co.uk/staff`, the user captured a login screen where Cloudflare Turnstile had succeeded, but pressing Sign in produced:
-
+## Original production failure
+User screenshot on `/staff` showed a completed Cloudflare Turnstile followed by:
 `Cannot read properties of null (reading 'auth')`
+when Sign in was pressed. A hard refresh then restored My jobs.
 
-A hard refresh then opened My jobs without another login. Do not treat this as expected behavior.
+## Root cause
+1. `staff-original.js` initialized `sb=null` and its form handler passed `sb.auth` directly into the privileged CAPTCHA helper. If startup failed before the Supabase client was assigned, the UI could still expose the login form, so the next click threw the exact null-auth error.
+2. `staff.html` used floating `@supabase/supabase-js@2` rather than pinned `2.116.0`.
+3. `staff-sw.js` was still on the old `6.4.16` cache namespace and served auth-critical Staff scripts cache-first/stale-while-revalidate. This allowed an old/inconsistent Staff bundle to persist until hard refresh.
 
-## Root-cause analysis
-Production source confirmed three interacting weaknesses:
-
-1. `staff-original.js` declares `let sb=null` and its login submit handler calls:
-   `window.NamdarPrivilegedCaptcha.signIn(sb.auth, ...)`.
-   If startup fails before `sb=window.supabase.createClient(...)`, the catch path calls `showLogin(...)`; the login remains usable even though `sb` is still null. The next click therefore throws exactly the user-visible null-auth error.
-
-2. `staff.html` still loaded floating `https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2`, while My Namdar already pins `2.116.0`. A transient/floating CDN load problem can therefore leave Staff setup without `window.supabase` and make the null-client path reachable.
-
-3. `staff-sw.js` was still `namdar-staff-v6.4.16-privileged-captcha-1` and used cache-first/stale-while-revalidate for local Staff scripts. Because newer Staff code had shipped after that cache namespace, a controlled page navigation could receive an old/inconsistent JS bundle until hard refresh bypassed/renewed cache. This matches the reported hard-refresh recovery pattern.
-
-## Fix branch
-`fix/staff-auth-recovery-20260914`
-
-Target Staff version:
-`6.4.31-staff-auth-recovery-1`
-
-### New `staff-auth-readiness.js`
-Loaded after `staff-original.js` so it can safely reuse the existing Staff functions/state while replacing the fragile form submit handler.
-
-Behavior:
-- never dereferences `sb.auth` until `authReady()` confirms an auth client;
-- briefly waits for normal startup to complete;
-- if startup already failed, automatically starts a single shared recovery promise;
-- dynamically reloads pinned Supabase JS `2.116.0` only when `window.supabase.createClient` is absent;
-- reloads `/api/config` through the existing safe `loadPublicConfig()` path;
-- reconfigures the privileged CAPTCHA slot;
-- rebuilds the Supabase client with the existing persisted-session options;
-- calls `getSession()` and restores `currentSession`;
-- if an existing session is present, loads jobs and opens the app automatically rather than asking for another login/hard refresh;
-- if no session exists, leaves a ready login form and uses `NamdarPrivilegedCaptcha.signIn(auth, ...)` with a verified auth object;
-- attaches an auth-state listener only for the recovered-client path so token refresh/sign-out state stays synchronized;
-- keeps clear user-facing setup errors and never exposes password/MFA values.
+## Live fix
+### `staff-auth-readiness.js`
+- loaded after `staff-original.js`;
+- replaces the fragile Staff login submit path;
+- waits briefly for ordinary startup before entering recovery;
+- uses one shared recovery promise;
+- dynamically reloads pinned Supabase JS `2.116.0` only when the browser client is missing;
+- reuses `loadPublicConfig()` and the same persisted-session settings;
+- rebuilds the Supabase client when needed and calls `getSession()`;
+- restores an existing Staff session and opens My jobs automatically when possible;
+- otherwise leaves a valid login form and passes a resolved `auth` object to `NamdarPrivilegedCaptcha.signIn(...)`;
+- attaches an auth-state listener for the recovered-client path so refreshed tokens/sign-out remain synchronized;
+- never exposes passwords or MFA codes.
 
 ### `staff.html`
 - pins `@supabase/supabase-js@2.116.0`;
-- bumps `styles.css` and `staff.js` cache-bust query to `6.4.31-staff-auth-recovery-1`.
+- current Staff cache-bust is `6.4.31-staff-auth-recovery-1`.
 
 ### `staff.js`
-- version `6.4.31-staff-auth-recovery-1`;
-- load order:
-  1. privileged login CAPTCHA
-  2. `staff-original.js`
-  3. `staff-auth-readiness.js`
-  4. closeout
-  5. Staff MFA guard
+Load order is now:
+1. privileged login CAPTCHA
+2. `staff-original.js`
+3. `staff-auth-readiness.js`
+4. `staff-closeout.js`
+5. `staff-mfa-guard.js`
 
 ### `staff-sw.js`
-- cache namespace bumped to `namdar-staff-v6.4.31-staff-auth-recovery-1` so older Staff caches are removed on activation;
-- includes the new readiness asset and `staff-closeout.js` in local assets;
-- remote Supabase cache key pins `2.116.0`;
+- cache namespace `namdar-staff-v6.4.31-staff-auth-recovery-1`;
+- old Staff cache namespaces are removed during activation;
+- pinned Supabase JS `2.116.0` in remote asset cache;
 - Staff navigation remains network-first with offline fallback;
-- auth-critical scripts (`staff.js`, `staff-original.js`, readiness, CAPTCHA, MFA guard) are now **network-first online** and only fall back to cache when the network request fails;
-- this prevents a stale cache-first auth bundle from remaining active simply because the browser did not hard refresh.
+- auth-critical files (`staff.js`, `staff-original.js`, readiness, CAPTCHA, MFA guard) are network-first while online and only fall back to cache on failure;
+- this removes the need for a hard refresh merely to escape a stale auth bundle.
 
 ## Regression coverage
-New `scripts/staff-auth-readiness.test.mjs` asserts:
-- Staff page and loader use `6.4.31-staff-auth-recovery-1`;
-- Supabase JS is pinned to `2.116.0`;
-- readiness module is loaded after original Staff code;
-- login uses `recoverAuthClient()` and passes a resolved `auth` object to CAPTCHA rather than direct `sb.auth` dereference;
-- recovery can dynamically reload the pinned browser client and restore session;
-- service worker uses the new cache namespace and network-first auth-critical fetch path.
+`scripts/staff-auth-readiness.test.mjs` checks:
+- Staff page/loader current version and pinned Supabase build;
+- readiness file is loaded after original Staff code;
+- login uses `recoverAuthClient()` and passes a resolved `auth` object rather than direct `sb.auth`;
+- recovery can reload pinned Supabase and restore the session;
+- service worker has the current cache namespace and network-first auth-critical path.
 
-`.github/workflows/ai-handoff-check.yml` now syntax-checks `staff-auth-readiness.js` and runs the new regression test.
+CI also syntax-checks the new readiness file and Staff service worker.
 
-## Release gate
-Before production:
-1. Open PR from `fix/staff-auth-recovery-20260914` to `main`.
-2. Full GitHub CI must be SUCCESS.
-3. Exact PR head must have Vercel preview READY and clean errors-only build.
-4. Verify preview source/assets only; no real staff invitation, quote, payment or marketing side effect.
-5. Confirm preview `/staff` serves pinned Supabase `2.116.0`, current Staff loader, readiness file and current service worker.
-6. Merge exact tested head only.
-7. Verify production deployment READY + clean build.
-8. Verify production `/api/health` HTTP 200 and live Staff assets/version.
-9. User can then test ordinary navigation to My jobs. Never ask them to share password or MFA code.
-10. Record the exact live IDs in all three docs after production verification.
+## Release verification
+- PR #73 exact head `43c8b678f38549d9bce674c1e4ae8ab0eed889c4`.
+- CI `34886442615` SUCCESS.
+- Preview `dpl_92WaxJ1yhL4kGuDusWrmTC7FhiXg` READY, clean build, Vercel status SUCCESS.
+- Preview content itself was SSO-protected from direct connector fetch; exact Git source + CI + build metadata were verified before merge.
+- Merge `dc10aefc814f6aac8a6cb686597a01b682647deb`.
+- Production `dpl_FP8WnzuPGtYwxNKLpMsGjpc7pPRo` READY, clean build.
+- `/api/health` HTTP 200.
+- Production `/staff` shows version `6.4.31-staff-auth-recovery-1` and pinned Supabase `2.116.0`.
+- Production `staff.js`, readiness asset and service worker all HTTP 200 with current code.
+- Post-release error/fatal runtime log check found no matching logs.
+
+## What is still not interactively verified
+The authenticated browser journey should still be user-smoked once after release:
+- navigate normally to My jobs without hard refresh;
+- confirm an existing valid session opens the jobs page;
+- if signed out, confirm one ordinary CAPTCHA + sign-in works;
+- do not share password or MFA code in chat.
+
+Do not claim this browser interaction is verified until the user confirms it.
 
 ## Stable systems that must not regress
-- Security Hardening from PR #71: private server rate limiting, secure invitations, verified owner email changes, administrator lifecycle protections, Admin idle timeout.
-- Account auth uses pinned Supabase JS `2.116.0` and bounded session restore.
+- Security Hardening from PR #71: private server rate limits, secure invitations, owner-confirmed email changes, administrator lifecycle protections, Admin inactivity timeout.
+- Account auth stays pinned to Supabase JS `2.116.0` with bounded session restore.
 - Privileged APIs keep AAL2/TOTP MFA and CAPTCHA.
 - Business Finance remains private/sole-trader-first; Smart Receipts remain private and review-first.
 - System Health and Newsletter Centre remain live.
-- Window Cleaning only live; future services remain planned.
-- Stripe sandbox remains excluded from Business Finance; customer payment policy OFF; no live Stripe credentials.
-- Supabase Leaked Password Protection still needs manual enablement/re-verification.
+- Window Cleaning only live; later services planned.
+- Stripe sandbox remains excluded from Business Finance; payment policy OFF; no live Stripe credentials.
+- Supabase Leaked Password Protection still requires manual enablement/re-verification.
 
 ## Development rules
+- Verify current `main` and provider state before further substantial changes.
 - Preview/test before production.
-- Every substantial code/security/config change updates `docs/AI_START.md`, `docs/AI_HANDOFF.md`, and `docs/PROJECT_STATUS.md`.
-- Do not put credentials, passwords, tokens or customer private data in repo/chat/docs.
-- Do not create real operational records merely as smoke tests.
+- Every substantial code/security/config change updates all three continuity docs.
+- Never place credentials, passwords, tokens or customer private data in repo/chat/docs.
+- Do not create real operational records just to smoke-test deployments.
