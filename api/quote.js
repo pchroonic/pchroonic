@@ -1,5 +1,6 @@
 const core=require('./quote-core');
 const {json,parseBody,db,safeError}=require('../lib/server');
+const {consumeRateLimit}=require('../lib/security');
 const {serviceByKey,isLive,unavailableMessage}=require('../lib/service-catalog');
 
 const WINDOW_DETAIL=new Set([1,1.15,1.28]);
@@ -20,6 +21,7 @@ module.exports=async function handler(req,res){
   let originalEnd=null,captured='',visitor='';
   try{
     if(req.method==='POST'){
+      await consumeRateLimit(req,res,{scope:'quote.create.ip',limit:8,windowSeconds:900,message:'Too many quote requests were submitted from this connection. Please wait a few minutes and try again.'});
       const body=parseBody(req),key=String(body.serviceKey||body.service||'').trim();
       if(!key)return json(res,400,{ok:false,error:'Choose a valid Namdar service.'});
       const service=await serviceByKey(db,key);

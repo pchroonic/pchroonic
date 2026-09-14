@@ -1,4 +1,5 @@
 const { json, authUser, db, safeError, queryParam, env } = require('../lib/server');
+const { consumeRateLimit } = require('../lib/security');
 function cleanPostcode(value=''){const raw=String(value).trim().toUpperCase().replace(/\s+/g,'');return raw.length>3?`${raw.slice(0,-3)} ${raw.slice(-3)}`:raw}
 function label(a){return [a.address_line1,a.address_line2,a.city,a.postcode].filter(Boolean).join(', ')}
 function normLabel(v=''){return String(v).toLowerCase().replace(/\s+/g,' ').replace(/\s*,\s*/g,',').trim()}
@@ -96,6 +97,7 @@ async function masterRows(postcode){
 }
 module.exports=async function handler(req,res){try{
   if(req.method!=='GET')return json(res,405,{ok:false,error:'Method not allowed'});
+  await consumeRateLimit(req,res,{scope:'address.lookup.ip',limit:30,windowSeconds:600,message:'Too many address lookups were made from this connection. Please wait a few minutes and try again.'});
   const postcode=cleanPostcode(queryParam(req,'postcode')||'');
   if(!postcode)return json(res,400,{ok:false,error:'Enter a postcode.'});
 
@@ -109,7 +111,7 @@ module.exports=async function handler(req,res){try{
   const addresses=(master||[]).map(a=>({
     id:`master:${a.id}`,address:a.display_address,
     houseUnit:[a.sub_building_name,a.building_name,a.building_number].filter(Boolean).join(', '),
-    street:[a.dependent_thoroughfare,a.thoroughfare].filter(Boolean).join(', '),
+    street:[a.dependent_thoroughfare,a.thoroughfare].filter(Boolean).join(' '),
     source:a.source_dataset==='osm-postcode-cache'?'openstreetmap':'namdar-master',dataset:a.source_dataset
   }));
 

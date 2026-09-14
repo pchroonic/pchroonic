@@ -6,55 +6,58 @@ Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PR
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current live product release: PR #69 `Upgrade Ask Namdar chat experience`.
-- Exact tested PR head: `2b0d044a4e8e2e5276be2bdfa86a3e95d93f84f4`.
-- GitHub CI run `34861747184`: SUCCESS.
-- Exact-head preview `dpl_7LTPd5ZdodWWvM8GaJTkzfHryfdY`: READY; errors-only build clean.
-- PR #69 merge/main: `935600a1bf8c7892bc6bc4fc0dafa118901b21e2`.
-- Production deployment `dpl_8cUiMKDnNc3ko4hw7xtwQSFRFV9K`: READY on `https://namdar.co.uk`; production build clean.
-- Production `/api/health`: HTTP 200 after deploy.
-- Live public chat assets: `6.4.29-chat-1`; `conversion.js`, `chat-experience.js` and `chat-experience.css` verified HTTP 200 in production.
+- Current production main before this security release: `bb7c27a6a9e291bb47ede0d95063d5b9b248f566`.
+- Current live product release remains PR #69 `Upgrade Ask Namdar chat experience`; PR #70 is docs-only continuity.
+- Production deployment from PR #69: `dpl_8cUiMKDnNc3ko4hw7xtwQSFRFV9K`, READY; `/api/health` was HTTP 200 after release.
+- Production chat assets: `6.4.29-chat-1`; production `/api/config` remains `aiEnabled:false`, so Ask Namdar is currently Guided assistant mode.
 - Supabase production: `qjigldxjcpnrlyxgmlqq`.
-- Window Cleaning only live; later services planned; address work parked.
+- Vercel project: `prj_4fILo0pCaLGUSUIMWrBIVGzeWVDC`, team `team_8Az8WtWcnfwtYRdhR8vGqC3L`.
+- Window Cleaning is the only live/quotable/bookable service. Later services remain planned. Address-data expansion remains parked.
 - Privileged Staff/Admin requires AAL2/MFA.
-- Stripe commercial customer payment policy OFF; no live Stripe credentials.
+- Stripe commercial customer payment policy remains OFF; no live Stripe credentials.
 
-## Ask Namdar chat — LIVE
-The public chat is now grounded in Namdar's live service catalogue and has a modern mobile/desktop experience.
+## Security hardening release in final verification
+Branch: `security/hardening-rate-limits-invites-20260914`
 
-Live behavior:
-- Window Cleaning is the only service described as live/quotable/bookable.
-- Gutters, jet washing, roof cleaning, handyman and 3D tours remain planned.
-- Chat does not invent prices; pricing routes to the guide-estimate journey.
-- Recent conversation history is available to the optional AI path for follow-up questions.
-- AI provider calls, when configured, have a 7-second timeout, `store:false`, bounded history and strict public-business instructions.
-- Provider failure falls back to deterministic guided help without exposing provider errors.
-- Existing-customer support routes to private My Namdar support; guests are not promised public support tickets.
-- Human staff takeover suppresses AI/assistant replies in that conversation.
-- Invalid polling no longer creates empty sessions.
-- UI includes suggested questions, typing state, contextual actions, conversation resume/new chat, retry state, privacy reminder, visibility-aware polling, keyboard controls, dark mode and mobile bottom-sheet layout.
-- First guest message still requires Turnstile.
+Pre-docs implementation head: `701e7f26736358f36cd2cca12f41cf64f5423bb4`.
+Target loaders: `6.4.30-security-hardening-1` for Admin and My Namdar.
 
-## Important AI-mode fact
-Production `/api/config` was rechecked after deploy and still reports `aiEnabled:false`. Therefore the live box correctly operates as **Guided assistant**, not an active OpenAI model. Do not describe production as model-powered until provider credentials are deliberately configured and reverified.
+Implemented:
+- private server-only fixed-window rate limiting backed by `security_rate_limits` + atomic `consume_security_rate_limit(...)` RPC;
+- rate-limit identifiers are HMAC-SHA256 hashes using the server key; raw IP addresses and customer identifiers are not stored in the counter table;
+- rate-limit blocks return HTTP 429 with `Retry-After` and are written to the existing audit log as `security.rate_limited`;
+- limits applied to quote creation, chat messages, newsletter subscription, postcode lookup and address lookup;
+- Admin account creation changed from generated/emailed temporary passwords to Supabase secure email invitations;
+- Admin UI no longer shows or accepts temporary passwords for new users;
+- existing account email identity cannot be overwritten by Admin; account owners change email in My Namdar → Security using Supabase confirmation;
+- current logged-in administrator cannot change their own role/account status or delete themselves;
+- last active administrator cannot be demoted, suspended or deleted;
+- non-admin staff cannot invite/promote administrators;
+- Admin automatically signs out after 30 minutes of inactivity;
+- existing CAPTCHA, AAL2/TOTP MFA, CSP/security headers and audit logging remain in place.
 
-No DB migration or environment-variable change was part of PR #69. No production chat message was sent as a deployment test.
+## Production database change already applied
+Migration `20260914163700_security_rate_limit_foundation` is already applied to production and has a matching repo migration file.
 
-## Other stable systems
-- Newsletter Centre live with consent-aware drafts, preview/test, segmented audiences, resumable delivery, campaign history and subscriber preferences.
-- System Health live with persistent scheduled-run history.
-- Business Finance excludes sandbox Stripe.
-- Smart receipts live; first authenticated receipt test deferred by user.
+Verified directly in production:
+- atomic limiter allowed requests up to the test limit and blocked the next request;
+- disposable verification counter was deleted afterwards;
+- `security_rate_limits` has RLS enabled and 0 browser policies;
+- production auth trigger `on_auth_user_email_updated` calls `sync_profile_email()`, so verified Supabase email changes propagate back to `profiles`;
+- no customer, quote, chat, newsletter or payment record was created during limiter verification.
 
-## Next action
-1. User can inspect `Ask Namdar` on the live homepage and test the guided experience deliberately.
-2. If the owner wants true model-powered chat, configure the OpenAI provider in Vercel separately, then verify `aiEnabled:true` and run a controlled chat test before calling it live AI.
-3. Newsletter analytics remains a later task after the chat review.
+## Final verification checklist
+1. Open PR from the security branch to `main`.
+2. Require full GitHub CI green, including `scripts/security-hardening.test.mjs`.
+3. Locate the exact-head Vercel preview; require READY and clean errors-only build.
+4. Verify preview static loaders/assets and safe GET endpoints only; do not create real users, quotes, chats or emails as deployment tests.
+5. Merge only after CI + exact preview are clean.
+6. Verify production deployment READY, `/api/health` HTTP 200, and live `6.4.30-security-hardening-1` Admin/account loaders/assets.
+7. Re-run Supabase security advisor. Leaked Password Protection may still require a manual Supabase Auth setting because the available management connector does not expose that project-auth mutation.
+8. Record exact live release/deployment state in all three continuity docs after production verification.
 
-## Do not break
-- Window Cleaning remains the only live/quotable/bookable service.
-- No guessed chat prices or fabricated availability.
-- Customer support tickets remain private/customer-only.
-- No passwords, card data, access tokens, prompts, provider keys or private customer data in assistant output/logs/docs.
-- Human takeover must prevent assistant interjection.
-- Newsletter consent/data and Stripe commercial safety state remain unchanged.
+## Important safety notes
+- Do not invent or expose passwords, tokens, provider keys or customer private data.
+- Do not test the invitation flow with a real customer/staff email unless explicitly approved; CI/source verification is the safe default.
+- Do not enable Stripe commercial payments as part of this security release.
+- Preserve the current AAL2/MFA boundary for privileged Admin/Staff APIs.

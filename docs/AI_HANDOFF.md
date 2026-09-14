@@ -6,135 +6,235 @@ Read `docs/AI_START.md` first.
 
 ## Production source of truth
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current live product release: PR #69 `Upgrade Ask Namdar chat experience`.
-- Exact tested PR head `2b0d044a4e8e2e5276be2bdfa86a3e95d93f84f4`; GitHub CI `34861747184` SUCCESS.
-- Exact preview `dpl_7LTPd5ZdodWWvM8GaJTkzfHryfdY` READY with clean errors-only build.
-- Merge/main `935600a1bf8c7892bc6bc4fc0dafa118901b21e2`.
-- Production `dpl_8cUiMKDnNc3ko4hw7xtwQSFRFV9K` READY on `https://namdar.co.uk`; production errors-only build clean.
-- Production `/api/health` HTTP 200 after release.
-- Production `conversion.js` verified loading `chat-experience.css` + `chat-experience.js` with version `6.4.29-chat-1`; both assets fetched HTTP 200 live.
-- Supabase production `qjigldxjcpnrlyxgmlqq`.
-- Window Cleaning only live; later services planned; address work parked.
+- Main before this security release: `bb7c27a6a9e291bb47ede0d95063d5b9b248f566`.
+- Current live product release: PR #69 `Upgrade Ask Namdar chat experience`; PR #70 is docs-only continuity.
+- PR #69 exact tested head `2b0d044a4e8e2e5276be2bdfa86a3e95d93f84f4`; GitHub CI `34861747184` SUCCESS.
+- PR #69 exact preview `dpl_7LTPd5ZdodWWvM8GaJTkzfHryfdY` READY with clean build.
+- PR #69 merge `935600a1bf8c7892bc6bc4fc0dafa118901b21e2`; docs-only PR #70 merge/main `bb7c27a6a9e291bb47ede0d95063d5b9b248f566`.
+- Current production deployment from PR #69: `dpl_8cUiMKDnNc3ko4hw7xtwQSFRFV9K` READY on `https://namdar.co.uk`; `/api/health` was HTTP 200 after release.
+- Production Ask Namdar assets `6.4.29-chat-1`; `/api/config` remains `aiEnabled:false`, so production is Guided assistant mode.
+- Supabase production `qjigldxjcpnrlyxgmlqq` (`namdar-production`, `eu-west-1`). Do not use old inactive project `wbftztjembykhbnmqvnt` as staging.
+- Vercel team `team_8Az8WtWcnfwtYRdhR8vGqC3L`, project `prj_4fILo0pCaLGUSUIMWrBIVGzeWVDC`.
+- Window Cleaning only live. Gutters, jet washing, roof cleaning, handyman and 3D tours remain planned.
+- Address-data expansion is parked.
 - Privileged Staff/Admin requires AAL2/MFA.
-- Stripe commercial payment policy OFF; no live Stripe credentials.
+- Stripe commercial customer payment policy is OFF; no live Stripe credentials.
 
-## Stable existing systems
-- Newsletter Centre live and consent-aware; no marketing message was sent during its deployment verification.
-- System Health live with persistent scheduled-run history.
-- Business Finance excludes sandbox Stripe.
-- Smart receipts live; user deferred authenticated receipt testing.
+## Stable systems that must not regress
+- Account auth uses pinned Supabase JS `2.116.0` and the lock/session restore hotfix.
+- Admin/Staff privileged APIs enforce AAL2/TOTP MFA.
+- Privileged login CAPTCHA/Turnstile is present.
+- Business Finance is private, sole-trader-first, and excludes sandbox Stripe rows.
+- Smart receipts are private and review-first; receipt OCR stays in the authenticated browser.
+- System Health has persistent scheduled-run/incident history.
+- Newsletter Centre is consent-aware/resumable; no campaign should be sent as a deployment test.
+- Ask Namdar is grounded in the service catalogue and works in Guided assistant mode while `aiEnabled:false`.
+- Stripe webhook remains authoritative for payment state; customer payment policy remains OFF.
 
-## Ask Namdar chat — LIVE
-PR #69 replaced the basic FAQ-style public chat experience with a grounded assistant and a richer UI without changing database schema or environment configuration.
+# Security hardening release
 
-### Production AI state
-`https://namdar.co.uk/api/config` was checked before and after PR #69 and reports `aiEnabled:false`.
-This means:
-- production is currently using the deterministic guided assistant path;
-- the UI must say `Guided assistant`, not `AI assistant`;
-- no OpenAI key/model was added or changed in PR #69;
-- do not claim model-powered chat is live until provider configuration is deliberately added and verified.
+## Branch / release target
+Branch: `security/hardening-rate-limits-invites-20260914`
 
-### `lib/chat-assistant.js`
-Shared public-assistant policy layer:
-- intents: support, postcode, pricing, booking, future service, Window Cleaning, general;
-- service context is generated from the live service catalogue;
-- guided responses remain useful without a provider;
-- Window Cleaning is the only live service in the safe baseline;
-- future services are described as planned, never bookable;
-- prices are never invented;
-- support routes are fixed/safe and preserve customer-only private support;
-- AI history is capped at 12 messages / 2,000 chars per message;
-- FAQ context is bounded;
-- AI instructions explicitly protect system/internal instructions, credentials and private data, and make live catalogue status authoritative over stale FAQ copy.
+Pre-docs implementation head: `701e7f26736358f36cd2cca12f41cf64f5423bb4`.
+Target Admin/My Namdar asset version: `6.4.30-security-hardening-1`.
 
-### `api/chat.js`
-- still requires Turnstile on the first guest message;
-- sessions remain owned by signed-in customer ID or private guest token;
-- staff reply/close remains protected by `chat` permission;
-- invalid `poll` returns 404 instead of creating a blank session;
-- closed sessions start fresh on a new message instead of reopening silently;
-- live service catalogue is fetched through `loadServiceCatalog(db)` for assistant grounding;
-- recent session history is fetched after the new user message and passed to the optional model path;
-- guest name/email fields are not injected into model context;
-- provider path uses Responses API, `max_output_tokens:300`, `store:false`, 7-second `AbortController` timeout;
-- provider failure/timeout is swallowed safely into guided fallback; no provider error detail is returned to customer;
-- once a staff member replies and session `mode='human'`, assistant/AI no longer interjects even if presence later changes;
-- API returns `assistantMode` (`guided|ai|human`) plus safe contextual actions.
+Compared with production main before docs, the implementation changes:
+- `.github/workflows/ai-handoff-check.yml`
+- `account-security-email.js` (new)
+- `account.js`
+- `admin-security-hardening.js` (new)
+- `admin.js`
+- `api/address-search.js`
+- `api/admin-users.js`
+- `api/chat.js`
+- `api/newsletter-subscribe.js`
+- `api/postcode.js`
+- `api/quote.js`
+- `lib/auth-invite.js` (new)
+- `lib/security.js` (new)
+- four existing loader-version regression tests
+- `scripts/security-hardening.test.mjs` (new)
+- `supabase/migrations/20260914163700_security_rate_limit_foundation.sql` (new)
 
-### Guided assistant behavior live now
-- Window Cleaning answer explains exterior glass, frames and exterior sills and directs to postcode/guide-estimate flow;
-- pricing answer refuses to invent a number and sends customer to the estimate/final-review flow;
-- postcode answer routes to the coverage check;
-- booking answer reflects estimate -> reviewed final quote -> accept -> appointment journey;
-- planned-service questions correctly say gutters, jet washing, roof cleaning, handyman and 3D tours are not live yet;
-- signed-in support routes to `/account?tab=support`;
-- signed-out support gives My Namdar sign-in/public support email rather than claiming public ticket creation.
+## 1. Private server-side rate limiting
+Production migration `20260914163700_security_rate_limit_foundation` is already applied and has the matching SQL file in this branch.
 
-### `chat-experience.js`
-Modern public widget loaded after `app.js` through `conversion.js`:
-- launcher text `Ask Namdar`;
-- mode badge `Guided assistant`, `AI assistant` only if config becomes enabled, `Team chat` after staff takeover;
-- suggested questions: Window Cleaning, pricing, postcode, booking, support;
-- typing indicator;
-- contextual action buttons;
-- retry/status state;
-- existing session resume using current localStorage keys;
-- New conversation clears client-side remembered session and starts a fresh server session on the next message;
-- optional guest name/email collapse after session creation; hidden for signed-in users;
-- privacy hint: do not share passwords/card details;
-- Enter sends, Shift+Enter newline, Escape closes/returns focus;
-- polling only while widget open + page visible + session present; 7-second interval;
-- old app chat poll timer is cleared when enhancement mounts;
-- Turnstile is rendered in upgraded DOM when needed.
+It creates private table `public.security_rate_limits`:
+- primary key `(scope, key_hash)`;
+- fixed-window counter fields;
+- RLS enabled;
+- no anon/authenticated table grants;
+- no browser policies;
+- service-role access only;
+- `last_seen_at` index for future housekeeping.
 
-### `chat-experience.css`
-- polished header/avatar/state badge;
-- differentiated customer/assistant/staff bubbles;
-- suggested questions + contextual CTA styles;
-- compact composer/status/support row;
-- dark/auto theme support;
-- reduced-motion handling;
-- mobile bottom sheet using `100dvh` and safe-area inset.
+It also creates `public.consume_security_rate_limit(text,text,integer,integer)`:
+- `SECURITY DEFINER`;
+- safe `search_path = public, pg_temp`;
+- atomic `INSERT ... ON CONFLICT DO UPDATE` counter consumption;
+- returns allowed/current_count/remaining/reset_at;
+- executable only by service role.
 
-### Loader
-`conversion.js` existing service-stage/funnel behavior is unchanged except addition of:
-- `/chat-experience.css?v=6.4.29-chat-1`
-- `/chat-experience.js?v=6.4.29-chat-1`
-Production fetch verified the loader and both assets.
+`lib/security.js`:
+- chooses the trusted request IP header order currently used by Namdar hosting (`cf-connecting-ip`, `x-real-ip`, first `x-forwarded-for`, socket fallback);
+- converts the identity to HMAC-SHA256 using the server service key before database storage;
+- stores only the truncated HMAC hash, never the raw IP/customer identifier;
+- sends `RateLimit-Limit` and `RateLimit-Remaining` response headers;
+- blocked requests return 429 with `Retry-After`;
+- block events are written to existing audit history as `security.rate_limited` without storing the raw identity.
 
-### Regression coverage
-`scripts/chat-assistant.test.mjs` verifies:
-- intent routing;
-- Window-only live behavior and future-service planned state;
-- customer-only support rules;
-- bounded history and service-status override;
-- live catalogue/history/provider timeout/`store:false`/human-takeover wiring;
-- UI privacy/suggestions/new conversation/visibility polling/mobile loader.
-CI also syntax-checks `chat-experience.js`, `api/chat.js`, `lib/chat-assistant.js`.
+Limits currently wired:
+- quote creation: `quote.create.ip`, 8 per 15 minutes per connection;
+- public/signed-in chat messages: guest IP 30 per 10 minutes; signed-in user 50 per 10 minutes; chat polling is deliberately not counted;
+- newsletter subscribe: IP bounded;
+- postcode lookup: IP bounded;
+- address lookup: IP bounded to protect expensive external/OpenStreetMap fallback activity;
+- Admin account invitation: actor-based limit, 30 per hour per staff user.
 
-## Deployment verification
-- PR #69 merge was restricted to exact tested head.
-- Production deployment READY and aliased to `namdar.co.uk`.
-- production build clean;
-- `/api/health` 200;
-- `conversion.js` 200 and contains `6.4.29-chat-1` loader;
-- `chat-experience.js` 200;
-- `chat-experience.css` 200;
-- `/api/config` still `aiEnabled:false` as intended;
-- no real customer chat message was sent as a deployment test.
+Production mechanism test completed before final verification:
+- disposable key was consumed beyond a small test limit;
+- the next request was correctly blocked;
+- test row was deleted afterwards;
+- final verification query found zero disposable verification rows;
+- `security_rate_limits` RLS enabled with zero browser policies.
+No customer, quote, chat, newsletter, payment or real invitation was created for this test.
 
-## Next
-1. User can visually/test the guided chat on production.
-2. If true model-powered chat is desired, configure `OPENAI_API_KEY` and `OPENAI_MODEL` in Vercel without exposing values in chat/source, then verify `/api/config` flips to `aiEnabled:true` and run one controlled functional chat test.
-3. If the provider is activated, recheck model behavior against Window-only availability and customer-only support before calling AI production-ready.
-4. Newsletter analytics remains deferred until chat review is complete.
+## 2. Secure Admin-created user invitations
+Old behavior in `api/admin-users.js` generated a temporary password, returned it to Admin and emailed it to the user.
 
-## Non-negotiables
-- No claim of live AI while `aiEnabled:false`.
-- No provider keys, access tokens, guest tokens, system prompts or private customer data in output/docs/logs.
-- Window Cleaning remains only live service until catalogue intentionally changes.
-- Assistant never fabricates price, appointment, availability or payment state.
-- Public visitors do not receive public support tickets; customer support stays private in My Namdar.
-- Human takeover suppresses assistant interjection.
-- Preserve Newsletter Centre, System Health, finance, receipts and Stripe safeguards.
+New behavior:
+- `lib/auth-invite.js` calls Supabase Auth `/auth/v1/invite` using the service role server-side;
+- redirect target is `/account?tab=security&invited=1` on the configured Namdar origin;
+- no password is generated, returned, logged or emailed by Namdar;
+- after Supabase creates the invited auth user, Namdar patches the profile/role details and optional `staff_access`;
+- if profile setup fails after the invite user was created, the auth user is deleted best-effort to avoid a half-created Namdar account;
+- audit action is `user.invite` with `credentialDelivery:'supabase_invitation'` and `temporaryPassword:false`.
+
+`admin-security-hardening.js`:
+- replaces the old Admin save handler;
+- hides/disables the temporary-password control;
+- shows `Secure invitation` guidance for new users;
+- existing users have their email field disabled in Admin;
+- only an active Admin UI exposes the Admin role option;
+- new-user success message says the secure invitation was sent rather than displaying a password.
+
+Do not deployment-test this by inviting a real customer/staff email without explicit approval.
+
+## 3. Account email identity protection
+Existing user email identity can no longer be overwritten through `api/admin-users.js`.
+
+PATCH behavior:
+- if requested email differs from current profile email, API returns 409 with instruction to use My Namdar Security;
+- email is no longer included in the profile patch path;
+- no Admin Auth `email_confirm:true` bypass exists for edits.
+
+`account-security-email.js` adds My Namdar → Security `Change email address`:
+- validates the new email;
+- requires a signed-in session;
+- calls `sb.auth.updateUser({email: next}, {emailRedirectTo: ...})`;
+- current email stays active until Supabase completes the confirmation requirement;
+- invitation and email-confirmation return messages are surfaced in the account UI.
+
+Production trigger verification:
+- `auth.users` has `on_auth_user_email_updated` AFTER UPDATE trigger;
+- it calls `public.sync_profile_email()`;
+- that function updates `public.profiles.email` whenever verified Auth email changes.
+Therefore no new migration is needed for profile email synchronization.
+
+## 4. Privileged account lifecycle protection
+`api/admin-users.js` now enforces:
+- only an administrator can invite another administrator;
+- only an administrator can modify/promote administrator roles;
+- the currently signed-in privileged account cannot change its own role/account status;
+- the currently signed-in account cannot delete itself;
+- before an active admin is demoted/suspended/deleted, another active admin must exist;
+- the last active administrator therefore cannot be removed accidentally.
+
+## 5. Admin idle timeout
+`admin-security-hardening.js` records user activity and signs out the Admin dashboard after 30 minutes of inactivity.
+- events: pointer, keyboard, touch and scroll;
+- hidden tabs are checked on visibility return;
+- signed-out/login view resets the idle timer;
+- message explains the security timeout after sign-out.
+
+This is in addition to, not a replacement for, Supabase session expiry and AAL2/MFA.
+
+## 6. Existing protections deliberately preserved
+Do not weaken:
+- Turnstile/CAPTCHA on privileged login and existing public anti-bot flows;
+- AAL2/TOTP requirement for privileged Admin/Staff APIs;
+- CSP/security headers already configured in Vercel;
+- audit-log redaction in `lib/server-original.js`;
+- server/service-role-only private finance, receipt and health tables;
+- customer-only private support-ticket policy.
+
+## CI coverage
+`.github/workflows/ai-handoff-check.yml` now syntax-checks:
+- `account-security-email.js`
+- `admin-security-hardening.js`
+- `api/admin-users.js`
+- `api/address-search.js`
+- `lib/security.js`
+- `lib/auth-invite.js`
+and runs `scripts/security-hardening.test.mjs`.
+
+The security regression test asserts:
+- private/RLS rate-limit schema + atomic RPC;
+- HMAC identity hashing, 429/Retry-After and audit behavior;
+- rate limits on high-value public endpoints while chat poll remains uncounted;
+- secure invites and absence of temporary-password output;
+- current/last-admin lifecycle safeguards;
+- verified self-service email changes;
+- Admin idle timeout and loader version.
+
+Existing tests that checked the old Admin loader string were updated to the new `6.4.30-security-hardening-1` target.
+
+## Final verification still required before release
+1. Open PR to `main`.
+2. Full GitHub CI must be green.
+3. Resolve exact PR head SHA from the PR.
+4. Find Vercel preview for that exact head; require READY.
+5. Check errors-only preview build log is clean.
+6. Safe preview checks only:
+   - static `admin.js` includes `6.4.30-security-hardening-1` and `admin-security-hardening.js`;
+   - static `account.js` includes `6.4.30-security-hardening-1` and `account-security-email.js`;
+   - new assets return HTTP 200;
+   - `/api/config` is safe to inspect;
+   - do not submit quotes/chats/newsletters/invites as deployment smoke tests.
+7. Merge only after exact-head CI + preview pass.
+8. Wait for production deployment; require READY + clean build.
+9. Verify production `/api/health` HTTP 200 and the live static loader/assets.
+10. Re-run Supabase security advisor and document remaining findings.
+11. Update all three continuity docs with exact tested head, CI run, preview ID, merge SHA and production deployment ID.
+
+## Supabase security advisor/manual auth setting
+Prior advisor output still reported Leaked Password Protection disabled. The currently available Supabase management connector exposes advisors/SQL but not a safe project Auth-config mutation for this setting. Do not claim it is enabled unless directly verified. If it remains disabled after release, record it as a manual Supabase Dashboard follow-up.
+
+## Existing Business Finance / Stripe baseline
+- User decision: operate as sole trader first, later limited company after successful business growth.
+- Never recast historical sole-trader transactions as company activity.
+- Business Finance excludes Stripe sandbox rows using `payment_records.provider_livemode`.
+- Retained Stripe sandbox ledger: 4 rows (two £0.50 payments, two £0.50 refunds), 0 live rows.
+- No live Stripe credentials.
+- Customer Stripe payment policy remains OFF.
+- No automatic expense/tax posting from operational job-cost estimates or receipt OCR.
+
+## Open work after security release
+- Leaked Password Protection manual Supabase Auth setting if still disabled.
+- Optional security notification email settings review in Supabase Auth.
+- Decide commercial Stripe policy: optional online payment vs deposit required vs full payment required; keep OFF until deliberate decision.
+- Only after payment policy approval: connect live Stripe credentials/webhook and run live-readiness checklist.
+- Google review request URL still open.
+- Window real-job pricing evidence/calibration.
+- SMS/legal remaining checks.
+- Optional duplicate floating Supabase include cleanup on `account.html`.
+- `url.parse()` deprecation warning remains tech debt.
+- Address-data pilot remains parked.
+
+## Development rules
+- Before substantive continuation, verify `main`, branch/provider state and read these docs rather than assuming handoff text is current.
+- Preview/test before production.
+- Every substantial code/database/API/security/config change updates `docs/AI_START.md`, `docs/AI_HANDOFF.md`, and `docs/PROJECT_STATUS.md`.
+- Do not put secrets, customer private data or credentials into repo/chat/docs.
+- Keep migrations idempotent/safe and record production-applied migration truth.
