@@ -142,4 +142,8 @@
   }
   applyServiceAvailability(safeDefault);
   fetch('/api/public-data',{headers:{Accept:'application/json'}}).then(r=>r.ok?r.json():Promise.reject(new Error('service status unavailable'))).then(d=>applyServiceAvailability(d.services||safeDefault)).catch(()=>applyServiceAvailability(safeDefault));
+
+  const chatVersion='6.4.29-chat-1';
+  if(!document.querySelector('link[data-namdar-chat-experience]')){const link=document.createElement('link');link.rel='stylesheet';link.href=`/chat-experience.css?v=${chatVersion}`;link.dataset.namdarChatExperience='1';document.head.appendChild(link)}
+  if(!document.querySelector('script[data-namdar-chat-experience]')){const script=document.createElement('script');script.src=`/chat-experience.js?v=${chatVersion}`;script.defer=true;script.dataset.namdarChatExperience='1';document.body.appendChild(script)}
 })();
