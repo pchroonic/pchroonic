@@ -50,9 +50,9 @@ test('health history tables are server only with open-incident dedupe',()=>{
   assert.doesNotMatch(migration,/create policy/i);
 });
 
-test('Admin loader includes System Health dashboard',()=>{
+test('Admin loader keeps System Health in current security release',()=>{
   const loader=read('admin.js'),ui=read('admin-system-health.js');
-  assert.match(loader,/6\.4\.28-newsletter-centre-1/);
+  assert.match(loader,/6\.4\.30-security-hardening-1/);
   assert.match(loader,/admin-system-health\.js/);
   assert.match(ui,/System Health/);
   assert.match(ui,/Refresh health/);
