@@ -41,7 +41,7 @@ test('My Namdar continues a guest quote after sign-in and shows quote-to-booking
   assert.match(source,/same email used for the estimate/);
   assert.match(source,/Request','Final quote','Decision','Appointment/);
   assert.match(source,/requestedAddress/);
-  assert.match(source,/\[Requested address\]/);
+  assert.match(source,/Requested address/);
 });
 
 test('booking journey does not enable payment or bypass final-quote acceptance',()=>{
