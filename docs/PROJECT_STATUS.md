@@ -4,47 +4,54 @@ Last updated: 2026-09-14 UTC
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current main before Staff auth recovery: `5b4056db5a9b098cf0cfcd0744e17bf1ff2ec0d4`.
-- Current live product release: PR #71 `Harden Namdar public APIs and account security`; PR #72 is docs-only continuity.
-- Current production deployment: `dpl_4ttWCLhEDsWUpqNhQqRwQQz57Acc`, READY; `/api/health` HTTP 200.
-- Production Admin/My Namdar loader: `6.4.30-security-hardening-1`.
+- Current live product release: PR #73 `Fix Staff My jobs auth recovery`.
+- Exact tested head: `43c8b678f38549d9bce674c1e4ae8ab0eed889c4`.
+- GitHub CI `34886442615`: SUCCESS.
+- Exact preview `dpl_92WaxJ1yhL4kGuDusWrmTC7FhiXg`: READY with clean errors-only build; Vercel commit status SUCCESS.
+- Product merge/main: `dc10aefc814f6aac8a6cb686597a01b682647deb`.
+- Production deployment: `dpl_FP8WnzuPGtYwxNKLpMsGjpc7pPRo`, READY and clean.
+- Production `/api/health`: HTTP 200 after release.
+- Live Staff version: `6.4.31-staff-auth-recovery-1`.
+- Live `/staff` pins Supabase JS `2.116.0`; live `staff.js`, `staff-auth-readiness.js`, `staff-sw.js` verified HTTP 200.
+- Post-release error/fatal runtime log check found no matching logs.
 - Supabase production `qjigldxjcpnrlyxgmlqq`.
 - Window Cleaning is the only live service.
 - Privileged Staff/Admin requires CAPTCHA + AAL2/MFA.
 - Stripe customer payment policy remains OFF; no live Stripe credentials.
 - Ask Namdar remains Guided assistant because `aiEnabled:false`.
 
-## Staff My jobs auth recovery — FINAL VERIFICATION PENDING
-Branch: `fix/staff-auth-recovery-20260914`
-Target Staff version: `6.4.31-staff-auth-recovery-1`.
-
-### Production bug confirmed
-User screenshot from `/staff` showed successful Cloudflare Turnstile followed by:
+## Staff My jobs auth recovery — LIVE
+### User-reported bug
+`/staff` could show a successful Turnstile but then fail Sign in with:
 `Cannot read properties of null (reading 'auth')`.
-A hard refresh then restored the Staff page/session.
+A hard refresh then restored the jobs page.
 
-### Root cause
-- Staff login submit used `sb.auth` directly even when startup had failed before `sb` was assigned.
-- Staff still used floating Supabase JS `@2` instead of pinned `2.116.0`.
-- Staff service worker cache namespace was still `6.4.16` and auth-critical scripts were cache-first/stale-while-revalidate, which could preserve an inconsistent old bundle until hard refresh.
+### Root cause fixed
+- direct `sb.auth` dereference was reachable when Staff setup failed before the Supabase client was assigned;
+- Staff used floating Supabase JS `@2` instead of pinned `2.116.0`;
+- Staff service worker still used an old `6.4.16` cache namespace and cache-first/stale-while-revalidate for auth-critical files.
 
-### Implemented fix
-- Added `staff-auth-readiness.js` to guard and recover auth initialization.
-- Auto-recovers a failed Staff startup by reloading pinned Supabase `2.116.0`, reusing `/api/config`, rebuilding the persisted auth client, and restoring the existing session when possible.
-- Sign-in now passes a verified `auth` object to privileged CAPTCHA instead of dereferencing null `sb.auth`.
-- `staff.html` pins Supabase `2.116.0` and current cache-bust version.
-- `staff.js` loads the readiness layer after `staff-original.js`.
-- `staff-sw.js` bumped to the current cache namespace and uses network-first online for auth-critical Staff scripts, with cache fallback only when offline/network fails.
-- New regression suite `scripts/staff-auth-readiness.test.mjs`.
-- CI now syntax-checks the readiness module and runs its test.
+### Live fix
+- `staff-auth-readiness.js` now guards/retries auth setup and restores an existing persisted session when possible;
+- it can reload pinned Supabase `2.116.0`, reload safe public config, rebuild the auth client and reopen My jobs automatically;
+- sign-in passes a resolved `auth` object to privileged CAPTCHA rather than dereferencing null `sb.auth`;
+- Staff service worker cache namespace is now `6.4.31-staff-auth-recovery-1`;
+- auth-critical Staff scripts are network-first online with offline cache fallback;
+- regression tests and CI coverage added.
 
-### Release gate
-- Full GitHub CI must pass.
-- Exact-head Vercel preview must be READY with clean errors-only build.
-- Preview Staff assets/version/pinned Supabase must be verified.
-- Merge exact tested head only.
-- Production deployment must be READY + clean, `/api/health` HTTP 200, and live Staff assets must match `6.4.31-staff-auth-recovery-1`.
-- Then user should test ordinary My jobs navigation without hard refresh.
+### Verification
+- PR #73 exact head/CI/preview passed.
+- Production deployment READY + clean.
+- `/api/health` HTTP 200.
+- Live Staff page/loader/recovery/service-worker assets verified current.
+- No error/fatal runtime logs immediately after release.
+
+### Final browser smoke still pending user confirmation
+One normal authenticated browser check remains:
+- open My jobs normally without a hard refresh;
+- if an existing session is valid, it should restore directly;
+- if signed out, ordinary CAPTCHA + sign-in should work once;
+- never share password or MFA code in chat.
 
 ## Security Hardening — LIVE
 - Private server-side rate limits with HMAC-hashed identities.
@@ -58,28 +65,28 @@ A hard refresh then restored the Staff page/session.
 ## Stable feature status
 ### Accounts / authentication
 - My Namdar portal live with pinned Supabase JS `2.116.0` and bounded session restore.
+- Staff My jobs auth/cache recovery is now live with the same pinned Supabase build.
 - Privileged MFA and CAPTCHA live.
 - Self-service password/email/authenticator controls live.
 
 ### Operations
 - Quotes/bookings/payments/Admin CRM live.
-- Staff My jobs is live but the auth/cache recovery fix above is pending release verification.
 - Window Cleaning live; later services planned.
 - Customer support tickets remain customer-only/private.
 
 ### Business Finance
 - Sole-trader-first Business Finance live.
 - Cash-basis reporting/tax estimate framework live.
-- Smart receipt workflow private and review-first.
+- Smart Receipt workflow private and review-first.
 - Sandbox Stripe excluded from finance figures.
 
-### System reliability / Newsletter / Chat
+### Reliability / Newsletter / Chat
 - System Health history live.
 - Newsletter Centre consent-aware/resumable; never send a campaign as a deployment test.
 - Ask Namdar grounded Guided assistant live; provider AI optional and currently disabled.
 
 ## Open roadmap
-- Finish Staff auth recovery CI/preview/production verification.
+- User browser-smoke Staff My jobs without hard refresh.
 - Manually enable Supabase Leaked Password Protection and re-run advisor.
 - Decide commercial Stripe payment policy before any live Stripe rollout.
 - Google review-request URL.
