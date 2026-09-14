@@ -4,83 +4,86 @@ Last updated: 2026-09-14 UTC
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current main before security release: `bb7c27a6a9e291bb47ede0d95063d5b9b248f566`.
-- Current live product release: PR #69 `Upgrade Ask Namdar chat experience`; PR #70 records that live release in continuity docs.
-- Production deployment from PR #69: `dpl_8cUiMKDnNc3ko4hw7xtwQSFRFV9K` READY; production `/api/health` HTTP 200 after release.
-- Production Ask Namdar loader/assets `6.4.29-chat-1`; `/api/config` reports `aiEnabled:false`, so current mode is Guided assistant.
+- Current live product release: PR #71 `Harden Namdar public APIs and account security`.
+- Exact tested PR head: `fee9f82c7912372e612b133a69924a5a01c7f9e4`.
+- GitHub CI `34884232265`: SUCCESS.
+- Exact preview `dpl_AR6bRZvrS5DFGYQ3qgQLWbcUzsDb`: READY with clean errors-only build.
+- Merge/main: `ea61d8df2ed1110973580c4a0ab3bca09e05d7a8`.
+- Production deployment: `dpl_bwmC8t5W68ETAf8MzR6HvLiNCxMb`: READY with clean errors-only build.
+- Production `/api/health`: HTTP 200 after release.
+- Production Admin/My Namdar loader: `6.4.30-security-hardening-1`.
+- `admin-security-hardening.js` and `account-security-email.js` verified HTTP 200 live.
 - Supabase production: `qjigldxjcpnrlyxgmlqq`.
 - Window Cleaning is the only live service.
 - Privileged Staff/Admin requires AAL2/MFA.
 - Stripe customer payment policy remains OFF; no live Stripe credentials.
+- Ask Namdar remains Guided assistant mode because production `aiEnabled:false`.
 
-## Security hardening — FINAL VERIFICATION
-Branch: `security/hardening-rate-limits-invites-20260914`
+## Security hardening — LIVE
+### Abuse protection
+- Private fixed-window server-side rate limiter live.
+- Atomic Supabase RPC prevents racey counter updates.
+- Limiter keys are HMAC-SHA256 hashes; raw IP/customer identifiers are not stored in the rate-limit table.
+- Blocked requests return HTTP 429 with `Retry-After` and produce an audit event.
+- Protected surfaces: quote creation, chat messages, newsletter subscription, postcode lookup, address lookup and Admin invitations.
 
-Pre-docs implementation head: `701e7f26736358f36cd2cca12f41cf64f5423bb4`.
-Target release loader: `6.4.30-security-hardening-1`.
-
-### Implemented
-- Server-side fixed-window rate limiting with a private Supabase table and atomic RPC.
-- HMAC-hashed rate-limit identities; raw IP/customer identifiers are not stored in the rate-limit table.
-- 429 + `Retry-After` behavior and audit logging for blocks.
-- Rate limits on quote creation, chat messages, newsletter subscription, postcode lookup, address lookup and Admin user invitations.
+### Account credential safety
 - Admin-created users now receive secure Supabase invitations and choose their own password.
-- Temporary password creation/display/email removed from Admin creation flow.
-- Existing email identity removed from Admin edit path; account owner confirms changes in My Namdar Security.
+- Temporary password generation/display/email has been removed from the Admin creation flow.
+- Existing user email identity cannot be changed from Admin.
+- Account owners change email in My Namdar → Security through Supabase confirmation.
+- Existing production Auth trigger synchronizes verified Auth email changes to the Namdar profile.
+
+### Privileged account safeguards
+- Non-admin staff cannot create/promote admins.
 - Current logged-in admin cannot demote/suspend/delete itself.
 - Last active administrator cannot be demoted/suspended/deleted.
-- Non-admin staff cannot invite/promote admins.
-- Admin idle sign-out after 30 minutes.
-- Existing AAL2/MFA, CAPTCHA, CSP/security headers and audit logging preserved.
+- Admin auto-signs out after 30 minutes of inactivity.
+- Existing AAL2/TOTP MFA, CAPTCHA, CSP/security headers and audit redaction remain preserved.
 
 ### Database
 Applied production migration:
 - `20260914163700_security_rate_limit_foundation`
 
 Verified:
-- limiter blocks after configured test limit;
-- disposable verification counter removed;
-- `security_rate_limits` RLS enabled;
-- zero browser policies on the rate-limit table;
-- auth email-update trigger already synchronizes verified Auth email to `profiles`.
+- disposable limiter test blocks after the configured threshold;
+- disposable verification row removed afterward;
+- `security_rate_limits` RLS enabled with zero browser policies;
+- no real customer/quote/chat/newsletter/payment/invitation record was created during mechanism testing.
 
-### Tests/CI target
-- New `scripts/security-hardening.test.mjs`.
-- Workflow syntax-checks the new account/Admin/security/invite modules and modified APIs.
-- Existing loader-version tests updated to `6.4.30-security-hardening-1`.
+### Release verification
+- Initial CI failure was caused only by an overly broad security regression regex rejecting the safe audit flag `temporaryPassword:false`; test was corrected.
+- Final CI run `34884232265` passed.
+- Exact-head preview `dpl_AR6bRZvrS5DFGYQ3qgQLWbcUzsDb` READY and clean.
+- PR #71 merged at `ea61d8df2ed1110973580c4a0ab3bca09e05d7a8`.
+- Production `dpl_bwmC8t5W68ETAf8MzR6HvLiNCxMb` READY and clean.
+- Production `/api/health` HTTP 200.
+- Production Admin/account loaders and both new security assets HTTP 200.
+- Post-release error/fatal runtime-log check returned no matching logs.
 
-### Release gate
-Not production-deployed yet. Before merge require:
-1. GitHub PR from security branch to main.
-2. Full CI SUCCESS.
-3. Exact-head Vercel preview READY with clean errors-only build.
-4. Safe preview static/config checks only; no real invitations, quotes, chats or marketing email tests.
-5. Merge after checks pass.
-6. Production deployment READY + clean build.
-7. Production `/api/health` HTTP 200 and live security loader/assets verified.
-8. Re-run Supabase security advisor.
-9. Record exact CI/preview/merge/production IDs in all three continuity docs.
+## Remaining security follow-up
+Supabase Security Advisor still reports **Leaked Password Protection Disabled**. Available management tooling does not expose a safe project Auth-config mutation, so this remains a manual Supabase Dashboard/Auth setting until changed and re-verified.
 
-## Security follow-up after this release
-- Supabase advisor previously reports Leaked Password Protection disabled. Available tooling does not expose a safe Auth-config mutation for that setting, so treat it as a manual Supabase Dashboard item unless independently verified enabled.
-- Consider reviewing Supabase Auth security notification emails for password/email/MFA changes after this release.
+Reference:
+https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection
+
+The advisor also lists `security_rate_limits` as `RLS Enabled No Policy` INFO. This is intentional for the server/service-role-only limiter table; browser access is deliberately absent.
 
 ## Stable feature status
 ### Accounts / authentication
-- My Namdar account portal live.
+- My Namdar portal live.
 - Supabase JS pinned to `2.116.0` with bounded session restore hotfix.
-- MFA and privileged login CAPTCHA live.
-- Customer self-service password change and authenticator MFA live.
+- Privileged MFA and login CAPTCHA live.
+- Self-service password, email and authenticator controls live.
 
 ### Operations
-- Quotes/bookings/payments/admin CRM live.
-- Window Cleaning service live.
-- Later services remain planned.
+- Quotes/bookings/payments/Admin CRM live.
+- Window Cleaning live; later services remain planned.
 - Customer support tickets are customer-only/private; public chat does not create public tickets.
 
 ### Business Finance
-- Sole-trader-first model live.
-- Cash-basis finance reporting and tax estimate framework live.
+- Sole-trader-first Business Finance live.
+- Cash-basis finance reporting/tax estimate framework live.
 - Smart receipt workflow live and private.
 - Sandbox Stripe excluded from finance figures.
 - No live Stripe credentials.
@@ -88,7 +91,7 @@ Not production-deployed yet. Before merge require:
 ### System reliability
 - System Health dashboard/history live.
 - Persistent scheduled-run history verified.
-- Existing intermittent Supabase/PostgREST gateway-timeout risk remains monitored through System Health.
+- Existing intermittent Supabase/PostgREST gateway-timeout risk remains monitored.
 
 ### Newsletter
 - Consent-aware Newsletter Centre live.
@@ -97,16 +100,16 @@ Not production-deployed yet. Before merge require:
 
 ### Ask Namdar
 - Grounded guided assistant live.
-- Provider AI remains optional and currently disabled in production.
-- Human takeover remains exclusive when a staff member takes over a chat.
+- Optional model provider remains disabled in production.
+- Human takeover remains exclusive after staff takeover.
 
 ## Open roadmap
-- Finish and release Security Hardening after final CI/preview/production verification.
-- Manual Leaked Password Protection enablement if still disabled.
-- Decide commercial Stripe payment policy and only then consider live Stripe credentials.
+- Manually enable Supabase Leaked Password Protection and re-run advisor.
+- Optionally review Supabase Auth security-notification emails for password/email/MFA changes.
+- Decide commercial Stripe payment policy before any live Stripe rollout.
 - Google review-request URL.
 - Window real-job pricing calibration.
 - SMS/legal checks.
-- Optional account HTML duplicate Supabase include cleanup.
+- Optional duplicate Supabase include cleanup on `account.html`.
 - `url.parse()` deprecation cleanup.
 - Address-data pilot remains parked.
