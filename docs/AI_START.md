@@ -6,51 +6,53 @@ Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PR
 
 ## Production source of truth
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current live product release remains PR #73 `Fix Staff My jobs auth recovery`.
-- Current main before this feature branch: `a8dfdf7b57eb0fcff6c183db7190483e961f9c47` (PR #74 docs sync).
-- PR #73 exact tested head `43c8b678f38549d9bce674c1e4ae8ab0eed889c4`; CI `34886442615` SUCCESS; production `dpl_FP8WnzuPGtYwxNKLpMsGjpc7pPRo` READY.
-- User has now confirmed the Staff My jobs browser fix works without the old hard-refresh failure.
-- Production `/api/health` was HTTP 200 after that release.
+- Current live product release: PR #75 `Improve customer quote-to-booking journey`.
+- Exact tested PR head: `7610856d2d9a20280897f019c1b61415472b8596`.
+- GitHub CI run `34888850208`: SUCCESS.
+- Exact-head Vercel preview `dpl_2xEFQ4vf4ERB1P5Q4TxYrmbKTobR`: READY; errors-only build log clean; Vercel commit status SUCCESS.
+- PR #75 merge/main product commit: `09d3ed99ab63652cb165cc409bf7b69f20e629f0`.
+- Production deployment: `dpl_FUv52bL3ZgdDGLYrnGVSS58D96id`: READY on `https://namdar.co.uk`; errors-only build clean.
+- Production `/api/health`: HTTP 200 after release.
+- Live customer journey version: `6.4.32-booking-journey-1`.
+- Live `conversion.js`, `booking-journey.js`, `account.js`, and `account-booking-journey.js`: HTTP 200/current.
+- Safe GET check of `/api/customer-quote-claim`: HTTP 405 as designed; no quote/customer mutation performed.
+- Post-release production error/fatal runtime log check: no matching logs.
+- Supabase production: `qjigldxjcpnrlyxgmlqq`.
+- Vercel project: `prj_4fILo0pCaLGUSUIMWrBIVGzeWVDC`, team `team_8Az8WtWcnfwtYRdhR8vGqC3L`.
 - Window Cleaning is the only live/quotable/bookable service.
 - Privileged Staff/Admin requires CAPTCHA + AAL2/MFA.
 - Stripe commercial customer payment policy remains OFF; no live Stripe credentials.
 - Ask Namdar provider AI remains disabled (`aiEnabled:false`).
 
-## Customer booking journey — IMPLEMENTED ON BRANCH, NOT LIVE YET
-Branch: `feature/customer-booking-journey-20260914`
+## Customer booking journey — LIVE
 Version: `6.4.32-booking-journey-1`
 
-Changes:
-- homepage quote journey checks postcode/coverage earlier and automatically reuses the existing postcode verifier before quote creation;
-- postcode/address UI is moved to the start of the quote journey; promo/reward fields are collapsed as optional extras;
-- only live Window Cleaning remains available; pricing rules are unchanged;
-- selected address can be retained without the guest browser calling the customer-only `/api/address-get` endpoint;
-- selected address is appended to the quote request notes as a structured `[Requested address]` block so it survives the review journey;
-- estimate result clearly explains the next steps and sends the customer to My Namdar;
-- guest quote context is kept in session storage only for journey continuity;
-- new protected `/api/customer-quote-claim` lets an authenticated active customer attach an unowned guest quote only when the Auth email exactly matches the quote email;
-- My Namdar pre-fills the matching email, claims the quote after sign-in (including auth-state changes), shows quote-to-booking progress, and reuses the requested address when scheduling if the saved profile address is empty;
-- no automatic quote acceptance, booking creation, payment, pricing change, or Stripe enablement was added.
+Live behavior:
+- postcode/coverage checking is moved to the beginning of the Window Cleaning quote journey;
+- the existing postcode verifier remains authoritative on the client and server coverage checks remain authoritative on quote creation;
+- postcode/address UI appears before property/job detail fields; promo/reward fields remain available but are collapsed as optional extras;
+- selected public address is retained without requiring the guest browser to call customer-only `/api/address-get` merely to select the returned address;
+- selected address is stored with the quote request in a structured `[Requested address]` block inside existing quote notes;
+- the guide-estimate result clearly explains estimate saved → final quote review → customer decision → appointment selection;
+- Continue sends the customer to the exact quote in My Namdar;
+- guest journey context is kept in session storage only;
+- protected `/api/customer-quote-claim` lets an authenticated active customer attach an unowned guest quote only when the authenticated Auth email exactly matches the quote email;
+- quotes already owned by another account are refused;
+- My Namdar pre-fills the matching email, claims the quote after sign-in/auth-state changes, reloads the portal and shows Request → Final quote → Decision → Appointment progress;
+- when scheduling an accepted quote, saved profile address remains first choice; if blank, the requested quote address can be reused;
+- no automatic quote acceptance, booking creation, pricing change, payment, or Stripe enablement was added.
 
-Files added:
-- `booking-journey.js`
-- `booking-journey.css`
-- `account-booking-journey.js`
-- `api/customer-quote-claim.js`
-- `scripts/customer-booking-journey.test.mjs`
+Verification notes:
+- the first PR CI run failed only because the new regression test expected literal `[Requested address]` text while the parser source contains an escaped regex. Product code was unchanged for that correction.
+- no real customer, quote, booking, payment or account was created as a deployment test.
+- final interactive browser smoke from postcode → estimate → My Namdar remains user-driven; do not create an operational test quote unless the user intentionally wants one.
 
-Loaders/CI updated:
-- `conversion.js` loads the homepage journey;
-- `account.js` loads the My Namdar journey at `6.4.32-booking-journey-1`;
-- CI syntax-checks the new modules/API and runs the booking-journey regression suite.
+## Recent stable releases
+- Staff My Jobs auth recovery PR #73 remains live; user explicitly confirmed the old null-`auth` / hard-refresh problem is fixed.
+- Security Hardening PR #71 remains live: rate limits, secure invitations, owner-confirmed email changes, admin lifecycle safeguards and Admin inactivity timeout.
 
-## Release status / next action
-- No database migration.
-- No environment-variable change.
-- No real quote/customer/booking/payment record should be created just to verify deployment.
-- Next: open PR, require full GitHub CI SUCCESS + exact-head Vercel preview READY/clean, then merge and verify production assets/health. After release, user should smoke the real browser path from postcode → estimate → My Namdar; use a controlled request only if they intentionally want to create one.
-
-## Existing invariants
-- Security Hardening remains live; Supabase Leaked Password Protection remains a manual Auth-setting follow-up.
+## Existing invariants / open items
+- Security Hardening remains live; Supabase Leaked Password Protection remains a manual Auth-setting follow-up until enabled and re-verified.
 - Business Finance remains private/sole-trader-first; Smart Receipts remain private and review-first.
 - Customer payment policy stays OFF until a separate deliberate decision.
+- Do not create real invitation/marketing/quote/chat/payment records merely as deployment tests.
