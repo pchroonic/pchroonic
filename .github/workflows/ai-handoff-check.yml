@@ -140,9 +140,11 @@ jobs:
           node --check lib/server-original.js
           node --check staff.js
           node --check staff-original.js
+          node --check staff-auth-readiness.js
           node --check staff-closeout.js
           node --check staff-mfa-guard.js
           node --check staff-sw.js
+          node --test scripts/staff-auth-readiness.test.mjs
           node --check conversion.js
           node --check feedback.js
           node --check seo-page.js
