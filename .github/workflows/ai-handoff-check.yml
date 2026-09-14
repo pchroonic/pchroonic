@@ -27,6 +27,7 @@ jobs:
           node --check account-auth-hotfix.js
           node --test scripts/account-auth-hotfix.test.mjs
           node --check account-mfa-guard.js
+          node --check account-security-email.js
           node --check account-service-availability.js
           node --check account-payments.js
           node --check privileged-login-captcha.js
@@ -35,6 +36,7 @@ jobs:
           node --check admin-original.js
           node --check admin-inbox-safety.js
           node --check admin-mfa-guard.js
+          node --check admin-security-hardening.js
           node --check admin-address-harvest.js
           node --check admin-services.js
           node --check admin-booking-operations.js
@@ -65,9 +67,11 @@ jobs:
           node --check api/admin-system-health.js
           node --check api/admin-newsletter.js
           node --check api/admin-newsletter-send.js
+          node --check api/admin-users.js
           node --check api/newsletter-subscribe.js
           node --check api/newsletter-unsubscribe.js
           node --check api/chat.js
+          node --check api/address-search.js
           node --check api/staff-job-action.js
           node --check api/staff-jobs.js
           node --check api/feedback.js
@@ -111,6 +115,8 @@ jobs:
           node --check lib/system-health.js
           node --check lib/newsletter.js
           node --check lib/chat-assistant.js
+          node --check lib/security.js
+          node --check lib/auth-invite.js
           node --check scripts/os-open-data-import.mjs
           node --test scripts/address-harvest-priority.test.mjs
           node --test scripts/address-commercial-foundation.test.mjs
@@ -129,6 +135,7 @@ jobs:
           node --test scripts/system-health.test.mjs
           node --test scripts/newsletter-center.test.mjs
           node --test scripts/chat-assistant.test.mjs
+          node --test scripts/security-hardening.test.mjs
           node --check lib/server.js
           node --check lib/server-original.js
           node --check staff.js
