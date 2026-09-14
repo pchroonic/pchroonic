@@ -4,221 +4,118 @@ Last verified: 2026-09-14 UTC
 
 Read `docs/AI_START.md` first.
 
-## Production source of truth
+## Production baseline before this fix
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current live product release: PR #71 `Harden Namdar public APIs and account security`.
-- Exact tested PR head: `fee9f82c7912372e612b133a69924a5a01c7f9e4`.
-- GitHub CI run `34884232265`: SUCCESS.
-- Exact-head Vercel preview: `dpl_AR6bRZvrS5DFGYQ3qgQLWbcUzsDb`, READY, errors-only build log clean.
-- PR #71 merge/main: `ea61d8df2ed1110973580c4a0ab3bca09e05d7a8`.
-- Production deployment: `dpl_bwmC8t5W68ETAf8MzR6HvLiNCxMb`, READY on `https://namdar.co.uk`, errors-only build log clean.
-- Production `/api/health`: HTTP 200 after release; returned `ok:true`, database/email/reminders/followups healthy and existing Stripe configuration healthy.
-- Production Admin/My Namdar asset version: `6.4.30-security-hardening-1`.
-- Production `admin.js` verified loading `admin-security-hardening.js`; both HTTP 200.
-- Production `account.js` verified loading pinned Supabase JS `2.116.0` plus `account-security-email.js`; both HTTP 200.
-- Production error/fatal runtime-log check immediately after release returned no matching logs.
-- Supabase production: `qjigldxjcpnrlyxgmlqq` (`namdar-production`, `eu-west-1`). Do not use old inactive project `wbftztjembykhbnmqvnt` as staging.
-- Vercel team `team_8Az8WtWcnfwtYRdhR8vGqC3L`, project `prj_4fILo0pCaLGUSUIMWrBIVGzeWVDC`.
-- Window Cleaning only live. Gutters, jet washing, roof cleaning, handyman and 3D tours remain planned.
-- Address-data expansion is parked.
-- Privileged Staff/Admin requires AAL2/MFA.
-- Stripe commercial customer payment policy is OFF; no live Stripe credentials.
-- Ask Namdar provider AI remains disabled in production (`aiEnabled:false`), so Guided assistant mode remains correct.
+- Current `main`: `5b4056db5a9b098cf0cfcd0744e17bf1ff2ec0d4`.
+- Current live product release: PR #71 `Harden Namdar public APIs and account security`; PR #72 is docs-only continuity.
+- PR #71 exact tested head `fee9f82c7912372e612b133a69924a5a01c7f9e4`; CI `34884232265` SUCCESS.
+- Product merge `ea61d8df2ed1110973580c4a0ab3bca09e05d7a8`.
+- Current production deployment after PR #72: `dpl_4ttWCLhEDsWUpqNhQqRwQQz57Acc`, READY and `/api/health` HTTP 200.
+- Production Admin/My Namdar loaders: `6.4.30-security-hardening-1`.
+- Supabase production `qjigldxjcpnrlyxgmlqq`; Vercel project `prj_4fILo0pCaLGUSUIMWrBIVGzeWVDC`.
+- Window Cleaning only live. Stripe commercial payment policy OFF. Provider AI disabled (`aiEnabled:false`).
+- Privileged Staff/Admin requires CAPTCHA and AAL2/TOTP MFA.
+
+# Staff My jobs auth recovery
+
+## User-observed production bug
+On `https://namdar.co.uk/staff`, the user captured a login screen where Cloudflare Turnstile had succeeded, but pressing Sign in produced:
+
+`Cannot read properties of null (reading 'auth')`
+
+A hard refresh then opened My jobs without another login. Do not treat this as expected behavior.
+
+## Root-cause analysis
+Production source confirmed three interacting weaknesses:
+
+1. `staff-original.js` declares `let sb=null` and its login submit handler calls:
+   `window.NamdarPrivilegedCaptcha.signIn(sb.auth, ...)`.
+   If startup fails before `sb=window.supabase.createClient(...)`, the catch path calls `showLogin(...)`; the login remains usable even though `sb` is still null. The next click therefore throws exactly the user-visible null-auth error.
+
+2. `staff.html` still loaded floating `https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2`, while My Namdar already pins `2.116.0`. A transient/floating CDN load problem can therefore leave Staff setup without `window.supabase` and make the null-client path reachable.
+
+3. `staff-sw.js` was still `namdar-staff-v6.4.16-privileged-captcha-1` and used cache-first/stale-while-revalidate for local Staff scripts. Because newer Staff code had shipped after that cache namespace, a controlled page navigation could receive an old/inconsistent JS bundle until hard refresh bypassed/renewed cache. This matches the reported hard-refresh recovery pattern.
+
+## Fix branch
+`fix/staff-auth-recovery-20260914`
+
+Target Staff version:
+`6.4.31-staff-auth-recovery-1`
+
+### New `staff-auth-readiness.js`
+Loaded after `staff-original.js` so it can safely reuse the existing Staff functions/state while replacing the fragile form submit handler.
+
+Behavior:
+- never dereferences `sb.auth` until `authReady()` confirms an auth client;
+- briefly waits for normal startup to complete;
+- if startup already failed, automatically starts a single shared recovery promise;
+- dynamically reloads pinned Supabase JS `2.116.0` only when `window.supabase.createClient` is absent;
+- reloads `/api/config` through the existing safe `loadPublicConfig()` path;
+- reconfigures the privileged CAPTCHA slot;
+- rebuilds the Supabase client with the existing persisted-session options;
+- calls `getSession()` and restores `currentSession`;
+- if an existing session is present, loads jobs and opens the app automatically rather than asking for another login/hard refresh;
+- if no session exists, leaves a ready login form and uses `NamdarPrivilegedCaptcha.signIn(auth, ...)` with a verified auth object;
+- attaches an auth-state listener only for the recovered-client path so token refresh/sign-out state stays synchronized;
+- keeps clear user-facing setup errors and never exposes password/MFA values.
+
+### `staff.html`
+- pins `@supabase/supabase-js@2.116.0`;
+- bumps `styles.css` and `staff.js` cache-bust query to `6.4.31-staff-auth-recovery-1`.
+
+### `staff.js`
+- version `6.4.31-staff-auth-recovery-1`;
+- load order:
+  1. privileged login CAPTCHA
+  2. `staff-original.js`
+  3. `staff-auth-readiness.js`
+  4. closeout
+  5. Staff MFA guard
+
+### `staff-sw.js`
+- cache namespace bumped to `namdar-staff-v6.4.31-staff-auth-recovery-1` so older Staff caches are removed on activation;
+- includes the new readiness asset and `staff-closeout.js` in local assets;
+- remote Supabase cache key pins `2.116.0`;
+- Staff navigation remains network-first with offline fallback;
+- auth-critical scripts (`staff.js`, `staff-original.js`, readiness, CAPTCHA, MFA guard) are now **network-first online** and only fall back to cache when the network request fails;
+- this prevents a stale cache-first auth bundle from remaining active simply because the browser did not hard refresh.
+
+## Regression coverage
+New `scripts/staff-auth-readiness.test.mjs` asserts:
+- Staff page and loader use `6.4.31-staff-auth-recovery-1`;
+- Supabase JS is pinned to `2.116.0`;
+- readiness module is loaded after original Staff code;
+- login uses `recoverAuthClient()` and passes a resolved `auth` object to CAPTCHA rather than direct `sb.auth` dereference;
+- recovery can dynamically reload the pinned browser client and restore session;
+- service worker uses the new cache namespace and network-first auth-critical fetch path.
+
+`.github/workflows/ai-handoff-check.yml` now syntax-checks `staff-auth-readiness.js` and runs the new regression test.
+
+## Release gate
+Before production:
+1. Open PR from `fix/staff-auth-recovery-20260914` to `main`.
+2. Full GitHub CI must be SUCCESS.
+3. Exact PR head must have Vercel preview READY and clean errors-only build.
+4. Verify preview source/assets only; no real staff invitation, quote, payment or marketing side effect.
+5. Confirm preview `/staff` serves pinned Supabase `2.116.0`, current Staff loader, readiness file and current service worker.
+6. Merge exact tested head only.
+7. Verify production deployment READY + clean build.
+8. Verify production `/api/health` HTTP 200 and live Staff assets/version.
+9. User can then test ordinary navigation to My jobs. Never ask them to share password or MFA code.
+10. Record the exact live IDs in all three docs after production verification.
 
 ## Stable systems that must not regress
-- Account auth uses pinned Supabase JS `2.116.0` and the bounded lock/session restore hotfix.
-- Admin/Staff privileged APIs enforce AAL2/TOTP MFA.
-- Privileged login CAPTCHA/Turnstile remains present.
-- Business Finance is private, sole-trader-first, and excludes sandbox Stripe rows.
-- Smart receipts are private and review-first; receipt OCR remains in the authenticated browser.
-- System Health has persistent scheduled-run/incident history.
-- Newsletter Centre is consent-aware/resumable; never send a campaign as a deployment test.
-- Ask Namdar is grounded in the service catalogue and works in Guided assistant mode while `aiEnabled:false`.
-- Stripe webhook remains authoritative for payment state; customer payment policy remains OFF.
-
-# Security hardening — LIVE
-
-## Release history
-Branch: `security/hardening-rate-limits-invites-20260914`
-
-The first PR CI run failed only because the new regression test rejected the safe audit metadata `temporaryPassword:false`. Product code and the other security tests were green. The test was narrowed to check that no temporary password is returned or emailed while explicitly allowing the false audit flag.
-
-Final release gate:
-- final PR head `fee9f82c7912372e612b133a69924a5a01c7f9e4`;
-- GitHub CI `34884232265` SUCCESS;
-- exact preview `dpl_AR6bRZvrS5DFGYQ3qgQLWbcUzsDb` READY;
-- preview errors-only build log clean;
-- Vercel commit status SUCCESS;
-- PR merge `ea61d8df2ed1110973580c4a0ab3bca09e05d7a8`;
-- production `dpl_bwmC8t5W68ETAf8MzR6HvLiNCxMb` READY;
-- production errors-only build clean;
-- production `/api/health` HTTP 200;
-- production security loaders/assets HTTP 200.
-
-The exact preview is Vercel SSO protected. The connector could verify the exact deployment metadata/build but could not directly fetch protected preview static files. Exact-head source was therefore checked in GitHub before merge, and the identical release assets were then fetched from production after deployment.
-
-## 1. Private server-side rate limiting
-Production migration `20260914163700_security_rate_limit_foundation` is applied and has a matching repo SQL migration.
-
-It creates private table `public.security_rate_limits`:
-- primary key `(scope, key_hash)`;
-- fixed-window counters;
-- RLS enabled;
-- no anon/authenticated table grants;
-- no browser policies;
-- service-role only;
-- `last_seen_at` index for housekeeping.
-
-It creates `public.consume_security_rate_limit(text,text,integer,integer)`:
-- `SECURITY DEFINER`;
-- safe `search_path = public, pg_temp`;
-- atomic `INSERT ... ON CONFLICT DO UPDATE` consumption;
-- returns allowed/current_count/remaining/reset_at;
-- executable only by service role.
-
-`lib/security.js`:
-- derives request identity from trusted hosting headers/fallback;
-- HMAC-SHA256 hashes the identity with the server service key before storage;
-- stores only a truncated HMAC, never raw IP/customer identity;
-- emits `RateLimit-Limit` and `RateLimit-Remaining`;
-- blocks with HTTP 429 and `Retry-After`;
-- writes `security.rate_limited` into existing audit history without storing the raw identity.
-
-Live limits:
-- quote creation: 8 per 15 minutes per IP identity;
-- chat messages: guest 30 per 10 minutes per IP, signed-in 50 per 10 minutes per user identity; poll is excluded;
-- newsletter signup: IP bounded;
-- postcode lookup: IP bounded;
-- address lookup: IP bounded to protect external/OpenStreetMap fallback cost;
-- Admin account invitations: 30 per hour per staff actor.
-
-Production mechanism verification:
-- disposable rate-limit key was consumed through a small test threshold;
-- next request was correctly blocked;
-- disposable row was deleted afterward;
-- final query found zero disposable verification rows;
-- `security_rate_limits` RLS is enabled with zero browser policies.
-No real customer, quote, chat, newsletter, payment or invitation was created for this test.
-
-## 2. Secure Admin-created account invitations
-Old Admin behavior generated a temporary password, returned it to Admin and emailed it to the user.
-
-Live behavior:
-- `lib/auth-invite.js` calls Supabase Auth `/auth/v1/invite` server-side using service-role credentials;
-- redirect target is `/account?tab=security&invited=1`;
-- no password is generated, returned, logged or emailed by Namdar;
-- after Auth creates the invited user, Namdar patches profile/role details and optional `staff_access`;
-- if profile setup fails, the created Auth user is deleted best-effort to avoid a half-created account;
-- audit action `user.invite` records `credentialDelivery:'supabase_invitation'` and `temporaryPassword:false`.
-
-`admin-security-hardening.js`:
-- replaces the old Admin save handler;
-- hides/disables the temporary-password control;
-- displays secure-invitation guidance;
-- disables existing-user email editing in Admin;
-- only an active Admin UI can select the Admin role;
-- new-user success copy says a secure invitation was sent rather than displaying a credential.
-
-Do not test this by inviting a real customer/staff email unless explicitly approved.
-
-## 3. Verified account email changes
-Admin cannot overwrite an existing account email identity through `api/admin-users.js`.
-
-PATCH behavior:
-- a different email returns 409 and directs the owner to My Namdar → Security;
-- email is omitted from the profile edit patch path;
-- no Admin Auth `email_confirm:true` bypass remains for existing-user email edits.
-
-`account-security-email.js` adds My Namdar → Security `Change email address`:
-- validates the new email;
-- requires signed-in session;
-- uses `sb.auth.updateUser({email: next}, {emailRedirectTo: ...})`;
-- current email stays active until Supabase confirmation completes;
-- invitation/email-confirmation return messages appear in the account UI.
-
-Production trigger verification:
-- `auth.users` trigger `on_auth_user_email_updated` fires AFTER UPDATE;
-- it calls `public.sync_profile_email()`;
-- `sync_profile_email()` updates `public.profiles.email` when Auth email changes.
-No additional sync migration was needed.
-
-## 4. Privileged account lifecycle safeguards
-`api/admin-users.js` now enforces:
-- only an administrator can invite another administrator;
-- only an administrator can promote/modify administrator roles;
-- current signed-in privileged account cannot change its own role/account status;
-- current account cannot delete itself;
-- an active admin cannot be demoted/suspended/deleted unless another active admin exists;
-- therefore the last active administrator cannot be removed accidentally.
-
-## 5. Admin inactivity timeout
-`admin-security-hardening.js` signs the Admin dashboard out after 30 minutes of inactivity.
-- pointer, keyboard, touch and scroll reset activity time;
-- hidden tab is checked when visible again;
-- login/signed-out state resets idle timing;
-- user receives a clear timeout message after sign-out.
-
-This supplements, rather than replaces, Supabase session expiry and AAL2/MFA.
-
-## 6. Existing protections deliberately preserved
-Do not weaken:
-- Turnstile/CAPTCHA on privileged login and existing public anti-bot flows;
-- AAL2/TOTP requirement for privileged Admin/Staff APIs;
-- CSP/security headers in Vercel;
-- audit-log secret redaction in `lib/server-original.js`;
-- server/service-role-only private finance, receipt and health tables;
-- customer-only private support-ticket policy.
-
-## CI coverage
-`.github/workflows/ai-handoff-check.yml` syntax-checks the new security/account/Admin modules and modified APIs and runs `scripts/security-hardening.test.mjs`.
-
-The security suite asserts:
-- private/RLS rate-limit schema + atomic RPC;
-- HMAC identity hashing, 429/Retry-After and audit behavior;
-- server-side limits on high-value public endpoints while chat poll is uncounted;
-- secure invitations and absence of temporary-password output;
-- current/last-admin lifecycle safeguards;
-- verified self-service email changes;
-- Admin inactivity timeout and current loader version.
-
-## Supabase advisor state after release
-Security advisor rerun at `2026-09-14T19:03Z`:
-- `security_rate_limits` appears under INFO `RLS Enabled No Policy`. This is intentional because the table is server/service-role only and direct browser access is deliberately absent.
-- **WARN: Leaked Password Protection Disabled** remains. This is the one actionable manual Auth setting left by this release.
-- Other RLS-no-policy entries are existing private/server-only tables and are not introduced as browser-readable surfaces by this release.
-
-Remediation for leaked password protection:
-https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection
-
-Performance advisor rerun after the DDL:
-- no new missing-FK issue is attributed to `security_rate_limits` (it has no FK dependency);
-- `security_rate_limits_last_seen_idx` is currently reported unused, expected immediately after a fresh release;
-- other missing-FK/multiple-policy/unused-index findings are existing broader project performance work and were not expanded into this security release.
-
-## Existing Business Finance / Stripe baseline
-- User decision: sole trader first, later limited company after successful growth.
-- Never recast historical sole-trader transactions as company activity.
-- Business Finance excludes sandbox Stripe using `payment_records.provider_livemode`.
-- Retained Stripe sandbox ledger: 4 rows (two £0.50 payments, two £0.50 refunds), 0 live rows.
-- No live Stripe credentials.
-- Customer Stripe payment policy remains OFF.
-- No automatic expense/tax posting from operational job-cost estimates or receipt OCR.
-
-## Open work after security release
-- Manually enable and then re-verify Supabase Leaked Password Protection.
-- Optional Supabase Auth security-notification email review for password/email/MFA changes.
-- Decide commercial Stripe policy: optional online payment vs deposit required vs full required; keep OFF until deliberate approval.
-- Only after payment-policy approval connect live Stripe credentials/webhook and run live-readiness checklist.
-- Google review-request URL still open.
-- Window real-job pricing evidence/calibration.
-- SMS/legal remaining checks.
-- Optional duplicate floating Supabase include cleanup on `account.html`.
-- `url.parse()` deprecation warning remains tech debt.
-- Address-data pilot remains parked.
+- Security Hardening from PR #71: private server rate limiting, secure invitations, verified owner email changes, administrator lifecycle protections, Admin idle timeout.
+- Account auth uses pinned Supabase JS `2.116.0` and bounded session restore.
+- Privileged APIs keep AAL2/TOTP MFA and CAPTCHA.
+- Business Finance remains private/sole-trader-first; Smart Receipts remain private and review-first.
+- System Health and Newsletter Centre remain live.
+- Window Cleaning only live; future services remain planned.
+- Stripe sandbox remains excluded from Business Finance; customer payment policy OFF; no live Stripe credentials.
+- Supabase Leaked Password Protection still needs manual enablement/re-verification.
 
 ## Development rules
-- Verify current `main`, provider state and these docs before substantive continuation.
 - Preview/test before production.
-- Every substantial code/database/API/security/config change updates `docs/AI_START.md`, `docs/AI_HANDOFF.md`, and `docs/PROJECT_STATUS.md`.
-- Never put secrets, customer private data or credentials into repo/chat/docs.
-- Keep migrations safe/idempotent and record production-applied migration truth.
+- Every substantial code/security/config change updates `docs/AI_START.md`, `docs/AI_HANDOFF.md`, and `docs/PROJECT_STATUS.md`.
+- Do not put credentials, passwords, tokens or customer private data in repo/chat/docs.
+- Do not create real operational records merely as smoke tests.
