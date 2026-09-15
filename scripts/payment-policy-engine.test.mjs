@@ -97,7 +97,7 @@ test('checkout, invoice and Admin confirmation use frozen terms while legacy boo
 test('release loaders and Admin settings expose flexible policy controls while commercial payments remain opt-in',()=>{
   const account=read('account.js'),admin=read('admin.js'),settings=read('admin-payment-settings.js'),api=read('api/admin-payment-settings.js');
   assert.match(account,/6\.4\.35-payment-policy-engine-1/);
-  assert.match(admin,/6\.4\.36-admin-logo-upload-1/);
+  assert.match(admin,/6\.4\.37-admin-website-crash-fix-1/);
   assert.match(admin,/admin-payment-settings\.js/);
   assert.match(settings,/Increase deposit by job value/);assert.match(settings,/Pause new appointments after/);assert.match(settings,/automatically disabled/i);assert.match(api,/policy_revision/);assert.match(api,/consumer_monetary_late_fees:false/);
   assert.match(read('lib/payment-policy.js'),/active:false/);
