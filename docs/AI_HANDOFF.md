@@ -6,15 +6,79 @@ Read `docs/AI_START.md` first.
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current live main/product merge: `ab1d95930816f3116828e410bf07e6208e93216f` (PR #82).
+- Current `main`: `e4b35a26e2ccf6884edb36891b71f75a38c9aaa2` (documentation-only PR #83 on top of product PR #82).
+- Current live product merge: `ab1d95930816f3116828e410bf07e6208e93216f` (PR #82).
 - Current release version: `6.4.35-payment-policy-engine-1`.
 - Supabase production `qjigldxjcpnrlyxgmlqq`.
 - Vercel project `prj_4fILo0pCaLGUSUIMWrBIVGzeWVDC`, team `team_8Az8WtWcnfwtYRdhR8vGqC3L`.
-- Production deployment `dpl_GvU42X4GGN3mGRojFJTcvRBZfsV4`, READY.
+- Current production deployment `dpl_Fk3mQc1TGhY5QAHDY5Gq2NF7MoRC`, READY.
 - Window Cleaning only live.
 - Stripe commercial customer payment policy OFF. Production has no `site_settings.payments` row.
 - Ask Namdar provider AI OFF (`aiEnabled:false`).
 - Privileged Staff/Admin requires CAPTCHA + AAL2/TOTP MFA.
+
+# Admin website logo upload — RELEASE CANDIDATE
+
+Branch: `feature/admin-logo-upload-20260915`.
+Loader candidate version: `6.4.36-admin-logo-upload-1`.
+
+## Owner request
+The owner asked for the existing Website & legal → Logo URL setting to also support uploading a logo directly from the Admin dashboard instead of requiring a manually hosted URL.
+
+## Admin UI
+New `admin-brand-assets.js` augments the existing Logo URL label without rewriting the large legacy Admin bundle:
+- adds a local file picker and **Upload logo** button;
+- accepts PNG, JPG, WebP and AVIF only;
+- enforces a 2 MB client-side limit;
+- previews the selected local image before upload;
+- uploads through `/api/admin-brand-logo`;
+- on success, replaces the Logo URL input with the returned permanent public Storage URL;
+- preserves the existing explicit **Save website settings** step, so upload alone does not silently change the published brand setting;
+- shows a preview for the saved/current URL when Website & legal is opened.
+
+`admin.js` now loads the feature after `admin-original.js` and bumps the Admin loader version to `6.4.36-admin-logo-upload-1`.
+
+## Secure upload endpoint
+New `api/admin-brand-logo.js`:
+- accepts POST only;
+- calls `requireStaff(req, 'settings')`, therefore inheriting active-account checks, settings permission checks and the AAL2/TOTP requirement from `lib/server.js`;
+- decodes the image server-side using `lib/brand-logo.js`;
+- does not trust the filename or browser MIME type;
+- uploads with the existing Supabase service credential only after authorization succeeds;
+- writes to `brand-assets/logos/` using a random/versioned object name;
+- returns the conventional public Storage URL;
+- audit logs `website.logo_upload` with bucket/path/type/size metadata.
+
+## Image validation
+New `lib/brand-logo.js`:
+- maximum 2 MB decoded bytes;
+- validates base64 structure before decoding;
+- checks real file signatures for PNG, JPEG, WebP and AVIF;
+- rejects SVG/HTML/arbitrary files even if a browser-supplied MIME type claims they are images;
+- exports helpers covered by `scripts/brand-logo.test.mjs`.
+
+## Storage design
+Dedicated Supabase bucket: `brand-assets`.
+
+Migration applied to production:
+- database migration version: `20260915130427`
+- name: `brand_assets_logo_upload`
+- repo migration: `supabase/migrations/20260915130427_brand_assets_logo_upload.sql`
+- public serving enabled intentionally because the website logo must be accessible to anonymous visitors;
+- 2 MB bucket limit;
+- allowed MIME types: JPEG, PNG, WebP, AVIF;
+- no browser upload policy is added for this bucket. Uploading is performed by the authenticated server endpoint after Staff/Admin permission and MFA checks.
+
+This avoids widening the existing `job-images` permissions and keeps brand assets separate from customer/job files.
+
+## CI coverage
+`.github/workflows/ai-handoff-check.yml` now checks:
+- `admin-brand-assets.js`
+- `api/admin-brand-logo.js`
+- `lib/brand-logo.js`
+- `scripts/brand-logo.test.mjs`
+
+No real customer, booking, deposit, payment, late fee or refund data is created for this feature. Commercial Stripe activation remains OFF.
 
 # Flexible Payment & Deposit Policy Engine — LIVE
 
@@ -23,8 +87,8 @@ Exact tested head: `54e480a00e93bb780e687d0f59a0f14a2aa3bc29`.
 GitHub CI run `34965887792`: SUCCESS.
 Exact-head Vercel preview `dpl_uUHG5oQaiP6gTiV3sFXoxwRisM3F`: READY, errors-only build log clean.
 Product merge/main: `ab1d95930816f3116828e410bf07e6208e93216f`.
-Production deployment `dpl_GvU42X4GGN3mGRojFJTcvRBZfsV4`: READY, build clean.
-Production `/api/health`: HTTP 200 / `ok:true` at `2026-09-15T11:57:39.409Z`.
+Product production deployment `dpl_GvU42X4GGN3mGRojFJTcvRBZfsV4`: READY, build clean. A later documentation-only main deployment is now current production.
+Production `/api/health`: HTTP 200 / `ok:true` verified after deployment.
 
 ## Owner-approved design intent
 The owner asked for a system that can change as real trading experience develops rather than a permanent fixed deposit:
@@ -167,10 +231,10 @@ Production verification also confirmed `0` `site_settings` rows with key `paymen
 - exact preview `dpl_uUHG5oQaiP6gTiV3sFXoxwRisM3F` READY, errors-only build clean
 - production migration applied and schema/Terms verified
 - product merge `ab1d95930816f3116828e410bf07e6208e93216f`
-- production deployment `dpl_GvU42X4GGN3mGRojFJTcvRBZfsV4` READY, build clean
+- product production deployment `dpl_GvU42X4GGN3mGRojFJTcvRBZfsV4` READY, build clean
 - `/api/health` 200 / healthy
 - `/account.js` 200, v`6.4.35-payment-policy-engine-1`
-- `/admin.js` 200, v`6.4.35-payment-policy-engine-1`
+- `/admin.js` 200, v`6.4.35-payment-policy-engine-1` before the logo-upload candidate is merged
 - `/account-booking-policy.js` 200/current
 - `/admin-payment-settings.js` 200/current
 - `/api/legal?slug=terms` 200, Terms v3/current
@@ -187,6 +251,7 @@ Production verification also confirmed `0` `site_settings` rows with key `paymen
 - Commercial Stripe payments remain OFF until a separate explicit owner decision on activation and actual bands.
 
 ## Remaining open items
+- Complete CI/preview/merge verification for the Admin logo-upload candidate.
 - Owner later chooses actual commercial deposit bands/amounts and whether/when to activate Stripe.
 - Explicit business-customer classification before any automated B2B statutory-debt workflow.
 - ICO data-protection fee self-assessment.

@@ -52,7 +52,7 @@ test('health history tables are server only with open-incident dedupe',()=>{
 
 test('Admin loader keeps System Health in current release',()=>{
   const loader=read('admin.js'),ui=read('admin-system-health.js');
-  assert.match(loader,/6\.4\.35-payment-policy-engine-1/);
+  assert.match(loader,/6\.4\.36-admin-logo-upload-1/);
   assert.match(loader,/admin-system-health\.js/);
   assert.match(ui,/System Health/);
   assert.match(ui,/Refresh health/);

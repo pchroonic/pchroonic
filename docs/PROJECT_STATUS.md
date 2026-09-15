@@ -4,15 +4,39 @@ Last updated: 2026-09-15 UTC
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current live main/product merge: `ab1d95930816f3116828e410bf07e6208e93216f` (PR #82).
+- Current `main`: `e4b35a26e2ccf6884edb36891b71f75a38c9aaa2` (docs-only PR #83 on top of product PR #82).
+- Current live product merge: `ab1d95930816f3116828e410bf07e6208e93216f` (PR #82).
 - Current release: v`6.4.35-payment-policy-engine-1`.
-- Production deployment `dpl_GvU42X4GGN3mGRojFJTcvRBZfsV4`, READY on `namdar.co.uk`.
+- Current production deployment `dpl_Fk3mQc1TGhY5QAHDY5Gq2NF7MoRC`, READY on `namdar.co.uk`.
 - Production health HTTP 200 / `ok:true` verified after deployment.
 - Supabase production: `qjigldxjcpnrlyxgmlqq`.
 - Window Cleaning only live.
 - Privileged Staff/Admin requires CAPTCHA + AAL2/TOTP MFA.
 - Stripe customer payment policy OFF; production has no `site_settings.payments` row and no commercial deposit bands have been approved/enabled.
 - Ask Namdar provider AI disabled (`aiEnabled:false`).
+
+## Admin logo upload — RELEASE CANDIDATE
+Branch `feature/admin-logo-upload-20260915`, candidate Admin version `6.4.36-admin-logo-upload-1`.
+
+Implemented:
+- Website & legal keeps the existing Logo URL field and gains a direct **Upload logo** option;
+- Admin can select PNG/JPG/WebP/AVIF up to 2 MB and preview it before upload;
+- successful upload automatically fills the Logo URL field;
+- the existing **Save website settings** button remains the explicit publish step;
+- server upload requires `settings` permission and AAL2/TOTP MFA;
+- actual file signatures are validated server-side, so renamed HTML/SVG/arbitrary files are rejected;
+- upload is audit logged;
+- brand files use a dedicated public `brand-assets` Supabase Storage bucket instead of widening existing job/customer file permissions;
+- production migration `20260915130427` / `brand_assets_logo_upload` has already been applied;
+- bucket limits are 2 MB and JPEG/PNG/WebP/AVIF only;
+- no direct browser Storage upload policy was added; the server endpoint performs the upload after authorization;
+- CI includes syntax checks plus `scripts/brand-logo.test.mjs`.
+
+Pending before live release:
+- PR CI and Vercel preview verification;
+- merge to `main` and post-deploy health/runtime verification.
+
+This change does not activate Stripe and does not create customer/payment data.
 
 ## Flexible Payment & Deposit Policy Engine — LIVE
 PR #82 / v`6.4.35-payment-policy-engine-1`.
@@ -23,7 +47,7 @@ Release evidence:
 - exact preview `dpl_uUHG5oQaiP6gTiV3sFXoxwRisM3F` READY and clean
 - migration `flexible_payment_policy_engine` applied successfully
 - merge/main `ab1d95930816f3116828e410bf07e6208e93216f`
-- production `dpl_GvU42X4GGN3mGRojFJTcvRBZfsV4` READY and clean
+- product production deployment `dpl_GvU42X4GGN3mGRojFJTcvRBZfsV4` READY and clean
 - account/admin loaders and policy modules verified live
 - Terms v3 verified live
 - no real booking/deposit/payment/late fee/refund created for release verification.
@@ -98,6 +122,7 @@ The earlier fair 48-hour policy remains live and is incorporated into the curren
 - Support tickets customer-only/private.
 
 ## Known technical debt / open roadmap
+- Finish and release the Admin logo-upload candidate.
 - Owner later chooses actual commercial deposit bands/amounts and whether/when to activate Stripe.
 - Build explicit business-customer classification before any automated B2B statutory-debt workflow.
 - ICO data-protection fee self-assessment.
