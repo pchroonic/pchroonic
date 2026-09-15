@@ -1,0 +1,37 @@
+/* Admin wide-dialog layout guard.
+   The base .modal rule is intentionally narrow for sign-in/small dialogs. Wide
+   Admin editors opt out here so their cards never overflow a 520px dialog. */
+dialog.modal:has(> .modal-card.wide){
+  width:min(980px,calc(100vw - 32px));
+  max-width:980px;
+  max-height:calc(100dvh - 32px);
+  overflow-x:hidden;
+  overflow-y:auto;
+}
+dialog.modal:has(> .modal-card.wide)>.modal-card.wide{
+  width:100%;
+  max-width:100%;
+  min-width:0;
+}
+dialog.modal:has(> .modal-card.wide) .admin-form-grid,
+dialog.modal:has(> .modal-card.wide) .admin-form-grid>*,
+dialog.modal:has(> .modal-card.wide) input,
+dialog.modal:has(> .modal-card.wide) select,
+dialog.modal:has(> .modal-card.wide) textarea{
+  min-width:0;
+}
+#bookingEditor .crm-context{
+  overflow-wrap:anywhere;
+}
+#bookingEditor textarea{
+  resize:vertical;
+}
+@media(max-width:700px){
+  dialog.modal:has(> .modal-card.wide){
+    width:calc(100vw - 16px);
+    max-height:calc(100dvh - 16px);
+  }
+  dialog.modal:has(> .modal-card.wide) .admin-form-grid{
+    grid-template-columns:1fr;
+  }
+}
