@@ -54,9 +54,9 @@ test('raw body reader streams Vercel request before touching lazy body getter',a
   assert.equal(getterTouched,false);
 });
 
-test('Checkout creation is Window-only, policy-gated and idempotent',()=>{
+test('Checkout creation is Window-only, live-policy-gated, frozen-policy-aware and idempotent',()=>{
   const api=read('api/create-checkout.js'),key=checkoutIdempotencyKey({invoiceId:'invoice-private-id',net:0,outstanding:100,kind:'deposit',amount:20});
-  assert.match(api,/loadPaymentPolicy/);assert.match(api,/!policy\.ready/);assert.match(api,/!policy\.effectiveActive/);assert.match(api,/quote\.service_key!=='windows'/);assert.match(api,/checkoutIdempotencyKey/);assert.match(api,/createCheckoutSession/);
+  assert.match(api,/loadPaymentPolicy/);assert.match(api,/!livePolicy\.ready/);assert.match(api,/!livePolicy\.effectiveActive/);assert.match(api,/paymentPolicyFromSnapshot/);assert.match(api,/quote\.service_key!=='windows'/);assert.match(api,/checkoutIdempotencyKey/);assert.match(api,/createCheckoutSession/);
   assert.ok(key.startsWith('namdar_checkout_'));assert.equal(key.includes('invoice-private-id'),false);
 });
 
@@ -81,11 +81,11 @@ test('manual staff payment entry cannot impersonate a Stripe webhook payment',()
 
 test('required Window payment policy is enforced server-side before booking confirmation',()=>{
   const booking=read('api/admin-booking-update.js');
-  assert.match(booking,/enforcePaymentBeforeConfirmation/);assert.match(booking,/loadPaymentPolicy\(\{db,env\}\)/);assert.match(booking,/paymentRequirementMet/);assert.match(booking,/Create this appointment as Pending/);assert.match(booking,/status==='confirmed'&&current\.status!=='confirmed'/);
+  assert.match(booking,/enforcePaymentBeforeConfirmation/);assert.match(booking,/loadPaymentPolicy\(\{db,env\}\)/);assert.match(booking,/paymentPolicyFromSnapshot/);assert.match(booking,/paymentRequirementMet/);assert.match(booking,/Create this appointment as Pending/);assert.match(booking,/status==='confirmed'&&current\.status!=='confirmed'/);
 });
 
 test('Admin and customer payment surfaces are extensions and do not expose secret values',()=>{
   const adminApi=read('api/admin-payment-settings.js'),admin=read('admin-payment-settings.js'),account=read('account-payments.js');
   assert.match(adminApi,/requireStaff\(req,'settings'\)/);assert.match(adminApi,/!provider\.ready/);assert.match(adminApi,/payments\.settings_update/);assert.match(adminApi,/headline_allowance_active/);assert.doesNotMatch(adminApi,/STRIPE_SECRET_KEY.*return/);
-  assert.match(read('admin.js'),/admin-payment-settings\.js/);assert.match(read('account.js'),/account-payments\.js/);assert.match(admin,/Card details are never stored by Namdar/);assert.match(account,/checkout\\\.stripe\\\.com/);
+  assert.match(read('admin.js'),/admin-payment-settings\.js/);assert.match(read('account.js'),/account-payments\.js/);assert.match(admin,/Enable secure online Stripe payments/);assert.match(admin,/verified webhook/);assert.match(account,/checkout\\\.stripe\\\.com/);
 });
