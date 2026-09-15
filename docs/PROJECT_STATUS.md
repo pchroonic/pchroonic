@@ -4,107 +4,94 @@ Last updated: 2026-09-15 UTC
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current product main: `0027693a4be536752d1a189d42c2622c33d9d9ec` (PR #80).
-- Production deployment `dpl_FLKBbTxKKqf6nWW3HrVNPGWpgxKP` is READY on `namdar.co.uk`; build clean and `/api/health` HTTP 200.
+- Current main before this release: `64de3f653d294a31afb4ef690189017272c33766`.
+- Current live customer product: v`6.4.34-cancellation-policy-1`, PR #80.
+- Production healthy on `namdar.co.uk`.
 - Supabase production: `qjigldxjcpnrlyxgmlqq`.
 - Window Cleaning only live.
 - Privileged Staff/Admin requires CAPTCHA + AAL2/TOTP MFA.
-- Stripe customer payment policy OFF; no commercial deposit amount/mode enabled.
+- Stripe customer payment policy OFF; production has no `site_settings.payments` row and no commercial deposit bands have been approved/enabled.
 - Ask Namdar provider AI disabled (`aiEnabled:false`).
 
+## Flexible Payment & Deposit Policy Engine — RELEASE CANDIDATE
+Branch `feature/flexible-payment-policy-engine-20260915`.
+Version `6.4.35-payment-policy-engine-1`.
+
+### Goal
+Make payment protection adaptable as Namdar learns from real jobs:
+- future Admin-editable deposits;
+- optional flat rule or higher deposit bands for higher job values;
+- frozen booking-specific payment terms so later increases do not rewrite older agreements;
+- configurable balance-due timing;
+- overdue reminders, booking hold and recovery review;
+- no automatic/compounding consumer monetary penalty;
+- B2B statutory late-payment calculation kept separate/manual.
+
+### Implemented on branch
+- `lib/payment-policy.js`: revisioned flat/tiered rules, band validation, deposit resolver, booking snapshot, exact-money deposit check, force-balance checkout, overdue stage, manual B2B preview.
+- `admin-payment-settings.js` / API: editable future deposit bands, balance hours and overdue stages; audit/revision tracking; Stripe activation guards retained.
+- `api/customer-quote-action.js`: customer-safe exact payment commitment.
+- `account-booking-policy.js`: displays deposit/balance/overdue terms before appointment request and sends presented policy revision.
+- `api/booking-core.js`: rejects stale revisions, freezes payment policy on booking, can pause a new appointment for an older materially overdue active-policy invoice.
+- `lib/server.js`: copies active payment snapshot to invoice and applies recorded due timing.
+- `api/create-checkout.js`: frozen-policy checkout and full outstanding balance after completion/due date.
+- `api/admin-booking-update.js`: exact frozen deposit/full-payment enforcement before confirmation.
+- `api/customer-billing.js` / `account-payments.js`: customer-visible frozen terms and overdue state.
+- `lib/business-followup-batched.js`: frozen configurable reminder schedule; legacy schedule preserved.
+- `api/customer-data-export.js`: safe payment-policy evidence added to privacy data copy.
+
+### Safety / commercial invariants
+- Customer payments remain OFF in production.
+- No settings row is created merely by deploying this code.
+- Fallback 20%/£10 values are inactive code defaults, not an approved commercial policy.
+- Existing/legacy bookings are not retroactively forced into new required deposits.
+- Consumer invoice amounts are never automatically increased for lateness by this engine.
+- Business late-payment interest/recovery is not automatically posted.
+- Window Cleaning remains the only live payment-capable service.
+
+### Migration pending green gate
+`20260915111500_flexible_payment_policy_engine.sql` adds payment-policy snapshot/evidence fields to bookings/invoices and appends Terms “Payment due dates and overdue balances” (Terms at least v3).
+
+It has NOT yet been applied to production. Apply only after exact-head CI and preview are green.
+
+### Release gate pending
+- exact candidate CI SUCCESS;
+- exact Vercel preview READY and errors-only build clean;
+- final diff review;
+- production migration + schema/Terms verification;
+- exact-head merge;
+- production deployment READY, health 200 and v6.4.35 live assets;
+- no real booking/deposit/payment/late fee/refund created for deployment verification.
+
 ## Booking cancellation / deposit policy — LIVE
-PR #80.
-Version: `6.4.34-cancellation-policy-1`.
-Policy version: `2026-09-15-v1`.
+PR #80 / v`6.4.34-cancellation-policy-1`.
+- >48h deposit normally refundable/transferable.
+- <48h, no-show/no access: retention only for reasonable direct loss after savings/rebooking are considered.
+- Namdar cancellation/no replacement: refund unprovided service payments.
+- statutory consumer rights unaffected.
+- Terms v2 live; booking acceptance evidence is recorded.
 
-### Approved customer rule
-- More than 48 hours before appointment: deposit normally refundable or transferable.
-- Within 48 hours, no-show or no agreed access: Namdar may retain some/all only to cover reasonable direct loss, accounting for savings and whether the slot can be filled.
-- No blanket non-refundable term.
-- Namdar cancellation with no replacement date: refund payments for the unprovided service.
-- Statutory consumer rights remain unaffected.
-
-### Release evidence
-- Exact tested head: `a2bd36aac340438373f8b432c758f9f48fcbf8b8`.
-- GitHub CI `34959940870`: SUCCESS.
-- Exact preview `dpl_67P6wFeT4Ca624QKXgzCS6gVYqoS`: READY, clean errors-only build.
-- Production migration `booking_cancellation_policy`: applied successfully.
-- Product merge: `0027693a4be536752d1a189d42c2622c33d9d9ec`.
-- Production deployment `dpl_FLKBbTxKKqf6nWW3HrVNPGWpgxKP`: READY, clean errors-only build.
-
-### Terms and booking evidence
-Migration `20260915104500_booking_cancellation_policy.sql` added booking Terms/policy version, acceptance timestamps, express service-start request/acknowledgement, cancellation window and non-PII policy snapshot.
-
-Terms & Conditions v2 are live and verified with:
-- fair 48-hour cancellation/deposit rule;
-- reasonable-loss/rebooking language;
-- Namdar-cancellation refund wording;
-- separate statutory 14-day cancellation section;
-- access/safety/weather, scope and complaints provisions.
-
-### Customer booking experience
-`account-booking-policy.js` + `booking-policy.css` are live.
-- policy shown before appointment request;
-- explicit Terms/cancellation acceptance required;
-- separate statutory early-service request/acknowledgement required;
-- same policy summary shown in cancellation management.
-
-`api/booking-core.js` enforces the acknowledgements and current version server-side and records the evidence on the booking.
-
-`api/create-checkout.js` blocks future Stripe checkout when booking policy evidence is absent. Payments remain OFF and no deposit percentage/minimum/mode was selected in this release.
-
-Customer privacy export includes booking policy acceptance metadata.
-
-### Production verification
-- health 200;
-- account loader v6.4.34 live;
-- policy JS/CSS assets 200;
-- Terms endpoint returns version 2;
-- safe GET checks on booking/checkout APIs return 405 without mutation;
-- deployment testing created no real booking, cancellation, deposit, refund or payment;
-- one existing booking remains and zero bookings have new-policy acceptance from release testing;
-- payment records remain the existing 4 sandbox rows;
-- booking change requests remain 0.
-
-Only the known Node `url.parse()` deprecation warning appeared in the runtime error-level check; cleanup remains tech debt.
-
-## Privacy Centre / UK GDPR operations — LIVE
-Version `6.4.33-privacy-centre-1`, PR #78.
-- Privacy/Cookie v2 live.
-- My Namdar Privacy & data and Admin Privacy & GDPR live.
+## Privacy Centre / UK GDPR — LIVE
+- Privacy/Cookie v2 and My Namdar/Admin privacy centres live.
 - Controller legal name/public postal address publication postponed by owner.
-- ICO fee self-assessment and Supabase Leaked Password Protection remain open manual items.
+- ICO fee self-assessment still open.
 
-## Customer booking journey — LIVE
-- v6.4.32 coverage-first quote-to-booking flow remains the base journey under the new v6.4.34 policy layer.
-- Guest quote claim requires exact authenticated email match.
-- My Namdar progress: Request → Final quote → Decision → Appointment.
+## Security / operations stable
+- Security Hardening live.
+- Staff My Jobs auth recovery live and user-confirmed.
+- Business Finance sole-trader-first/private.
+- Smart Receipts private/review-first.
+- Newsletter Centre consent-aware/resumable.
+- Ask Namdar guided assistant live; provider AI off.
+- Support tickets customer-only/private.
 
-## Security Hardening — LIVE
-- private server-side rate limits with HMAC-hashed identities;
-- secure invitations, no temporary passwords;
-- owner-confirmed email changes;
-- Admin lifecycle safeguards and inactivity sign-out;
-- CAPTCHA + AAL2/TOTP MFA + CSP/security headers.
-
-## Business / operations stable state
-- sole-trader-first Business Finance live/private;
-- Smart Receipts review-first/private;
-- Newsletter Centre consent-aware/resumable;
-- Ask Namdar Guided assistant live; provider AI off;
-- customer support tickets customer-only/private;
-- Stripe infrastructure exists but commercial customer payments remain OFF.
-
-## Open roadmap
-- Decide commercial deposit percentage/minimum, whether deposit is required, and whether pay-in-full remains available.
-- Configure/verify live Stripe only after that deliberate policy decision.
-- Publish controller formal legal name/address when owner is ready.
-- Complete ICO fee self-assessment.
-- Enable/re-verify Supabase Leaked Password Protection.
-- User-driven booking/privacy smoke tests when convenient.
+## Open roadmap after this release
+- Owner later chooses actual commercial deposit bands/amounts and whether/when to activate Stripe.
+- Build explicit business-customer classification before any automated B2B statutory-debt workflow.
+- ICO fee self-assessment.
+- Supabase Leaked Password Protection.
 - Google review-request URL.
 - Window real-job pricing calibration.
 - SMS/legal checks.
-- Optional duplicate Supabase include cleanup.
 - `url.parse()` deprecation cleanup.
 - Address-data pilot remains parked.
