@@ -20,9 +20,8 @@ module.exports=async function(req,res){try{
     if(name.length<2)return json(res,400,{ok:false,error:'Role name must contain at least 2 characters.'});
     const key=roleKeyFromName(name);
     if(key.length<2||['owner','administrator'].includes(key))return json(res,400,{ok:false,error:'Choose a different role name.'});
-    if(await roleByKey(key))return json(res,409,{ok:false,error:'A role with this name already exists.'});
-    const sameName=await db(`staff_roles?name=ilike.${encodeURIComponent(name)}&select=key&limit=1`).catch(()=>[]);
-    if(sameName?.length)return json(res,409,{ok:false,error:'A role with this name already exists.'});
+    const duplicate=(await allRoles()).some(role=>role.key===key||String(role.name||'').toLowerCase()===name.toLowerCase());
+    if(duplicate)return json(res,409,{ok:false,error:'A role with this name already exists.'});
     const created=(await db('staff_roles',{method:'POST',prefer:'return=representation',body:{key,name,description:description||null,permissions,system_role:false,active:true,created_by:staff.user.id}}))?.[0];
     await auditLog(req,staff,{action:'access_role.create',entityType:'staff_role',entityId:key,summary:`Created staff access role ${name}`,after:created});
     return json(res,201,{ok:true,role:created});
@@ -35,8 +34,8 @@ module.exports=async function(req,res){try{
     if(existing.system_role)return json(res,403,{ok:false,error:'Owner and Administrator are protected system roles and cannot be edited.'});
     const name=b.name===undefined?existing.name:cleanText(b.name,80),description=b.description===undefined?(existing.description||''):cleanText(b.description,300),permissions=b.permissions===undefined?normalizePermissions(existing.permissions):normalizePermissions(b.permissions);
     if(name.length<2)return json(res,400,{ok:false,error:'Role name must contain at least 2 characters.'});
-    const duplicate=await db(`staff_roles?name=ilike.${encodeURIComponent(name)}&key=neq.${encodeURIComponent(key)}&select=key&limit=1`).catch(()=>[]);
-    if(duplicate?.length)return json(res,409,{ok:false,error:'Another role already uses this name.'});
+    const duplicate=(await allRoles()).some(role=>role.key!==key&&String(role.name||'').toLowerCase()===name.toLowerCase());
+    if(duplicate)return json(res,409,{ok:false,error:'Another role already uses this name.'});
     const updated=(await db(`staff_roles?key=eq.${encodeURIComponent(key)}`,{method:'PATCH',prefer:'return=representation',body:{name,description:description||null,permissions,updated_at:new Date().toISOString()}}))?.[0]||existing;
     await db(`staff_access?role_key=eq.${encodeURIComponent(key)}`,{method:'PATCH',body:{permissions,updated_at:new Date().toISOString()}}).catch(()=>null);
     await auditLog(req,staff,{action:'access_role.update',entityType:'staff_role',entityId:key,summary:`Updated staff access role ${name}`,before:existing,after:updated});
