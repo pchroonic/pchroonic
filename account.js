@@ -1,5 +1,5 @@
 (()=>{
-  const v='6.4.34-cancellation-policy-1';
+  const v='6.4.35-payment-policy-engine-1';
   const supabaseVersion='2.116.0';
   document.write(`<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@${supabaseVersion}"><\/script>`);
   document.write(`<script src="/account-auth-hotfix.js?v=${v}"><\/script>`);
