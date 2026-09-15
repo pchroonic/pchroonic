@@ -6,17 +6,17 @@ Read `docs/AI_START.md` first.
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current main before this branch: `44d26ff206ea4163dbe2f83c1e0a93ff6a0c857b` (PR #76 docs sync).
-- Live product release before this branch: PR #75 customer quote-to-booking journey.
+- Current live product release: PR #78 `Add Namdar Privacy Centre and UK GDPR operations`.
+- Current main/merge commit: `3b56a12620c754853f3d5145c3daa277caa07c70`.
+- Production Vercel deployment: `dpl_Ew4HKZdj1fGjpuT8KHMTM5YbRdeH`, READY and serving `namdar.co.uk`.
 - Supabase production `qjigldxjcpnrlyxgmlqq`.
-- Vercel project `prj_4fILo0pCaLGUSUIMWrBIVGzeWVDC`, team `team_8Az8WtWcnfwtYRdhR8vGqC3L`.
 - Window Cleaning only live. Stripe commercial payment policy OFF. Provider AI disabled (`aiEnabled:false`).
 - Privileged Staff/Admin requires CAPTCHA + AAL2/TOTP MFA.
 - Staff My Jobs auth recovery remains live and user-confirmed fixed.
 
-# UK GDPR / Privacy Centre — IMPLEMENTED ON BRANCH
+# UK GDPR / Privacy Centre — LIVE
 
-Branch: `feature/privacy-centre-20260915`
+Feature PR: #78
 Version: `6.4.33-privacy-centre-1`
 
 ## Why this work exists
@@ -24,7 +24,7 @@ The site already had a Privacy page, Cookie page, marketing consent, newsletter 
 
 This release builds those operational controls while deliberately avoiding the false statement that Namdar is “fully GDPR compliant”. Legal/commercial facts that the user has not formally supplied for publication are left as explicit readiness items rather than invented.
 
-## Database migration already applied
+## Database migration applied
 Repo migration:
 - `supabase/migrations/20260915083000_privacy_centre.sql`
 
@@ -70,8 +70,8 @@ The upgraded policy covers:
 - adult-service context;
 - ICO complaint route.
 
-Intentional readiness disclosure:
-- the public notice says the controller's formal legal name and postal correspondence address must be added before wider commercial launch. Do not remove this until the user supplies/approves those public details.
+Intentional readiness disclosure remains live:
+- the public notice says the controller's formal legal name and postal correspondence address must be added before wider commercial launch. Do not remove this until the user supplies and explicitly approves those public details.
 
 ## Cookie Policy v2
 Covers:
@@ -104,10 +104,11 @@ Covers:
 - includes selected customer-facing account information from profile, quotes, bookings, projects, subscriptions, notifications/emails, support, rewards, invoices/payments, newsletter preferences, chats, privacy requests and account-deletion status;
 - queries by authenticated customer id and, for historical guest-linked records where appropriate, exact authenticated email;
 - excludes staff/admin internal notes, newsletter private tokens, chat guest tokens and payment-provider internals;
+- quote photo storage paths are not exposed; only a photo count is included;
 - customer is directed to submit a formal Access request if they believe information is missing.
 
 ## My Namdar Privacy & data UI
-`account-privacy-center.js` loaded by `account.js` version `6.4.33-privacy-centre-1`.
+`account-privacy-center.js` is live through `account.js` version `6.4.33-privacy-centre-1`.
 It dynamically adds a `Privacy & data` tab and extends the account tab slug maps.
 Features:
 - download account-data JSON;
@@ -118,7 +119,7 @@ Features:
 - cookie-choice display and essential-only / optional-advertising choices.
 
 ## Admin Privacy & GDPR UI
-`admin-privacy-center.js` loaded by `admin.js` version `6.4.33-privacy-centre-1`.
+`admin-privacy-center.js` is live through `admin.js` version `6.4.33-privacy-centre-1`.
 - dynamically adds a `Privacy & GDPR` tab;
 - visible only with existing `legal` permission;
 - API enforcement uses `requireStaff(req,'legal')`, therefore existing server wrapper also requires AAL2;
@@ -137,7 +138,7 @@ Readiness checklist deliberately keeps these open:
 4. enable/re-verify Supabase Leaked Password Protection separately.
 
 ## Versioned legal publishing
-New `api/admin-legal.js`:
+`api/admin-legal.js` is live:
 - `requireStaff(req,'legal')`;
 - accepts only privacy/terms/cookies;
 - sanitizes HTML server-side with existing `sanitizeLegalHtml`;
@@ -149,7 +150,7 @@ New `api/admin-legal.js`:
 `admin-privacy-center.js` replaces the old browser-direct `saveLegal()` behavior at runtime so existing legal editor UI publishes through this protected API.
 
 ## Cookie preference controls
-`privacy-controls.js`:
+`privacy-controls.js` is live:
 - adds persistent `Cookie settings` button to footer;
 - allows essential-only or optional advertising;
 - keeps legacy `namdar_cookie_choice` compatibility;
@@ -165,7 +166,7 @@ Loaded:
 Shared `privacy-center.css` covers customer/admin privacy layouts, cookie-settings link and responsive behavior.
 
 ## Regression coverage
-New `scripts/privacy-center.test.mjs` checks:
+`scripts/privacy-center.test.mjs` checks:
 - privacy table + RLS/no policies + one-month default;
 - policy content categories;
 - customer auth boundary;
@@ -175,37 +176,41 @@ New `scripts/privacy-center.test.mjs` checks:
 - account/admin loaders and UI markers;
 - cookie choice withdrawal behavior.
 
-Existing `scripts/customer-booking-journey.test.mjs` was updated only to accept the newer account loader version while preserving the v6.4.32 booking behavior assertions.
-CI workflow syntax-checks all new modules/APIs and runs the new privacy test.
+Existing finance, receipt, health, newsletter, security and booking regressions were updated only for the new loader version where necessary and remained passing.
+CI syntax-checks all new modules/APIs and runs the privacy test.
+
+## Release verification completed
+Feature exact head:
+- `57785dbcbcf0054c79817032846025afa159c89d`
+- GitHub Actions run `34943637689`: SUCCESS.
+- exact-head Vercel preview `dpl_5cA21wmSZjQBo5vAq9TVWY4kCteV`: READY.
+- exact-head preview errors-only build log: clean.
+
+Merge / production:
+- PR #78 merged as `3b56a12620c754853f3d5145c3daa277caa07c70`.
+- production deployment `dpl_Ew4HKZdj1fGjpuT8KHMTM5YbRdeH`: READY, alias includes `namdar.co.uk`.
+- production errors-only build log: clean.
+- `/api/health`: HTTP 200, `ok:true`, all reported checks true.
+- live `account.js`: `6.4.33-privacy-centre-1`, loads `account-privacy-center.js`.
+- live `admin.js`: `6.4.33-privacy-centre-1`, loads `admin-privacy-center.js`.
+- live `/api/legal?slug=privacy`: version 2.
+- live `/api/legal?slug=cookies`: version 2.
+- unauthenticated `/api/customer-privacy`: HTTP 401.
+- unauthenticated `/api/customer-data-export`: HTTP 401.
+- no real privacy request, privacy completion email or real customer export was created during release verification.
 
 ## Known limitations / do not overclaim
 - This release is a privacy operations foundation, not legal advice or a certification.
-- Controller formal legal name and postal address are still missing from the public policy by design, pending user approval.
+- Controller formal legal name and postal address are still missing from the public policy by design, pending explicit user approval.
 - ICO fee/registration requirement has not been assumed; user must complete the official self-assessment.
 - A self-service JSON export is not promised to be a complete statutory SAR response; formal Access requests remain available.
 - Retention criteria are published, but not every legacy table has automatic lifecycle deletion. Admin must perform periodic retention review until more automated retention is deliberately introduced.
 - Supabase Leaked Password Protection remains a separate manual task.
 
-## Release gate
-Before production code merge:
-1. all three docs current;
-2. open PR;
-3. exact head GitHub CI SUCCESS;
-4. exact-head Vercel preview READY + errors-only build clean;
-5. merge only exact tested head;
-6. production deployment READY;
-7. `/api/health` 200;
-8. live `account.js` and `admin.js` show `6.4.33-privacy-centre-1`;
-9. privacy/admin/account/cookie assets HTTP 200;
-10. `/api/legal?slug=privacy` and cookies return v2;
-11. unauthenticated privacy/admin APIs refuse access without creating a real request.
-
-Do not create a real privacy request, send a real privacy completion email, or download a real customer's export solely for deployment testing.
-
 ## Stable systems that must not regress
 - Booking journey v6.4.32 remains live.
-- Security Hardening PR #71 remains live.
-- Staff My Jobs auth recovery PR #73 remains live/user-confirmed.
+- Security Hardening remains live.
+- Staff My Jobs auth recovery remains live/user-confirmed.
 - Account Supabase JS remains pinned to 2.116.0.
 - Window Cleaning only live.
 - Stripe customer payment policy OFF.
