@@ -6,30 +6,44 @@ Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PR
 
 ## Production source of truth
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current `main`: `e4b35a26e2ccf6884edb36891b71f75a38c9aaa2` (docs-only PR #83 on top of product PR #82).
-- Current live product merge: `ab1d95930816f3116828e410bf07e6208e93216f` (PR #82).
-- Current customer/Admin release: v`6.4.35-payment-policy-engine-1`.
-- Current production deployment: `dpl_Fk3mQc1TGhY5QAHDY5Gq2NF7MoRC`, READY on `namdar.co.uk`.
-- `/api/health` returned HTTP 200 / `ok:true` after the latest production deployment.
+- Current live product merge: `f2e7eedb4a795242dfacd350f0704b85e4e67885` (PR #84).
+- Current Admin release: v`6.4.36-admin-logo-upload-1`; customer loader remains v`6.4.35-payment-policy-engine-1`.
+- Current production deployment: `dpl_DYJtSFFYZeH8xAK1mX4WgNRDULZb`, READY on `namdar.co.uk`.
+- `/api/health` returned HTTP 200 / `ok:true` at `2026-09-15T13:15:44.843Z` after the release deployment.
 - Window Cleaning is the only live/quotable/bookable service.
-- Stripe commercial customer payment policy is OFF. Production has no `site_settings.payments` row. Do not infer a commercially approved deposit amount from fallback code values.
+- Stripe commercial customer payment policy is OFF. Production has `0` `site_settings` rows with key `payments`. Do not infer a commercially approved deposit amount from fallback code values.
 - Ask Namdar provider AI remains disabled (`aiEnabled:false`).
 - Privileged Staff/Admin requires CAPTCHA + AAL2/TOTP MFA.
 
-## Admin logo upload — RELEASE CANDIDATE
-Branch: `feature/admin-logo-upload-20260915`.
+## Admin logo upload — LIVE
+Product PR: #84 `Add secure Admin logo upload`.
+Exact tested head: `9995e8e2a199beee24cabe4d24175f82bd293398`.
+CI: GitHub run `34973739008` SUCCESS.
+Exact-head preview: `dpl_Dvu9ctLyXRB16qrH1Q1wJXr8c7KF`, READY; errors-only build log clean.
+Merge/main: `f2e7eedb4a795242dfacd350f0704b85e4e67885`.
+Production: `dpl_DYJtSFFYZeH8xAK1mX4WgNRDULZb`, READY; errors-only build log clean.
 
-The Website & legal Admin tab is being upgraded so the existing Logo URL field also has a secure file-upload option:
-- `admin-brand-assets.js` adds PNG/JPG/WebP/AVIF selection, 2 MB client validation, preview, upload status and automatic Logo URL fill;
+The Website & legal Admin tab now keeps the existing Logo URL field and also provides a secure file-upload option:
+- `admin-brand-assets.js` adds PNG/JPG/WebP/AVIF selection, a 2 MB client limit, local preview, upload status and automatic Logo URL fill;
 - `api/admin-brand-logo.js` requires Staff/Admin `settings` permission plus the existing AAL2/TOTP gate before upload;
-- `lib/brand-logo.js` verifies the actual file signature server-side instead of trusting the browser MIME type;
-- uploaded logos go to a dedicated public Supabase Storage bucket `brand-assets` under versioned `logos/...` paths;
-- the upload does not silently publish the new logo: Admin still clicks **Save website settings**, preserving the existing explicit settings workflow;
-- CI now syntax-checks the new files and runs `scripts/brand-logo.test.mjs`.
+- `lib/brand-logo.js` verifies the actual file signature server-side instead of trusting the browser MIME type or filename;
+- uploaded logos go to the dedicated public Supabase Storage bucket `brand-assets` under versioned `logos/...` paths;
+- there is no direct browser Storage write policy for this bucket; the protected server endpoint performs the upload with the server credential only after authorization;
+- upload does not silently publish the new brand image: Admin still clicks **Save website settings**, preserving the existing explicit settings workflow;
+- upload is audit logged;
+- CI syntax-checks the new files and runs `scripts/brand-logo.test.mjs`.
 
-Supabase production migration `20260915130427` / `brand_assets_logo_upload` has already been applied. The bucket is public only for serving brand assets; browser uploads are not granted directly through Storage RLS. Uploads go through the authenticated server endpoint using the existing service credential after permission/MFA checks.
+Supabase production migration `20260915130427` / `brand_assets_logo_upload` is applied. The `brand-assets` bucket is public only for serving website brand images, is capped at 2 MB, and allows JPEG/PNG/WebP/AVIF. Production verification confirmed `0` direct Storage policies referencing this bucket.
 
-No customer, booking or payment data is created by this feature. Commercial Stripe activation remains OFF.
+### Production verification
+- `/api/health` HTTP 200 / `ok:true`.
+- `admin.js` HTTP 200 and loads v`6.4.36-admin-logo-upload-1` plus `admin-brand-assets.js`.
+- `admin-brand-assets.js` HTTP 200/current.
+- unauthenticated GET `/api/admin-brand-logo` returns HTTP 405 `Method not allowed`; uploads require POST through authenticated Admin.
+- release deployment runtime error/fatal scan returned no matching logs.
+- no logo was uploaded as release test data and the existing saved brand setting was not changed.
+- no customer, booking, deposit, payment, late fee or refund data was created.
+- commercial Stripe activation remains OFF.
 
 ## Flexible Payment & Deposit Policy Engine — LIVE
 Product PR: #82 `Add flexible payment and deposit policy engine`.
@@ -38,7 +52,7 @@ CI: GitHub run `34965887792` SUCCESS.
 Exact-head preview: `dpl_uUHG5oQaiP6gTiV3sFXoxwRisM3F`, READY; errors-only build log clean.
 Production migration: `flexible_payment_policy_engine` / repo file `20260915111500_flexible_payment_policy_engine.sql`, applied successfully to Supabase production `qjigldxjcpnrlyxgmlqq` before merge.
 Merge/main: `ab1d95930816f3116828e410bf07e6208e93216f`.
-Production product deployment: `dpl_GvU42X4GGN3mGRojFJTcvRBZfsV4`, READY; a later documentation-only main deployment is now current production.
+Production product deployment: `dpl_GvU42X4GGN3mGRojFJTcvRBZfsV4`, READY; later releases are now current production.
 
 ### What is live
 `lib/payment-policy.js` supports:
@@ -86,14 +100,13 @@ Production invoices have:
 Published Terms are v3 and include `Payment due dates and overdue balances`, including non-retroactivity and no automatic consumer monetary penalty wording.
 Production still has `0` `site_settings` rows with key `payments`, so commercial payments remain OFF.
 
-### Production verification
+### Payment release verification
 - `account.js` HTTP 200 and loads v`6.4.35-payment-policy-engine-1`.
-- `admin.js` HTTP 200 and loads v`6.4.35-payment-policy-engine-1` on current production until the logo-upload release is merged.
-- `account-booking-policy.js` HTTP 200 and current.
-- `admin-payment-settings.js` HTTP 200 and current.
+- `admin-payment-settings.js` HTTP 200/current and remains loaded by the newer Admin loader.
+- `account-booking-policy.js` HTTP 200/current.
 - `/api/legal?slug=terms` HTTP 200, Terms v3 with the new payment section.
 - No real booking, deposit, payment, late fee or refund was created for release verification.
-- Production runtime check showed no product exception from this release; the known Node `url.parse()` deprecation warning remains open tech debt.
+- the known Node `url.parse()` deprecation warning remains open tech debt from earlier runtime scans.
 
 Fallback values remain only inactive defaults while no payments row exists: 20% / £10, optional, inactive. They are not a commercial decision.
 
