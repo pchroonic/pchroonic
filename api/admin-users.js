@@ -4,7 +4,7 @@ const {inviteUserByEmail}=require('../lib/auth-invite');
 const {normalizePermissions,allPermissions,cleanRoleKey,roleForAssignment,isOwner}=require('../lib/access-roles');
 
 async function targetProfile(id){return (await db(`profiles?id=eq.${encodeURIComponent(id)}&select=*&limit=1`))?.[0]||null}
-async function targetStaffAccess(id){return (await db(`staff_access?user_id=eq.${encodeURIComponent(id)}&select=permissions,job_title,active,role_key&limit=1`).catch(()=>[]))?.[0]||null}
+async function targetStaffAccess(id){return (await db(`staff_access?user_id=eq.${encodeURIComponent(id)}&select=permissions,job_title,active,role_key,created_by&limit=1`).catch(()=>[]))?.[0]||null}
 async function otherActiveAdmins(id){const rows=await db('profiles?role=eq.admin&select=id,account_status');return (rows||[]).filter(x=>x.id!==id&&(!x.account_status||x.account_status==='active'))}
 async function otherActiveOwners(id){
   const [owners,admins]=await Promise.all([
@@ -18,11 +18,11 @@ function postcode(value=''){const compact=String(value||'').toUpperCase().replac
 function accountStatus(value,fallback='active'){return ['active','suspended','archived','pending_deletion'].includes(String(value||''))?String(value):fallback}
 function validRole(value,fallback='customer'){return ['customer','staff','admin'].includes(String(value||''))?String(value):fallback}
 
-async function accessPlan({profileRole,requestedRoleKey,directPermissions,existingAccess=null,actorOwner=false}){
+async function accessPlan({profileRole,requestedRoleKey,directPermissions,existingAccess=null,actorOwner=false,roleKeyProvided=false}){
   if(profileRole==='customer')return null;
   let roleKey=cleanRoleKey(requestedRoleKey);
   if(profileRole==='admin'&&!roleKey)roleKey=existingAccess?.role_key||'administrator';
-  if(profileRole==='staff'&&!roleKey&&existingAccess?.role_key&&!['owner','administrator'].includes(existingAccess.role_key))roleKey=existingAccess.role_key;
+  if(profileRole==='staff'&&!roleKey&&!roleKeyProvided&&existingAccess?.role_key&&!['owner','administrator'].includes(existingAccess.role_key))roleKey=existingAccess.role_key;
   const role=roleKey?await roleForAssignment(roleKey,profileRole):null;
   if(roleKey==='owner'&&!actorOwner){const error=new Error('Only an Owner can grant the Owner access role.');error.status=403;throw error}
   const permissions=profileRole==='admin'?allPermissions():(role?normalizePermissions(role.permissions):normalizePermissions(directPermissions===undefined?(existingAccess?.permissions||{}):directPermissions));
@@ -45,7 +45,7 @@ module.exports=async function(req,res){try{
     const staff=await requireStaff(req,role==='customer'?'customers':'staff'),actorOwner=await isOwner(staff);
     if(role==='admin'&&!actorOwner)return json(res,403,{ok:false,error:'Only an Owner can invite an Administrator.'});
     if(!email.includes('@')||!fullName)return json(res,400,{ok:false,error:'Name and valid email are required.'});
-    const plan=await accessPlan({profileRole:role,requestedRoleKey:b.accessRoleKey,directPermissions:b.permissions,actorOwner});
+    const plan=await accessPlan({profileRole:role,requestedRoleKey:b.accessRoleKey,directPermissions:b.permissions,actorOwner,roleKeyProvided:b.accessRoleKey!==undefined});
     await consumeRateLimit(req,res,{scope:'admin.user_invite.actor',limit:30,windowSeconds:3600,identity:`staff:${staff.user.id}`,message:'Too many account invitations were requested in a short time. Please wait and review the recent activity before trying again.'});
     let user=null;
     try{
@@ -71,8 +71,7 @@ module.exports=async function(req,res){try{
     if((existing.role==='admin'||desiredRole==='admin')&&!actorOwner)return json(res,403,{ok:false,error:'Only an Owner can modify, promote or demote Administrator accounts.'});
     const requestedEmail=b.email===undefined?String(existing.email||'').trim().toLowerCase():String(b.email||'').trim().toLowerCase();
     if(requestedEmail!==String(existing.email||'').trim().toLowerCase())return json(res,409,{ok:false,error:'For security, email identity changes must be confirmed by the account owner in My Namdar → Security.'});
-    const requestedRoleKey=b.accessRoleKey===undefined?undefined:b.accessRoleKey;
-    const plan=await accessPlan({profileRole:desiredRole,requestedRoleKey, directPermissions:b.permissions,existingAccess:desiredRole===existing.role?existingAccess:null,actorOwner});
+    const plan=await accessPlan({profileRole:desiredRole,requestedRoleKey:b.accessRoleKey,directPermissions:b.permissions,existingAccess:desiredRole===existing.role?existingAccess:null,actorOwner,roleKeyProvided:b.accessRoleKey!==undefined});
     const desiredRoleKey=plan?.roleKey||null;
     if(id===staff.user.id&&(desiredRole!==existing.role||desiredStatus!==(existing.account_status||'active')||desiredRoleKey!==(existingAccess?.role_key||null)))return json(res,400,{ok:false,error:'For safety, you cannot change the account type, access role or account status of the privileged account you are currently using.'});
     if(targetOwner&&(!existing.account_status||existing.account_status==='active')&&(desiredRole!=='admin'||desiredStatus!=='active'||desiredRoleKey!=='owner')){
