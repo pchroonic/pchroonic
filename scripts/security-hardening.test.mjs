@@ -46,12 +46,14 @@ test('Admin-created accounts use secure invitations instead of temporary passwor
   assert.doesNotMatch(invite,/password/);
 });
 
-test('privileged account lifecycle protects current and last administrator',()=>{
+test('privileged account lifecycle protects current account, last administrator and last Owner',()=>{
   const api=read('api/admin-users.js');
-  assert.match(api,/Only an administrator can invite another administrator/);
-  assert.match(api,/cannot change the role or account status/);
+  assert.match(api,/Only an Owner can invite an Administrator/);
+  assert.match(api,/cannot change the account type, access role or account status/);
   assert.match(api,/otherActiveAdmins/);
+  assert.match(api,/otherActiveOwners/);
   assert.match(api,/must keep at least one active administrator/);
+  assert.match(api,/must keep at least one active Owner/);
   assert.match(api,/email identity changes must be confirmed by the account owner/);
 });
 
