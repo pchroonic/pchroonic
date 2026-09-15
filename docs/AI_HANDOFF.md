@@ -6,104 +6,95 @@ Read `docs/AI_START.md` first. Use `docs/PROJECT_STATUS.md` for the broader road
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current main: `3b7f46fa15bbe386f00de32529529763cb19f307` (PR #89 docs-only).
-- Current live product merge: `6c2ec57473d0d2f581c4eb70e76fe30d0add07dc` (PR #88).
-- Admin base JS release `6.4.37-admin-website-crash-fix-1`; modal CSS `6.4.38-admin-wide-modal-fix-1`; customer loader `6.4.35-payment-policy-engine-1`.
+- Current live product merge: `d4686b34851e9bf659e872a4f06609b70dfa56d4` (PR #90).
+- Admin base JS `6.4.37-admin-website-crash-fix-1`; modal CSS `6.4.38-admin-wide-modal-fix-1`; access-role extension `6.4.39-access-roles-1`; customer loader `6.4.35-payment-policy-engine-1`.
 - Supabase production: `qjigldxjcpnrlyxgmlqq`.
 - Vercel project: `prj_4fILo0pCaLGUSUIMWrBIVGzeWVDC`; team: `team_8Az8WtWcnfwtYRdhR8vGqC3L`.
-- Current production deployment: `dpl_7Dg4UQH3MHR1HbjURanFgcTafJSb`, READY on `namdar.co.uk`.
-- Health HTTP 200 / `ok:true` at `2026-09-15T14:33:46.185Z`.
-- Window Cleaning only live. Customer Stripe remains OFF. Provider AI remains OFF. Privileged access requires CAPTCHA + AAL2/TOTP.
+- Production deployment: `dpl_GFYggUDm33USwygrhPfzLcdDFiqp`, READY on `namdar.co.uk`.
+- Health HTTP 200 / `ok:true` at `2026-09-15T14:57:54.408Z`.
+- Window Cleaning only live. Customer Stripe OFF. Provider AI OFF. Privileged access requires CAPTCHA + AAL2/TOTP.
 
-# Owner & custom access roles — RELEASE CANDIDATE
+# Owner & custom access roles — LIVE
 
-## User request
-Allow Admin to create additional reusable roles and make the existing top-level Admin the **Owner**.
+## Architecture
+Owner was deliberately implemented as a second access-role layer rather than a new `profiles.role` value. Coarse `profiles.role` stays `customer` / `staff` / `admin`, preserving current authorization/RLS behavior. `staff_roles` and `staff_access.role_key` supply the hierarchy.
 
-## Architecture decision
-Do **not** add `owner` to `profiles.role`. Existing authorization and database policies use the coarse `customer` / `staff` / `admin` model, so changing that security boundary would create unnecessary regression risk.
+System roles:
+- **Owner** — highest role; can manage role definitions, Administrator accounts and Owner grants.
+- **Administrator** — full normal Admin operations, but no Owner-only hierarchy control.
 
-Instead, keep `profiles.role='admin'` for privileged Admin accounts and add a second access-role layer:
-- `staff_roles`: reusable role definitions;
-- `staff_access.role_key`: assignment to Owner, Administrator or a custom Staff role.
+Custom Staff roles:
+- reusable permission templates such as Scheduler, Operations Manager or Finance;
+- can be assigned to multiple Staff accounts;
+- editing a role propagates its permission map to assigned Staff;
+- an assigned role cannot be deleted;
+- system roles cannot be edited or deleted;
+- Staff may instead keep Individual permissions.
 
-This preserves existing Admin authorization and AAL2/TOTP while giving Namdar a safe hierarchy.
+## Server/security implementation
+`supabase/migrations/20260915144500_staff_role_management.sql`:
+- creates private RLS-enabled `staff_roles`;
+- revokes direct anon/authenticated table access;
+- adds indexed FK `staff_access.role_key`;
+- seeds Owner/Administrator;
+- preserves all existing Admin operational access;
+- when exactly one active Admin exists, maps that account to Owner without hard-coded identity.
 
-## Files in the candidate
-### `supabase/migrations/20260915144500_staff_role_management.sql`
-- creates private/RLS-enabled `staff_roles` with no anon/authenticated table grants;
-- adds `staff_access.role_key` FK + index;
-- seeds protected `owner` and `administrator` roles with the current full operational permission set;
-- backfills existing Admin accounts into `staff_access` as Administrator;
-- if exactly one active Admin exists, promotes that unambiguous account to Owner without hard-coding a generated user id.
+`lib/access-roles.js` centralizes permission normalization, access-role lookup, Owner checks and assignment validation.
 
-### `lib/access-roles.js`
-- authoritative permission catalogue;
-- normalizes role permissions to known keys only;
-- resolves assigned roles;
-- `isOwner()` / `requireOwner()` helpers;
-- validates that Owner/Administrator can only be assigned to coarse Admin accounts and custom roles only to Staff.
+`api/admin-roles.js`:
+- GET requires Staff `staff` permission;
+- create/update/delete are Owner-only;
+- mutations audit logged;
+- system roles protected and assigned custom-role deletion blocked.
 
-### `api/admin-roles.js`
-- GET is available to Staff users with `staff` permission;
-- POST/PATCH/DELETE are Owner-only;
-- protected system roles cannot be edited/deleted;
-- role names are duplicate-checked;
-- changing a custom role propagates the new permission map to all assigned Staff accounts;
-- deleting an assigned role is blocked;
-- all mutations are audit logged.
-
-### `api/admin-users.js`
-- Admin invitations/promotions/demotions/deletion are now Owner-only;
-- Owner role grants are Owner-only;
-- custom role assignment is supported for Staff;
-- Admin defaults to Administrator unless Owner is explicitly granted;
-- last active Owner is protected, in addition to the existing last active Administrator protection;
-- current signed-in privileged account cannot change its own account type/access role/status;
+`api/admin-users.js`:
+- Administrator invitation/promotion/demotion/deletion is Owner-only;
+- Owner grants are Owner-only;
+- current privileged account cannot change its own account type/access role/status;
+- last active Owner and last active Administrator protections prevent lockout;
 - secure invitations and account-owner-controlled email changes remain intact.
 
-### `admin-role-management.js`
-- injects **Access roles** into Staff & access;
-- Owner can create/edit/delete custom roles and tick dashboard permissions;
-- non-Owner staff managers see definitions read-only;
-- user editor distinguishes Account type from Access role;
-- Admin access roles: Administrator / Owner;
-- Staff access: custom reusable role or Individual permissions;
-- role-managed checkboxes become read-only and show effective permissions;
-- staff table shows access role, account type, job title and permission summary;
-- preserves the secure invitation flow rather than restoring temporary passwords.
+## Admin UI
+`admin-role-management.js` adds:
+- **Access roles** panel under Staff & access;
+- Create role / edit role / permission checklist for Owner;
+- separate **Account type** and **Access role** controls in user editor;
+- Administrator/Owner choices for Admin accounts;
+- custom role or Individual permissions for Staff;
+- effective access role and permissions in the Staff table.
 
-### `admin.js`
-Loads the extension with independent cache token `6.4.39-access-roles-1`; older module version pins remain unchanged.
+`admin.js` loads the extension with `6.4.39-access-roles-1`.
 
-### Regression / CI
-- `scripts/access-roles.test.mjs` covers permission bounding, private schema, initial Owner migration, Owner-only mutations, lockout safeguards and UI loader;
-- `scripts/security-hardening.test.mjs` updated for Owner hierarchy while preserving original security assertions;
-- workflow adds syntax checks for new server/browser files and runs access-role tests.
+## Release evidence
+- PR #90 exact tested head: `50a6995c2d01b3684a23bbb1f8a8e5babd7bcc46`;
+- GitHub CI run `34984977855`: SUCCESS;
+- exact-head preview `dpl_3VpLtjizfxLe8dVJXBzLc5SmvScJ`: READY, errors-only build log clean;
+- production migration `20260915145635` / `staff_role_management`: applied successfully before merge;
+- migration verification: protected Owner + Administrator rows exist, `staff_roles` RLS enabled, exactly one active Admin mapped to Owner;
+- merge: `d4686b34851e9bf659e872a4f06609b70dfa56d4`;
+- production deployment `dpl_GFYggUDm33USwygrhPfzLcdDFiqp`: READY on `namdar.co.uk`, build log clean;
+- production `/api/health`: HTTP 200 / `ok:true` at `2026-09-15T14:57:54.408Z`;
+- live `/admin.js` serves the access-role cache token and module;
+- live `/admin-role-management.js` HTTP 200;
+- unauthenticated `/api/admin-roles` HTTP 401, confirming fail-closed behavior;
+- production 5xx scan found no logs.
 
-## Release constraints
-- Migration must be applied and verified before product merge because the new APIs/UI depend on `staff_roles` and `staff_access.role_key`.
-- The migration is additive/backward-compatible with the current production code.
-- Production currently has exactly one active Admin, so the migration can safely identify the initial Owner by state rather than identity.
-- Do not create test customers, real payments or activate Stripe as part of this release.
-- Do not relax CAPTCHA or AAL2/TOTP.
+The runtime error scan did show the expected 401 events caused by explicit unauthenticated security verification; those are not application failures.
 
-## Verification sequence
-1. Update all continuity docs in the product PR.
-2. Open PR and wait for exact-head GitHub CI.
-3. Verify exact-head Vercel preview/build logs.
-4. Apply `staff_role_management` migration to production.
-5. Verify `staff_roles` has Owner + Administrator and exactly one active Admin is assigned Owner.
-6. Merge exact tested head.
-7. Verify production deployment READY, health 200, live Admin loader includes `6.4.39-access-roles-1`, and runtime logs have no new errors.
-8. Record release evidence in a docs-only follow-up PR.
+No real staff/customer account, booking or payment was created for release verification. Stripe remains OFF and MFA remains mandatory.
+
+## Owner action now
+Hard-refresh Admin and open **Staff & access**. Confirm:
+- signed-in access displays **Owner**;
+- **Access roles** panel is visible;
+- Owner and Administrator appear as protected roles;
+- **Create role** opens the reusable permission editor.
+
+A harmless temporary custom role can be created/deleted to smoke-test the UI, but there is no need to invite a real staff user merely for testing.
 
 # Existing live systems
-- PR #88 Admin booking editor overflow fix is live.
-- PR #86 Website & legal crash fix is live.
-- PR #84 secure Admin logo upload is live.
-- PR #82 flexible payment/deposit policy engine is live, while commercial Stripe activation remains OFF.
-- Privacy Centre, Security Hardening, Staff My Jobs auth recovery, Business Finance, Smart Receipts, Newsletter Centre and guided Ask Namdar remain live/stable.
+PR #88 booking-editor modal fix, PR #86 Website & legal crash repair, PR #84 secure logo upload and PR #82 flexible payment/deposit policy engine remain live. Commercial Stripe remains OFF. Privacy, Security Hardening, Staff My Jobs recovery, Business Finance, Smart Receipts, Newsletter Centre and guided Ask Namdar remain stable.
 
 # Open tech/commercial items
-Commercial Stripe policy remains unapproved/off. ICO self-assessment, Leaked Password Protection, Google review URL, real-job pricing calibration, SMS/legal checks, Node `url.parse()` cleanup and the parked address-data pilot remain open.
+ICO self-assessment, Leaked Password Protection, Google review URL, real-job pricing calibration, SMS/legal checks, Node `url.parse()` cleanup and the parked address-data pilot remain open. Commercial Stripe policy remains an owner decision.
