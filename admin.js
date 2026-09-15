@@ -1,6 +1,8 @@
 (()=>{
   const v='6.4.37-admin-website-crash-fix-1';
+  const modalLayoutV='6.4.38-admin-wide-modal-fix-1';
   document.write(`<link rel="stylesheet" href="/admin-inbox-safety.css?v=${v}">`);
+  document.write(`<link rel="stylesheet" href="/admin-modal-layout.css?v=${modalLayoutV}">`);
   document.write(`<script src="/privileged-login-captcha.js?v=${v}"><\/script>`);
   document.write(`<script src="/admin-original.js?v=${v}"><\/script>`);
   document.write(`<script src="/admin-brand-assets.js?v=${v}"><\/script>`);

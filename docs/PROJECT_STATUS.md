@@ -4,135 +4,100 @@ Last updated: 2026-09-15 UTC
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
+- Current main HEAD before PR #88: `db3715d38e356de8232a92be6909d9781a734ef8` (PR #87, documentation-only release record).
 - Current live product merge: `3e41cb5837d6394688d1ab5dbef11d9bdf8e5781` (PR #86).
-- Current Admin release: v`6.4.37-admin-website-crash-fix-1`; customer loader remains v`6.4.35-payment-policy-engine-1`.
-- PR #86 product production deployment `dpl_2GimgSuA1zSDxiLvtA6BGNNPSEjD`, READY and aliased to `namdar.co.uk`.
-- Production health HTTP 200 / `ok:true` verified at `2026-09-15T13:39:34.064Z`.
+- Current Admin JavaScript release: v`6.4.37-admin-website-crash-fix-1`; customer loader remains v`6.4.35-payment-policy-engine-1`.
+- Current production deployment `dpl_9sHrCSpkN8TWtVPjw3pz5cFd27zH`, READY on current `main` and aliased to `namdar.co.uk`.
+- Production health HTTP 200 / `ok:true` verified at `2026-09-15T13:44:22.349Z`.
 - Supabase production: `qjigldxjcpnrlyxgmlqq`.
 - Window Cleaning only live.
 - Privileged Staff/Admin requires CAPTCHA + AAL2/TOTP MFA.
 - Stripe customer payment policy OFF; production has `0` `site_settings.payments` rows and no commercial deposit bands have been approved/enabled.
 - Ask Namdar provider AI disabled (`aiEnabled:false`).
 
+## Admin Edit booking horizontal overflow — PR #88 IN RELEASE CHECKS
+The owner supplied a production screenshot showing the **Edit booking** dialog with an internal horizontal scrollbar, clipped right-hand fields and content extending beyond the visible modal.
+
+Root cause: the shared `.modal` style is capped at `max-width:520px`, while `#bookingEditor` uses `.modal-card.wide`. The existing wide-dialog rule changed `width` but did not override the inherited 520px `max-width`, so the wide card overflowed its dialog.
+
+PR #88 changes only Admin presentation:
+- new `admin-modal-layout.css` gives dialogs with a direct `.modal-card.wide` a responsive width up to 980px while staying within the viewport;
+- the wide card is constrained to the dialog with `width:100%`, `max-width:100%`, `min-width:0`;
+- form controls can shrink safely, long booking context text wraps, and small screens use a single-column form;
+- `admin.js` loads the stylesheet with independent cache token `6.4.38-admin-wide-modal-fix-1` while retaining JavaScript release pin `6.4.37-admin-website-crash-fix-1`;
+- `scripts/booking-operations.test.mjs` contains regression coverage for the layout guard and booking editor structure.
+
+Release-candidate evidence so far:
+- product head before continuity updates: `90a8616daf01af50a1006e8ccd5e0a3ebf104e31`;
+- exact-head preview `dpl_AdsizaFDw3xf8piEd5UerSaHbXJ2` READY;
+- CI run `34981520203` passed the full syntax/test step, including the new booking-modal test, and failed only the mandatory continuity-document check;
+- this commit set updates all three required continuity documents.
+
+No database migration, environment-variable change, booking mutation, payment activation or security change is involved. PR #88 is not yet production-live; final-head CI/preview, merge and post-merge production verification are still required.
+
 ## Admin Website & legal crash fix — LIVE
-The Admin logo-upload release exposed a Website & legal regression. Legacy `websiteTools()` wrote to `#settingReviewUrl`, but current `admin.html` did not contain that field, causing `Cannot set properties of null (setting 'value')`. The MFA wrapper also caught that later dashboard exception and misleadingly labeled it as a two-step-verification failure.
-
-PR #86 fixed both failure boundaries:
-- `admin-brand-assets.js` creates the missing **Public review URL** control before legacy website settings load, preserving the existing review-setting save path;
-- `admin-mfa-guard.js` separates MFA/session failures from ordinary post-MFA dashboard initialization failures;
-- `admin.js` is v`6.4.37-admin-website-crash-fix-1` for cache invalidation;
-- `scripts/brand-logo.test.mjs` covers the missing-control and error-label regressions.
-
-Release evidence:
-- exact tested head `370ec326f5d5d462de34a4140f667d7d25acba81`
-- CI run `34976265435` SUCCESS
-- exact preview `dpl_4SaDLWtHnfrmDr7QwoCcjZQXaDrW` READY and clean
-- merge/main `3e41cb5837d6394688d1ab5dbef11d9bdf8e5781`
-- production product deployment `dpl_2GimgSuA1zSDxiLvtA6BGNNPSEjD` READY and clean
-- `/api/health` HTTP 200 / `ok:true` at `2026-09-15T13:39:34.064Z`
-- live `admin.js` serves `6.4.37-admin-website-crash-fix-1`
-- live `admin-brand-assets.js` includes the pre-load `ensureReviewUrlField()` repair
-- live `admin-mfa-guard.js` includes the separate dashboard-load failure message
-- release-deployment error/fatal runtime scan returned no matching logs.
-
-There was no database migration or environment-variable change. MFA remains required. Stripe remains OFF. No real logo/customer/booking/payment data was created for verification.
-
-## Admin logo upload — LIVE
-PR #84 introduced the secure upload capability; PR #86 fixes the Website-tab crash discovered during use. Current Admin is v`6.4.37-admin-website-crash-fix-1`.
-
-Original logo-upload release evidence:
-- exact tested head `9995e8e2a199beee24cabe4d24175f82bd293398`
-- CI run `34973739008` SUCCESS
-- exact preview `dpl_Dvu9ctLyXRB16qrH1Q1wJXr8c7KF` READY and clean
-- Supabase migration `20260915130427` / `brand_assets_logo_upload` applied successfully
-- original merge/main `f2e7eedb4a795242dfacd350f0704b85e4e67885`
-- original product production deployment `dpl_DYJtSFFYZeH8xAK1mX4WgNRDULZb` READY and clean; later releases supersede it
-- GET `/api/admin-brand-logo` fails closed with HTTP 405; real upload is POST-only and Staff/Admin protected
-- no logo was uploaded as release test data and no customer/payment data was created.
+PR #86 fixed the post-logo-release Website & legal crash and false MFA error boundary.
 
 Live behavior:
-- Website & legal keeps the existing Logo URL field and has **Upload logo**;
-- Admin can select PNG/JPG/WebP/AVIF up to 2 MB and preview it before upload;
-- a successful upload automatically fills the Logo URL field with the permanent public Storage URL;
-- **Save website settings** remains the explicit publish step, so upload alone does not silently change the public brand setting;
-- server upload requires `settings` permission and AAL2/TOTP MFA;
-- actual file signatures are validated server-side, so renamed HTML/SVG/arbitrary files are rejected;
-- upload is audit logged;
-- brand files use a dedicated public `brand-assets` Supabase Storage bucket instead of widening existing job/customer file permissions;
-- the bucket is capped at 2 MB and accepts JPEG/PNG/WebP/AVIF only;
-- no direct browser Storage upload policy exists; the server endpoint performs the write only after authorization;
-- the Website settings loader now self-heals the previously missing Public review URL control before reading settings.
+- `admin-brand-assets.js` creates the missing **Public review URL** control before legacy website settings load;
+- `admin-mfa-guard.js` separates real MFA/session errors from later dashboard initialization failures;
+- Admin JavaScript loader remains `6.4.37-admin-website-crash-fix-1`;
+- MFA/AAL2 remains required.
 
-This feature did not activate Stripe. Production still has `0` `site_settings` rows with key `payments`.
+Release evidence:
+- exact tested head `370ec326f5d5d462de34a4140f667d7d25acba81`;
+- CI run `34976265435` SUCCESS;
+- exact preview `dpl_4SaDLWtHnfrmDr7QwoCcjZQXaDrW` READY and clean;
+- merge/main `3e41cb5837d6394688d1ab5dbef11d9bdf8e5781`;
+- production product deployment `dpl_2GimgSuA1zSDxiLvtA6BGNNPSEjD` READY and clean;
+- live source and health verified; release runtime error/fatal scan returned no matching logs.
+
+There was no database migration or environment-variable change. Stripe remains OFF. No real logo/customer/booking/payment data was created for verification.
+
+## Admin logo upload — LIVE
+PR #84 introduced secure logo upload; PR #86 fixed the Website-tab crash discovered during use.
+
+Live behavior:
+- Website & legal keeps the Logo URL field and has **Upload logo**;
+- PNG/JPG/WebP/AVIF up to 2 MB can be selected and previewed;
+- successful upload fills the permanent Storage URL;
+- **Save website settings** remains the explicit publish step;
+- server upload requires `settings` permission and AAL2/TOTP MFA;
+- actual file signatures are validated server-side;
+- brand files use dedicated public `brand-assets` storage with no direct browser write policy;
+- upload is audit logged.
+
+Original release evidence: exact head `9995e8e2a199beee24cabe4d24175f82bd293398`, CI `34973739008` SUCCESS, preview `dpl_Dvu9ctLyXRB16qrH1Q1wJXr8c7KF` READY/clean, Supabase migration `20260915130427` applied.
 
 ## Flexible Payment & Deposit Policy Engine — LIVE
 PR #82 / customer v`6.4.35-payment-policy-engine-1`; its modules remain loaded under the newer Admin release.
 
-Release evidence:
-- exact tested head `54e480a00e93bb780e687d0f59a0f14a2aa3bc29`
-- CI run `34965887792` SUCCESS
-- exact preview `dpl_uUHG5oQaiP6gTiV3sFXoxwRisM3F` READY and clean
-- migration `flexible_payment_policy_engine` applied successfully
-- merge/main `ab1d95930816f3116828e410bf07e6208e93216f`
-- product production deployment `dpl_GvU42X4GGN3mGRojFJTcvRBZfsV4` READY and clean
-- account/admin payment-policy modules verified live
-- Terms v3 verified live
-- no real booking/deposit/payment/late fee/refund created for release verification.
+Live capabilities:
+- revisioned flat or job-value-tiered deposit policies;
+- continuous/non-decreasing tier validation;
+- frozen booking-specific payment policy revision, snapshot and deposit amount;
+- future Admin policy changes do not rewrite earlier booking terms;
+- configurable balance due timing after job end (0–168 hours);
+- configurable overdue reminders, future-booking hold and recovery-review thresholds;
+- exact-money deposit/full-payment checks before required-payment confirmation;
+- completed/due invoices can request the full outstanding balance;
+- customer-safe billing/export evidence without processor-private fields.
 
-### Live capabilities
-- Revisioned flat or job-value-tiered deposit policies.
-- Higher-value jobs can be configured for higher percentage/minimum deposits.
-- Continuous/non-decreasing tier validation.
-- Frozen booking-specific payment policy revision, snapshot and deposit amount.
-- Future Admin policy changes do not rewrite an earlier booking’s terms.
-- Configurable balance due timing after job end (0–168 hours).
-- Configurable overdue reminders, future-booking hold and recovery-review thresholds.
-- Exact-money deposit/full-payment check before a required-payment booking can be confirmed.
-- Completed/due invoices can request the full outstanding balance.
-- Customer billing surfaces show frozen terms and overdue state without exposing processor-private fields.
-- Customer data export contains safe payment-policy evidence.
+Consumer safeguards:
+- no automatic consumer penalty, compounding fee or interest;
+- consumer escalation is reminders, possible new-booking hold, then manual recovery review;
+- B2B statutory interest/recovery is preview/manual only and never automatically posted.
 
-### Legacy/non-retroactivity protection
-New Admin-created Window appointments snapshot the current policy at creation. True legacy bookings with no payment-policy snapshot are not later forced into a newly enabled deposit requirement merely because Admin confirms them after the policy changes.
-
-### Consumer / B2B safeguards
-- Consumer invoice amounts are never automatically increased for lateness by this engine.
-- No automatic consumer penalty, compounding fee or interest.
-- Consumer escalation is reminders, possible new-booking hold, then manual recovery review.
-- B2B statutory interest/recovery calculation is preview/manual only and is never automatically posted.
-- Explicit business-customer classification is still required before any future automated commercial-debt workflow.
-
-### Production database / Terms
-Migration `20260915111500_flexible_payment_policy_engine.sql` is applied.
-
-Bookings now have:
-- payment policy revision
-- lock timestamp
-- payment-policy snapshot
-- frozen deposit amount.
-
-Invoices now have:
-- payment policy revision/snapshot
-- frozen deposit amount
-- balance-due hours
-- overdue booking-hold days
-- overdue final-review days.
-
-Published Terms are v3 and include `Payment due dates and overdue balances`, preserving non-retroactivity and consumer fairness.
-
-### Commercial invariants
-- Customer Stripe payments remain OFF.
-- Production has `0` `site_settings` rows with key `payments`.
-- Fallback 20% / £10 values are inactive code defaults only, not an approved commercial policy.
+Commercial invariants:
+- customer Stripe payments remain OFF;
+- production has `0` `site_settings` rows with key `payments`;
+- fallback 20% / £10 values are inactive code defaults only, not an approved commercial policy;
 - Window Cleaning remains the only live payment-capable service.
 
+Release evidence: exact head `54e480a00e93bb780e687d0f59a0f14a2aa3bc29`, CI `34965887792` SUCCESS, preview `dpl_uUHG5oQaiP6gTiV3sFXoxwRisM3F` READY/clean, migration `20260915111500_flexible_payment_policy_engine.sql` applied, Terms v3 live.
+
 ## Booking cancellation / deposit policy — LIVE
-The earlier fair 48-hour policy remains live and is incorporated into the current v3 Terms:
-- >48h deposit normally refundable/transferable;
-- <48h, no-show/no access: retention only for reasonable direct loss after savings/rebooking are considered;
-- Namdar cancellation/no replacement: refund unprovided service payments;
-- statutory consumer rights unaffected;
-- booking acceptance evidence recorded.
+The fair 48-hour policy remains live and incorporated into current Terms. Statutory consumer rights remain preserved and booking acceptance evidence is recorded.
 
 ## Privacy Centre / UK GDPR — LIVE
 - Privacy/Cookie and My Namdar/Admin privacy centres live.
@@ -149,7 +114,8 @@ The earlier fair 48-hour policy remains live and is incorporated into the curren
 - Support tickets customer-only/private.
 
 ## Known technical debt / open roadmap
-- Owner can now retry Admin → Website & legal → **Choose file** → **Upload logo** → **Save website settings**.
+- Finish PR #88 release checks, merge/verify production, then have the owner hard-refresh Admin and reopen **Edit booking** to confirm the horizontal scrollbar and clipping are gone.
+- Owner can retry Admin → Website & legal → **Choose file** → **Upload logo** → **Save website settings**.
 - Owner later chooses actual commercial deposit bands/amounts and whether/when to activate Stripe.
 - Build explicit business-customer classification before any automated B2B statutory-debt workflow.
 - ICO data-protection fee self-assessment.

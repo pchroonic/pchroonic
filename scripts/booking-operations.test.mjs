@@ -78,3 +78,17 @@ test('Admin booking operations require privileged permissions and audit changes'
   assert.match(ui,/route zone/i);
   assert.match(ui,/Operating days/);
 });
+
+test('Admin wide booking editor stays inside the viewport without horizontal overflow',()=>{
+  const loader=fs.readFileSync(new URL('../admin.js',import.meta.url),'utf8');
+  const css=fs.readFileSync(new URL('../admin-modal-layout.css',import.meta.url),'utf8');
+  const html=fs.readFileSync(new URL('../admin.html',import.meta.url),'utf8');
+  assert.match(loader,/admin-modal-layout\.css/);
+  assert.match(loader,/6\.4\.38-admin-wide-modal-fix-1/);
+  assert.match(css,/dialog\.modal:has\(> \.modal-card\.wide\)/);
+  assert.match(css,/max-width:980px/);
+  assert.match(css,/overflow-x:hidden/);
+  assert.match(css,/>\.modal-card\.wide\{[\s\S]*width:100%/);
+  assert.match(css,/\.admin-form-grid>[*]/);
+  assert.match(html,/id="bookingEditor" class="modal"[\s\S]*?class="modal-card wide"/);
+});
