@@ -1,0 +1,37 @@
+name: Staff app v2 checks
+
+on:
+  pull_request:
+    paths:
+      - 'staff.js'
+      - 'staff-experience-v2.js'
+      - 'staff-experience-v2.css'
+      - 'staff-sw.js'
+      - 'scripts/staff-experience-v2.test.mjs'
+      - '.github/workflows/staff-experience-v2-check.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'staff.js'
+      - 'staff-experience-v2.js'
+      - 'staff-experience-v2.css'
+      - 'staff-sw.js'
+      - 'scripts/staff-experience-v2.test.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  staff-v2:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Staff JavaScript syntax
+        run: |
+          node --check staff.js
+          node --check staff-original.js
+          node --check staff-experience-v2.js
+          node --check staff-sw.js
+      - name: Run Staff v2 regression tests
+        run: node --test scripts/staff-experience-v2.test.mjs
