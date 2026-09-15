@@ -60,11 +60,25 @@ test('daily capacity can close a day even when a standard window is unused',asyn
 });
 
 test('customer booking wrappers enforce shared operations rules',()=>{
-  const quoteAction=fs.readFileSync(new URL('../api/customer-quote-action.js',import.meta.url),'utf8');
-  const booking=fs.readFileSync(new URL('../api/booking.js',import.meta.url),'utf8');
+  const quoteAction=fs.readFileSync(new URL('../api/customer-quote-action-core.js',import.meta.url),'utf8');
+  const booking=fs.readFileSync(new URL('../api/booking-core.js',import.meta.url),'utf8');
   assert.match(quoteAction,/availabilityForQuote/);
-  assert.match(booking,/validateSlotForQuote/);
+  assert.match(booking,/rpc\/reserve_customer_booking/);
   assert.match(booking,/return json\(res,409/);
+});
+
+test('confirmation settings default to manual and reject unknown modes',()=>{
+  for(const value of [undefined,'invalid',true])assert.equal(ops.sanitizeRules({confirmationMode:value}).confirmationMode,'manual');
+  assert.equal(ops.sanitizeRules({confirmationMode:'automatic'}).confirmationMode,'automatic');
+});
+
+test('paused booking policy returns no customer appointments',async()=>{
+  const out=await ops.availabilityForQuote(mockDb({rules:{confirmationMode:'paused'}}),{postcode:'SE14 5TD'});
+  assert.deepEqual(out.slots,[]);
+});
+
+test('database failures cannot be interpreted as an empty available diary',async()=>{
+  await assert.rejects(()=>ops.availabilityForQuote(async()=>{throw new Error('offline')},{postcode:'SE14 5TD'}),/offline/);
 });
 
 test('Admin booking operations require privileged permissions and audit changes',()=>{

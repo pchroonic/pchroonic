@@ -1,4 +1,5 @@
 const { json, parseBody, queryParam, db, requireCustomer, sendEmail, escapeHtml, env, cancelPendingBusinessNotifications, createStaffNotification, safeError, isManagedInboxAddress } = require('../lib/server');
+const {availabilityForQuote}=require('../lib/booking-operations');
 const WINDOWS={
   '08-11':{start:'08:00',end:'11:00',label:'08:00–11:00'},
   '11-14':{start:'11:00',end:'14:00',label:'11:00–14:00'},
@@ -30,8 +31,11 @@ module.exports=async function handler(req,res){
       const quoteId=String(queryParam(req,'quoteId')||'').trim();if(!quoteId)return json(res,400,{ok:false,error:'Quote ID is required.'});
       const q=await ownedQuote(user.id,quoteId),booking=await activeBooking(q.id);
       if(expired(q)&&q.customer_response==='pending'&&q.status!=='expired')await db(`quotes?id=eq.${encodeURIComponent(q.id)}`,{method:'PATCH',body:{status:'expired',updated_at:new Date().toISOString()}}).catch(()=>null);
-      const canSchedule=!booking&&q.customer_response==='accepted'&&q.final_price!=null;
-      return json(res,200,{ok:true,quote:{id:q.id,status:expired(q)&&q.customer_response==='pending'?'expired':q.status,customerResponse:q.customer_response,expiresAt:q.expires_at,finalPrice:q.final_price},booking,slots:canSchedule?await availableSlots():[]});
+      const canSchedule=!booking&&q.customer_response==='accepted'&&q.final_price!=null&&['approved','sent'].includes(q.status);
+      const availability=await availabilityForQuote(db,q),paused=availability.rules.confirmationMode==='paused';
+      const automatic=availability.rules.confirmationMode==='automatic'&&q.service_key==='windows'&&q.booking_requires_review===false;
+      const confirmationMessage=paused?'New bookings are temporarily paused. Please contact Namdar.':automatic?'Your appointment will be confirmed immediately if the slot is still available. Your accepted final price stays unchanged.':'Your appointment needs Namdar approval. We will confirm it after reviewing your request. Your accepted final price stays unchanged.';
+      return json(res,200,{ok:true,quote:{id:q.id,status:expired(q)&&q.customer_response==='pending'?'expired':q.status,customerResponse:q.customer_response,expiresAt:q.expires_at,finalPrice:q.final_price},booking,slots:canSchedule?availability.slots:[],scheduling:{paused,automatic,confirmationMessage}});
     }
     if(req.method!=='POST')return json(res,405,{ok:false,error:'Method not allowed'});
     const b=parseBody(req),quoteId=String(b.quoteId||'').trim(),action=String(b.action||'').trim();if(!quoteId)return json(res,400,{ok:false,error:'Quote ID is required.'});

@@ -1,6 +1,13 @@
 # Namdar project status
 
-Last updated: 2026-09-14 UTC
+Last updated: 2026-09-15 UTC
+
+## Booking confirmation modes — release preparation
+Both modes implemented, pending frontend/API deployment: Manual approval, Automatic for eligible bookings, and Pause new customer bookings. Quote-level review defaults on; staff can clear it after checking a suitable Window Cleaning job. Final-price review/customer acceptance and payments-off policy remain.
+
+The production database migration is applied, with a server-only atomic reservation function and quote review flag. Global mode stays manual. Existing appointments are unaffected. Customer confirmation/request text and Admin controls are updated; confirmed jobs use queued confirmation/reminder notifications.
+
+Validation: 152 local tests passed, including isolated Postgres checks for ownership, acceptance, manual/automatic/paused modes, duplicate retries, slot/day capacity and function permissions. No real customer records created. No new environment variables. Next: finish preview/CI checks and publish before calling this release live.
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.

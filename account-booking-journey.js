@@ -68,7 +68,7 @@
       const labels=['Request','Final quote','Decision','Appointment'];
       track.innerHTML=labels.map((label,i)=>`<span class="${booking||state.levels[i]>=i+1?'complete':state.active===i+1?'active':''}">${label}</span>`).join('');
       const next=document.createElement('p');next.className='customer-quote-next';
-      if(booking)next.textContent='Appointment requested — track confirmation and job progress in My bookings.';
+      if(booking)next.textContent=booking.status==='confirmed'?'Appointment confirmed — track your job in My bookings.':booking.status==='completed'?'Job completed — view the details in My bookings.':'Appointment requested — track confirmation in My bookings.';
       else if(state.accepted)next.textContent='Next: choose one of the available appointment windows.';
       else if(state.finalReady&&state.response==='pending')next.textContent='Next: review the final price, then accept or decline it.';
       else if(state.response==='declined')next.textContent='This quote was declined. Request a new quote if the scope changes.';
@@ -87,7 +87,7 @@
   function enhanceScheduling(){
     if(typeof openQuoteSchedule==='function'&&!openQuoteSchedule.__bookingJourney){
       const base=openQuoteSchedule;
-      const wrapped=async id=>{await base(id);const field=$('#quoteScheduleAddress'),q=(typeof customerQuoteCache!=='undefined'?customerQuoteCache:[]).find(x=>x.id===id),saved=requestedAddress(q);if(field&&!field.value.trim()&&saved)field.value=saved;let note=$('#quoteScheduleJourneyNote');if(!note){note=document.createElement('p');note.id='quoteScheduleJourneyNote';note.className='quote-schedule-journey-note';note.textContent='Your accepted final price stays unchanged unless the job scope changes. The selected slot remains a request until Namdar confirms it.';$('#quoteScheduleDialog .modal-card h3')?.insertAdjacentElement('afterend',note)}};
+      const wrapped=async id=>{const field=$('#quoteScheduleAddress'),q=(typeof customerQuoteCache!=='undefined'?customerQuoteCache:[]).find(x=>x.id===id),saved=requestedAddress(q);if(field&&!field.value.trim()&&saved)field.value=saved;let note=$('#quoteScheduleJourneyNote');if(!note){note=document.createElement('p');note.id='quoteScheduleJourneyNote';note.className='quote-schedule-journey-note';note.textContent='Your accepted final price stays unchanged unless the job scope changes. The confirmation status will be shown when you submit your appointment.';$('#quoteScheduleDialog .modal-card h3')?.insertAdjacentElement('afterend',note)}await base(id);if(field&&!field.value.trim()&&saved)field.value=saved};
       wrapped.__bookingJourney=true;openQuoteSchedule=wrapped;
     }
   }
