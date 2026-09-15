@@ -78,7 +78,7 @@ test('new-policy overdue reminders use the frozen schedule while legacy invoices
 test('database migration and Terms preserve non-retroactivity and prohibit automatic consumer penalties',()=>{
   const sql=read('supabase/migrations/20260915111500_flexible_payment_policy_engine.sql');
   for(const field of ['payment_policy_revision','payment_policy_locked_at','payment_policy_snapshot','deposit_required'])assert.match(sql,new RegExp(`add column if not exists ${field}`));
-  assert.match(sql,/Payment due dates and overdue balances/i);assert.match(sql,/does not silently increase/i);assert.match(sql,/does not automatically add a consumer late-payment penalty/i);assert.match(sql,/Business-to-business late-payment rights are separate/i);
+  assert.match(sql,/Payment due dates and overdue balances/i);assert.match(sql,/does not silently increase/i);assert.match(sql,/automatically add a consumer late-payment penalty/i);assert.match(sql,/<strong>not<\/strong> automatically/i);assert.match(sql,/Business-to-business late-payment rights are separate/i);
 });
 
 test('customer booking freezes the presented revision and can hold a new appointment for a materially overdue prior balance',()=>{
