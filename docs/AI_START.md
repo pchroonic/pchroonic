@@ -6,25 +6,42 @@ Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PR
 
 ## Production source of truth
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current main HEAD: `70d02ee6d4b441c5b4f194c836678f292bf2f82e` (PR #85, documentation-only release record). Current live product code merge remains `f2e7eedb4a795242dfacd350f0704b85e4e67885` (PR #84).
-- Current Admin release: v`6.4.36-admin-logo-upload-1`; customer loader remains v`6.4.35-payment-policy-engine-1`.
-- Current production deployment: `dpl_EyRwGk1VcejxRWWRTnmgNBvAiTAa`, READY on the current `main` HEAD.
-- `/api/health` returned HTTP 200 / `ok:true` at `2026-09-15T13:31:18.229Z` on that deployment.
+- Current live product merge: `3e41cb5837d6394688d1ab5dbef11d9bdf8e5781` (PR #86, Admin Website crash fix).
+- Current Admin release: v`6.4.37-admin-website-crash-fix-1`; customer loader remains v`6.4.35-payment-policy-engine-1`.
+- PR #86 product production deployment: `dpl_2GimgSuA1zSDxiLvtA6BGNNPSEjD`, READY and aliased to `namdar.co.uk`.
+- `/api/health` returned HTTP 200 / `ok:true` at `2026-09-15T13:39:34.064Z` on that product deployment.
 - Window Cleaning is the only live/quotable/bookable service.
 - Stripe commercial customer payment policy is OFF. Production has `0` `site_settings` rows with key `payments`. Do not infer a commercially approved deposit amount from fallback code values.
 - Ask Namdar provider AI remains disabled (`aiEnabled:false`).
 - Privileged Staff/Admin requires CAPTCHA + AAL2/TOTP MFA.
 
-## Admin Website & legal crash fix — PR #86 IN RELEASE CHECKS
-A production regression was reproduced after the Admin logo-upload release: opening/reloading Website & legal could throw `Cannot set properties of null (setting 'value')` because legacy `websiteTools()` reads `#settingReviewUrl` although that control is absent from current `admin.html`. The broad MFA wrapper then mislabeled the dashboard exception as `Two-step verification could not be completed`.
+## Admin Website & legal crash fix — LIVE
+Product PR: #86 `Fix Admin Website tab crash after logo file selection`.
+Exact tested head: `370ec326f5d5d462de34a4140f667d7d25acba81`.
+CI: GitHub run `34976265435` SUCCESS.
+Exact-head preview: `dpl_4SaDLWtHnfrmDr7QwoCcjZQXaDrW`, READY; errors-only build log clean.
+Merge/main: `3e41cb5837d6394688d1ab5dbef11d9bdf8e5781`.
+Production product deployment: `dpl_2GimgSuA1zSDxiLvtA6BGNNPSEjD`, READY; errors-only build log clean.
 
-PR #86 `Fix Admin Website tab crash after logo file selection` fixes this without weakening MFA:
-- `admin-brand-assets.js` ensures a `Public review URL` control exists **before** legacy website settings load, so the existing review setting remains usable and the null `.value` crash is removed;
-- `admin-mfa-guard.js` now reports privileged-session failures as MFA failures but reports later dashboard initialization failures separately as `Admin dashboard could not be loaded`;
-- `admin.js` cache version is bumped to `6.4.37-admin-website-crash-fix-1`;
-- `scripts/brand-logo.test.mjs` now covers both regressions.
+Root cause:
+- legacy `websiteTools()` writes to `#settingReviewUrl`, but current `admin.html` did not contain that control, causing `Cannot set properties of null (setting 'value')`;
+- `admin-mfa-guard.js` caught the later dashboard exception in the same catch as the MFA gate, so the dashboard failure was incorrectly shown as `Two-step verification could not be completed`.
 
-No database migration, environment-variable change, payment activation or real customer/logo test data is required. Commercial Stripe payments remain OFF. The fix is **not production-live yet** in this checkpoint: complete full CI, exact-head Vercel preview/build-log verification, then merge and post-merge production verification before marking it live.
+Live fix:
+- `admin-brand-assets.js` ensures a **Public review URL** control exists before legacy website settings load, preserving the existing review-setting workflow and preventing the null `.value` crash;
+- `admin-mfa-guard.js` now keeps real privileged-session/MFA failures under the MFA message while reporting later dashboard initialization errors separately as `Admin dashboard could not be loaded`;
+- `admin.js` cache version is `6.4.37-admin-website-crash-fix-1` so browsers fetch the corrected modules;
+- regression coverage verifies the missing-control repair, MFA/dashboard error boundary and current loader version.
+
+### Production verification
+- live `admin.js` HTTP 200 and serves `6.4.37-admin-website-crash-fix-1`;
+- live `admin-brand-assets.js` HTTP 200 and contains `ensureReviewUrlField()` before the legacy Website settings loader;
+- live `admin-mfa-guard.js` HTTP 200 and contains the separate `Admin dashboard could not be loaded` path;
+- `/api/health` HTTP 200 / `ok:true` at `2026-09-15T13:39:34.064Z`;
+- production error/fatal runtime scan for `dpl_2GimgSuA1zSDxiLvtA6BGNNPSEjD` returned no matching logs;
+- no database migration or environment-variable change was needed;
+- no logo, customer, booking, deposit, payment, late-fee or refund test data was created;
+- commercial Stripe activation remains OFF and AAL2/TOTP remains required.
 
 ## Admin logo upload — LIVE
 Product PR: #84 `Add secure Admin logo upload`.
@@ -32,7 +49,7 @@ Exact tested head: `9995e8e2a199beee24cabe4d24175f82bd293398`.
 CI: GitHub run `34973739008` SUCCESS.
 Exact-head preview: `dpl_Dvu9ctLyXRB16qrH1Q1wJXr8c7KF`, READY; errors-only build log clean.
 Merge/main: `f2e7eedb4a795242dfacd350f0704b85e4e67885`.
-Production product deployment: `dpl_DYJtSFFYZeH8xAK1mX4WgNRDULZb`, READY; later docs-only main deployment is now current production.
+Production product deployment: `dpl_DYJtSFFYZeH8xAK1mX4WgNRDULZb`, READY; later releases supersede it.
 
 The Website & legal Admin tab keeps the existing Logo URL field and also provides a secure file-upload option:
 - `admin-brand-assets.js` adds PNG/JPG/WebP/AVIF selection, a 2 MB client limit, local preview, upload status and automatic Logo URL fill;
@@ -46,13 +63,10 @@ The Website & legal Admin tab keeps the existing Logo URL field and also provide
 
 Supabase production migration `20260915130427` / `brand_assets_logo_upload` is applied. The `brand-assets` bucket is public only for serving website brand images, is capped at 2 MB, and allows JPEG/PNG/WebP/AVIF. Production verification confirmed `0` direct Storage policies referencing this bucket.
 
-### Production verification
-- `/api/health` HTTP 200 / `ok:true`.
-- current live `admin.js` still loads v`6.4.36-admin-logo-upload-1` until PR #86 is released.
-- `admin-brand-assets.js` HTTP 200/current production version.
-- unauthenticated GET `/api/admin-brand-logo` returns HTTP 405 `Method not allowed`; uploads require POST through authenticated Admin.
-- no logo was uploaded as release test data and the existing saved brand setting was not changed.
-- no customer, booking, deposit, payment, late fee or refund data was created.
+### Logo upload production state
+- current live Admin loader is now v`6.4.37-admin-website-crash-fix-1`, which includes the PR #86 Website-tab repair while retaining `admin-brand-assets.js`;
+- unauthenticated GET `/api/admin-brand-logo` returns HTTP 405 `Method not allowed`; uploads require POST through authenticated Admin;
+- no logo was uploaded as release test data and the existing saved brand setting was not changed during release verification;
 - commercial Stripe activation remains OFF.
 
 ## Flexible Payment & Deposit Policy Engine — LIVE
@@ -129,7 +143,7 @@ Fallback values remain only inactive defaults while no payments row exists: 20% 
 - Ask Namdar guided assistant remains live; provider AI remains off.
 
 ## Open manual/commercial items
-- Release and verify PR #86 before retrying the Admin Website/logo upload flow in production.
+- Owner can now retry Admin → Website & legal → **Choose file** → **Upload logo** → **Save website settings** on production.
 - Commercial Stripe activation and actual deposit amounts/bands remain deliberately OFF/unapproved until a separate owner decision.
 - B2B customer classification and automatic commercial-debt enforcement are not implemented.
 - ICO data-protection fee self-assessment.
