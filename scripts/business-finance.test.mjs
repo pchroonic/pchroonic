@@ -9,7 +9,7 @@ test('admin loader includes private Business Finance, setup polish and smart rec
   assert.match(source,/admin-business-finance\.js/);
   assert.match(source,/admin-business-finance-polish\.js/);
   assert.match(source,/admin-finance-receipts\.js/);
-  assert.match(source,/6\.4\.33-privacy-centre-1/);
+  assert.match(source,/6\.4\.35-payment-policy-engine-1/);
 });
 
 test('public site settings never expose private finance settings',()=>{
