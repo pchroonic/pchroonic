@@ -6,63 +6,72 @@ Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PR
 
 ## Production source of truth
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current main: `a48a8acbf7d7ab98916d66d4e0ac0fc04f275e0c` (PR #79 docs sync).
-- Current live product release: PR #78 Privacy Centre / UK GDPR operations, product merge `3b56a12620c754853f3d5145c3daa277caa07c70`.
-- Production Vercel is healthy on `namdar.co.uk`.
+- Current product main: `0027693a4be536752d1a189d42c2622c33d9d9ec` (PR #80).
+- Current live customer release: booking cancellation / deposit policy v`6.4.34-cancellation-policy-1`.
+- Production deployment `dpl_FLKBbTxKKqf6nWW3HrVNPGWpgxKP` is READY on `namdar.co.uk`; errors-only build is clean and `/api/health` returned HTTP 200 after release.
 - Window Cleaning is the only live/quotable/bookable service.
-- Stripe commercial customer payment policy remains OFF; do not enable it as part of cancellation-policy work.
+- Stripe commercial customer payment policy remains OFF; no deposit percentage/minimum/payment mode has been commercially approved or enabled by this release.
 - Ask Namdar provider AI remains disabled (`aiEnabled:false`).
 - Privileged Staff/Admin requires CAPTCHA + AAL2/TOTP MFA.
 
-## Booking cancellation / deposit policy — IMPLEMENTED ON BRANCH, NOT LIVE YET
-Branch: `feature/cancellation-deposit-policy-20260915`
-Release version: `6.4.34-cancellation-policy-1`
-Policy version: `2026-09-15-v1`
+## Booking cancellation / deposit policy — LIVE
+PR #80 `Add fair 48-hour cancellation and deposit policy`.
+Release version: `6.4.34-cancellation-policy-1`.
+Policy version: `2026-09-15-v1`.
+Exact tested PR head: `a2bd36aac340438373f8b432c758f9f48fcbf8b8`.
+GitHub CI run `34959940870`: SUCCESS.
+Exact preview `dpl_67P6wFeT4Ca624QKXgzCS6gVYqoS`: READY, clean errors-only build.
+Product merge: `0027693a4be536752d1a189d42c2622c33d9d9ec`.
+Production deployment: `dpl_FLKBbTxKKqf6nWW3HrVNPGWpgxKP`: READY, clean errors-only build.
 
-User approved the fair-policy model:
+Owner-approved customer rule:
 - more than 48 hours before appointment: deposit normally refundable or transferable;
-- within 48 hours, no-show, or failure to provide agreed access: Namdar may retain some/all of a deposit only to cover reasonable direct loss, taking account of savings and whether the slot can be refilled;
+- within 48 hours, no-show, or failure to provide agreed access: Namdar may retain some/all only to cover reasonable direct loss, taking account of savings and whether the slot can be refilled;
 - if Namdar cancels and no replacement appointment is agreed: refund payments for the unprovided service;
-- statutory consumer rights remain unaffected.
+- statutory consumer rights remain unaffected;
+- no blanket “all deposits are non-refundable” term.
 
-### Terms / evidence
-New migration `supabase/migrations/20260915104500_booking_cancellation_policy.sql`:
-- upgrades Terms & Conditions to version 2 with final-quote/booking formation, deposit/cancellation, 48-hour rule, Namdar cancellation, statutory 14-day distance/off-premises service cancellation wording, access/safety/weather, scope changes and complaints;
-- adds booking evidence fields for terms version, booking-policy version/time, early-service request/acknowledgement, cancellation window and non-PII policy snapshot.
+### Production database / Terms
+Migration `booking_cancellation_policy`, repo file `supabase/migrations/20260915104500_booking_cancellation_policy.sql`, is applied in production.
+It safely added booking evidence fields for:
+- Terms version;
+- booking-policy version and acceptance timestamp;
+- express early-service request/acknowledgement;
+- 48-hour cancellation window;
+- non-PII policy snapshot.
 
-### Customer booking UI
-New `account-booking-policy.js` + `booking-policy.css`:
-- displayed in the appointment-request dialog before submission;
-- shows the fair 48-hour deposit/cancellation summary and links to full Terms;
-- requires explicit acceptance of Terms/cancellation policy;
-- separately records an express request to provide service on the agreed date if it falls within an applicable statutory cancellation period, with acknowledgement of the consequence of full performance;
-- cancellation dialog also shows the 48-hour policy summary.
+Production Terms & Conditions are published at version 2 and were verified to contain both the 48-hour policy and the statutory 14-day cancellation section.
 
-### Server safeguards
-`api/booking-core.js`:
-- rejects bypassed appointment requests unless both acknowledgements are explicit booleans;
-- rejects stale policy versions;
-- reads current published Terms version server-side rather than trusting the browser;
-- writes the acceptance evidence and non-PII policy snapshot to the booking;
-- booking acknowledgement email links to Terms and states the 48-hour policy/statutory-rights separation.
+### Customer / server behavior
+- `account.js` live version is `6.4.34-cancellation-policy-1` and loads `account-booking-policy.js`.
+- Appointment request shows the cancellation/deposit summary and links full Terms.
+- Customer must explicitly accept Terms/cancellation policy and separately make the applicable early-service request/acknowledgement before submitting an appointment request.
+- Booking API rejects bypassed/stale policy submissions and records the current server-side Terms/policy version with the booking.
+- Future Stripe checkout is blocked if the booking lacks policy evidence.
+- Customer data export includes booking policy acceptance evidence.
+- Cancellation dialog shows the same 48-hour summary.
 
-`api/create-checkout.js`:
-- future Stripe checkout is blocked for a booking lacking policy/early-service acceptance evidence.
-- Stripe customer payments remain OFF in this release.
+### Release verification
+Verified live:
+- `/api/health` HTTP 200;
+- `/account.js` contains v6.4.34 and policy module;
+- `/account-booking-policy.js` HTTP 200 with expected policy text;
+- `/booking-policy.css` HTTP 200;
+- `/api/legal?slug=terms` version 2 with 48-hour + 14-day sections;
+- unauthenticated GET `/api/booking` and `/api/create-checkout` return 405 without mutation;
+- production remains at one existing booking, with zero bookings carrying new-policy acceptance evidence from deployment testing;
+- payment record count remains the existing 4 sandbox records;
+- booking change requests remain 0.
+No real booking, cancellation, deposit, refund or payment was created for release verification.
 
-`api/customer-data-export.js` includes the booking policy acceptance evidence in the authenticated customer data copy.
-
-### Verification / release gate
-- CI syntax checks the new account module and runs `scripts/booking-cancellation-policy.test.mjs`.
-- Before merge: update all three continuity docs, exact-head CI SUCCESS, exact-head Vercel preview READY/clean, then apply the safe production migration, verify Terms v2/columns, and merge only the exact tested head.
-- After merge: production READY, `/api/health` 200, live `account.js` version `6.4.34-cancellation-policy-1`, new policy assets HTTP 200, Terms version 2, and safe API behavior.
-- Do not create a real booking or real payment merely to test this release.
+Runtime check showed only the pre-existing Node `url.parse()` deprecation warning on `/api/legal`; no new product error was identified. `url.parse()` cleanup remains tech debt.
 
 ## Privacy Centre / UK GDPR — LIVE
-Version `6.4.33-privacy-centre-1` remains live. Controller formal legal name/public correspondence address is deliberately postponed by the owner. ICO fee self-assessment and Supabase Leaked Password Protection remain open manual items.
+Version `6.4.33-privacy-centre-1` remains live. Controller formal legal name/public correspondence address publication is postponed by the owner. ICO fee self-assessment and Supabase Leaked Password Protection remain open manual items.
 
-## Stable invariants
-- Customer booking journey v6.4.32 behavior remains underneath the new booking-policy layer.
+## Stable invariants / next commercial decision
+- Customer booking journey v6.4.32 remains underneath the v6.4.34 policy layer.
 - Security Hardening and Staff My Jobs auth recovery remain live.
 - Business Finance remains private/sole-trader-first; Smart Receipts remain private/review-first.
-- Customer payment policy stays OFF until a separate deliberate live-payment decision.
+- Customer payment policy remains OFF.
+- Next payment work should deliberately choose deposit percentage/minimum, whether pay-in-full remains available, and then separately prepare/verify live Stripe rollout. Do not infer those decisions from the presence of the cancellation policy.
