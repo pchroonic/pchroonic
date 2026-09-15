@@ -6,14 +6,30 @@ Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PR
 
 ## Production source of truth
 - Repo `pchroonic/pchroonic`, default `main`.
+- Current `main`: `e4b35a26e2ccf6884edb36891b71f75a38c9aaa2` (docs-only PR #83 on top of product PR #82).
 - Current live product merge: `ab1d95930816f3116828e410bf07e6208e93216f` (PR #82).
 - Current customer/Admin release: v`6.4.35-payment-policy-engine-1`.
-- Production deployment: `dpl_GvU42X4GGN3mGRojFJTcvRBZfsV4`, READY on `namdar.co.uk`.
-- `/api/health` returned HTTP 200 / `ok:true` at `2026-09-15T11:57:39.409Z`.
+- Current production deployment: `dpl_Fk3mQc1TGhY5QAHDY5Gq2NF7MoRC`, READY on `namdar.co.uk`.
+- `/api/health` returned HTTP 200 / `ok:true` after the latest production deployment.
 - Window Cleaning is the only live/quotable/bookable service.
 - Stripe commercial customer payment policy is OFF. Production has no `site_settings.payments` row. Do not infer a commercially approved deposit amount from fallback code values.
 - Ask Namdar provider AI remains disabled (`aiEnabled:false`).
 - Privileged Staff/Admin requires CAPTCHA + AAL2/TOTP MFA.
+
+## Admin logo upload — RELEASE CANDIDATE
+Branch: `feature/admin-logo-upload-20260915`.
+
+The Website & legal Admin tab is being upgraded so the existing Logo URL field also has a secure file-upload option:
+- `admin-brand-assets.js` adds PNG/JPG/WebP/AVIF selection, 2 MB client validation, preview, upload status and automatic Logo URL fill;
+- `api/admin-brand-logo.js` requires Staff/Admin `settings` permission plus the existing AAL2/TOTP gate before upload;
+- `lib/brand-logo.js` verifies the actual file signature server-side instead of trusting the browser MIME type;
+- uploaded logos go to a dedicated public Supabase Storage bucket `brand-assets` under versioned `logos/...` paths;
+- the upload does not silently publish the new logo: Admin still clicks **Save website settings**, preserving the existing explicit settings workflow;
+- CI now syntax-checks the new files and runs `scripts/brand-logo.test.mjs`.
+
+Supabase production migration `20260915130427` / `brand_assets_logo_upload` has already been applied. The bucket is public only for serving brand assets; browser uploads are not granted directly through Storage RLS. Uploads go through the authenticated server endpoint using the existing service credential after permission/MFA checks.
+
+No customer, booking or payment data is created by this feature. Commercial Stripe activation remains OFF.
 
 ## Flexible Payment & Deposit Policy Engine — LIVE
 Product PR: #82 `Add flexible payment and deposit policy engine`.
@@ -22,7 +38,7 @@ CI: GitHub run `34965887792` SUCCESS.
 Exact-head preview: `dpl_uUHG5oQaiP6gTiV3sFXoxwRisM3F`, READY; errors-only build log clean.
 Production migration: `flexible_payment_policy_engine` / repo file `20260915111500_flexible_payment_policy_engine.sql`, applied successfully to Supabase production `qjigldxjcpnrlyxgmlqq` before merge.
 Merge/main: `ab1d95930816f3116828e410bf07e6208e93216f`.
-Production: `dpl_GvU42X4GGN3mGRojFJTcvRBZfsV4`, READY; build completed cleanly.
+Production product deployment: `dpl_GvU42X4GGN3mGRojFJTcvRBZfsV4`, READY; a later documentation-only main deployment is now current production.
 
 ### What is live
 `lib/payment-policy.js` supports:
@@ -72,7 +88,7 @@ Production still has `0` `site_settings` rows with key `payments`, so commercial
 
 ### Production verification
 - `account.js` HTTP 200 and loads v`6.4.35-payment-policy-engine-1`.
-- `admin.js` HTTP 200 and loads v`6.4.35-payment-policy-engine-1`.
+- `admin.js` HTTP 200 and loads v`6.4.35-payment-policy-engine-1` on current production until the logo-upload release is merged.
 - `account-booking-policy.js` HTTP 200 and current.
 - `admin-payment-settings.js` HTTP 200 and current.
 - `/api/legal?slug=terms` HTTP 200, Terms v3 with the new payment section.
