@@ -4,18 +4,29 @@ Last updated: 2026-09-15 UTC
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current live product merge: `f2e7eedb4a795242dfacd350f0704b85e4e67885` (PR #84).
+- Current main HEAD: `70d02ee6d4b441c5b4f194c836678f292bf2f82e` (PR #85, docs-only release record); current live product code merge remains `f2e7eedb4a795242dfacd350f0704b85e4e67885` (PR #84).
 - Current Admin release: v`6.4.36-admin-logo-upload-1`; customer loader remains v`6.4.35-payment-policy-engine-1`.
-- Current production deployment `dpl_DYJtSFFYZeH8xAK1mX4WgNRDULZb`, READY on `namdar.co.uk`.
-- Production health HTTP 200 / `ok:true` verified after deployment.
+- Current production deployment `dpl_EyRwGk1VcejxRWWRTnmgNBvAiTAa`, READY on current `main`.
+- Production health HTTP 200 / `ok:true` verified at `2026-09-15T13:31:18.229Z`.
 - Supabase production: `qjigldxjcpnrlyxgmlqq`.
 - Window Cleaning only live.
 - Privileged Staff/Admin requires CAPTCHA + AAL2/TOTP MFA.
 - Stripe customer payment policy OFF; production has `0` `site_settings.payments` rows and no commercial deposit bands have been approved/enabled.
 - Ask Namdar provider AI disabled (`aiEnabled:false`).
 
+## Admin Website & legal crash fix — PR #86 IN RELEASE CHECKS
+The live Admin logo-upload release exposed a Website & legal regression. Legacy `websiteTools()` writes to `#settingReviewUrl`, but current `admin.html` has no such field, causing `Cannot set properties of null (setting 'value')`. The MFA wrapper also caught that later dashboard exception and misleadingly labeled it as a two-step-verification failure.
+
+PR #86 fixes both failure boundaries:
+- `admin-brand-assets.js` creates the missing **Public review URL** control before legacy website settings load, preserving the existing review-setting save path;
+- `admin-mfa-guard.js` now separates MFA/session failures from ordinary post-MFA dashboard initialization failures;
+- `admin.js` moves to v`6.4.37-admin-website-crash-fix-1` for cache invalidation;
+- `scripts/brand-logo.test.mjs` covers the missing-control and error-label regressions.
+
+There is no database migration or environment-variable change. MFA remains required. Stripe remains OFF. No real customer/logo/payment data is needed for verification. At this checkpoint the fix is not yet live: full CI, exact-head preview/build-log verification, merge and post-merge production checks are still required.
+
 ## Admin logo upload — LIVE
-PR #84 / Admin v`6.4.36-admin-logo-upload-1`.
+PR #84 / Admin v`6.4.36-admin-logo-upload-1` until PR #86 is released.
 
 Release evidence:
 - exact tested head `9995e8e2a199beee24cabe4d24175f82bd293398`
@@ -23,16 +34,14 @@ Release evidence:
 - exact preview `dpl_Dvu9ctLyXRB16qrH1Q1wJXr8c7KF` READY and clean
 - Supabase migration `20260915130427` / `brand_assets_logo_upload` applied successfully
 - merge/main `f2e7eedb4a795242dfacd350f0704b85e4e67885`
-- production deployment `dpl_DYJtSFFYZeH8xAK1mX4WgNRDULZb` READY and clean
+- product production deployment `dpl_DYJtSFFYZeH8xAK1mX4WgNRDULZb` READY and clean; a later docs-only deployment is now current production
 - `/api/health` HTTP 200 / `ok:true`
-- live `admin.js` serves `6.4.36-admin-logo-upload-1` and loads `admin-brand-assets.js`
-- live `admin-brand-assets.js` HTTP 200/current
+- live `admin.js` currently serves `6.4.36-admin-logo-upload-1` and loads `admin-brand-assets.js`
 - GET `/api/admin-brand-logo` fails closed with HTTP 405; real upload is POST-only and Staff/Admin protected
-- release deployment error/fatal runtime scan returned no matching logs
 - no logo was uploaded as release test data and no customer/payment data was created.
 
-Live behavior:
-- Website & legal keeps the existing Logo URL field and now also has **Upload logo**;
+Live behavior intended by PR #84:
+- Website & legal keeps the existing Logo URL field and has **Upload logo**;
 - Admin can select PNG/JPG/WebP/AVIF up to 2 MB and preview it before upload;
 - a successful upload automatically fills the Logo URL field with the permanent public Storage URL;
 - **Save website settings** remains the explicit publish step, so upload alone does not silently change the public brand setting;
@@ -129,6 +138,7 @@ The earlier fair 48-hour policy remains live and is incorporated into the curren
 - Support tickets customer-only/private.
 
 ## Known technical debt / open roadmap
+- Release/verify PR #86, then retry the Admin Website/logo upload flow.
 - Owner later chooses actual commercial deposit bands/amounts and whether/when to activate Stripe.
 - Build explicit business-customer classification before any automated B2B statutory-debt workflow.
 - ICO data-protection fee self-assessment.
