@@ -9,9 +9,13 @@
   const fmt=v=>v?new Date(v).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}):'—';
 
   function injectStyles(){if(document.querySelector('link[data-privacy-centre]'))return;const l=document.createElement('link');l.rel='stylesheet';l.href=`/privacy-center.css?v=${VERSION}`;l.dataset.privacyCentre='1';document.head.appendChild(l)}
+  function installLegalPublisher(){
+    if(typeof saveLegal!=='function'||saveLegal.__privacyCentre)return;
+    const next=async()=>{const btn=$('#saveLegal'),status=$('#legalStatus');setBusy(btn,true,'Publishing…');if(status)status.textContent='';try{for(const t of $$('[data-legal]'))await api('/api/admin-legal',{method:'PATCH',body:JSON.stringify({slug:t.dataset.legal,contentHtml:t.value})});if(status)status.textContent='Legal pages published with a new version number.';if(typeof websiteTools==='function')await websiteTools()}catch(e){if(status)status.textContent=e.message}finally{setBusy(btn,false)}};next.__privacyCentre=true;saveLegal=next;if($('#saveLegal'))$('#saveLegal').onclick=saveLegal;
+  }
   function install(){
-    if($('#privacyAdmin'))return;injectStyles();
-    const nav=$('.admin-sidebar nav'),website=document.querySelector('[data-tab="website"]'),chat=document.querySelector('[data-tab="chat"]');if(!nav)return;
+    if($('#privacyAdmin'))return;injectStyles();installLegalPublisher();
+    const nav=$('.admin-sidebar nav'),chat=document.querySelector('[data-tab="chat"]');if(!nav)return;
     const button=document.createElement('button');button.dataset.tab='privacyAdmin';button.textContent='Privacy & GDPR';button.className='hidden';nav.insertBefore(button,chat||null);
     const section=document.createElement('section');section.id='privacyAdmin';section.className='admin-tab hidden';section.innerHTML=`
       <div class="admin-panel"><div class="panel-head"><div><h2>Privacy & GDPR operations</h2><p>Track UK data-protection requests and the remaining privacy-readiness tasks. This dashboard supports compliance work; it does not by itself make a legal-compliance guarantee.</p></div><button id="privacyAdminRefresh" class="ghost-btn small" type="button">Refresh</button></div><div class="privacy-admin-kpis"><div class="stat-card"><small>Open requests</small><strong id="privacyOpen">0</strong></div><div class="stat-card"><small>Due in 7 days</small><strong id="privacyDueSoon">0</strong></div><div class="stat-card"><small>Overdue</small><strong id="privacyOverdue">0</strong></div><div class="stat-card"><small>Total logged</small><strong id="privacyTotal">0</strong></div></div></div>
@@ -22,7 +26,8 @@
     const baseApply=typeof applyPermissionTabs==='function'?applyPermissionTabs:null;if(baseApply){applyPermissionTabs=function(){baseApply();button.classList.toggle('hidden',!allowed('legal'))}}
     button.onclick=async()=>{if(!allowed('legal'))return;$$('[data-tab]').forEach(x=>x.classList.remove('active'));button.classList.add('active');$$('.admin-tab').forEach(x=>x.classList.add('hidden'));section.classList.remove('hidden');$('#adminTitle').textContent='Privacy & GDPR';history.replaceState(null,'','/admin?tab=privacyAdmin');await loadPrivacy()};
     $('#privacyAdminRefresh').onclick=loadPrivacy;$('#privacyManualForm').onsubmit=createManual;
-    const deep=new URLSearchParams(location.search).get('tab');if(deep==='privacyAdmin')setTimeout(()=>{if(allowed('legal'))button.click()},700);
+    setTimeout(()=>button.classList.toggle('hidden',!allowed('legal')),900);
+    const deep=new URLSearchParams(location.search).get('tab');if(deep==='privacyAdmin')setTimeout(()=>{if(allowed('legal'))button.click()},900);
   }
 
   async function loadPrivacy(){
