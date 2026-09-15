@@ -88,9 +88,10 @@ test('customer booking freezes the presented revision and can hold a new appoint
   assert.match(ui,/paymentPolicyRevision:presentedPaymentRevision/);assert.match(ui,/later Namdar settings change will not retrospectively increase/i);assert.match(ui,/No automatic consumer penalty/i);
 });
 
-test('checkout, invoice and Admin confirmation use the frozen booking policy instead of a future deposit setting',()=>{
+test('checkout, invoice and Admin confirmation use frozen terms while legacy bookings stay non-retroactive',()=>{
   const checkout=read('api/create-checkout.js'),server=read('lib/server.js'),adminBooking=read('api/admin-booking-update.js');
   assert.match(checkout,/paymentPolicyFromSnapshot/);assert.match(checkout,/forceBalance/);assert.match(server,/payment_policy_snapshot/);assert.match(server,/balanceDueAt/);assert.match(adminBooking,/paymentPolicyFromSnapshot/);assert.match(adminBooking,/lockedDepositAmount/);
+  assert.match(adminBooking,/snapshotPaymentPolicy/);assert.match(adminBooking,/payment_policy_snapshot:paymentSnapshot/);assert.match(adminBooking,/if\(policy\.legacyBooking\)return null/);
 });
 
 test('release loaders and Admin settings expose flexible policy controls while commercial payments remain opt-in',()=>{
