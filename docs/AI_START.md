@@ -6,71 +6,71 @@ Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PR
 
 ## Production source of truth
 - Repo `pchroonic/pchroonic`, default `main`.
+- Current `main`: `3b7f46fa15bbe386f00de32529529763cb19f307` (PR #89, docs-only release record).
 - Current live product merge: `6c2ec57473d0d2f581c4eb70e76fe30d0add07dc` (PR #88, Admin booking editor overflow fix).
-- Current Admin JavaScript release remains v`6.4.37-admin-website-crash-fix-1`; the Admin modal-layout stylesheet is cache-pinned separately as `6.4.38-admin-wide-modal-fix-1`.
+- Current Admin JavaScript release remains v`6.4.37-admin-website-crash-fix-1`; Admin modal-layout CSS is cache-pinned separately as `6.4.38-admin-wide-modal-fix-1`.
 - Customer loader remains v`6.4.35-payment-policy-engine-1`.
-- Current production deployment: `dpl_HfwhiUCgHa3KCuJPg8nZ8bDade2e`, READY and aliased to `namdar.co.uk`.
-- `/api/health` returned HTTP 200 / `ok:true` at `2026-09-15T14:30:31.829Z`.
+- Current production deployment: `dpl_7Dg4UQH3MHR1HbjURanFgcTafJSb`, READY and aliased to `namdar.co.uk`; product code remains PR #88 plus later documentation.
+- `/api/health` returned HTTP 200 / `ok:true` at `2026-09-15T14:33:46.185Z`.
 - Window Cleaning is the only live/quotable/bookable service.
-- Stripe commercial customer payment policy is OFF. Production has `0` `site_settings` rows with key `payments`. Do not infer a commercially approved deposit amount from fallback code values.
+- Stripe commercial customer payment policy is OFF. Production has `0` `site_settings` rows with key `payments`.
 - Ask Namdar provider AI remains disabled (`aiEnabled:false`).
 - Privileged Staff/Admin requires CAPTCHA + AAL2/TOTP MFA.
 
+## Owner & custom access roles — RELEASE CANDIDATE
+Branch: `feature/custom-access-roles-20260915`.
+Admin extension cache token: `6.4.39-access-roles-1`.
+Migration file: `supabase/migrations/20260915144500_staff_role_management.sql`.
+
+Goal: allow Namdar to create reusable staff roles with selected permissions while promoting the existing top-level Admin account to a protected **Owner** role.
+
+Security design:
+- `profiles.role` remains the coarse `customer` / `staff` / `admin` security boundary so existing RLS, server authorization and MFA behavior are not weakened;
+- a separate `staff_roles` + `staff_access.role_key` layer provides **Owner**, **Administrator** and reusable custom staff roles;
+- **Owner** is the highest role and is the only role allowed to create/edit/delete custom access roles, invite/manage Administrator accounts, or grant Owner access;
+- **Administrator** keeps full operational Admin access but cannot change the Owner hierarchy or role definitions;
+- custom staff roles use the existing permission catalogue and can be assigned to multiple Staff accounts;
+- editing a custom role updates the permissions of every Staff account assigned to it;
+- protected Owner/Administrator role definitions cannot be edited or deleted;
+- a custom role cannot be deleted while assigned;
+- the current signed-in privileged account cannot change its own account type/access role/status;
+- the last active Owner and last active Administrator safeguards prevent lockout;
+- secure invitations, account-owner email changes, CAPTCHA and AAL2/TOTP MFA remain unchanged.
+
+Initial Owner migration:
+- production currently has one unambiguous active Admin account;
+- the migration does **not** hard-code a user id;
+- when exactly one active Admin exists at migration time, that account becomes the initial Owner automatically;
+- other pre-existing Admin accounts, if present in a different environment, default to Administrator until explicitly changed by an Owner.
+
+Admin UI candidate:
+- **Staff & access** gains an **Access roles** panel;
+- Owner can create a role such as Operations Manager, Scheduler or Finance and tick the dashboard permissions that role receives;
+- user editing distinguishes **Account type** (Customer / Staff / Admin) from **Access role**;
+- Staff can use a reusable custom role or retain Individual permissions;
+- Admin accounts can use Administrator or Owner only;
+- staff table displays Access role, account type, job title and effective permissions.
+
+Release state:
+- code and regression coverage are on the feature branch;
+- production migration is not yet recorded as applied in this handoff section;
+- do not merge/release until GitHub CI, Vercel preview and migration verification are complete;
+- this feature does not activate Stripe, create customer/payment data, or change booking/payment policy.
+
 ## Admin Edit booking modal overflow — LIVE
-Product PR: #88 `Fix Admin booking editor horizontal overflow`.
-Exact tested head: `00fe836c22cadb26391c92ff0f53cfd75b2fd77f`.
-Final CI: GitHub run `34981891259` SUCCESS.
-Exact-final-head preview: `dpl_DVMCKoGbxWdwu2vDn8AfCb8uJut2`, READY; errors-only build log clean.
-Merge/main: `6c2ec57473d0d2f581c4eb70e76fe30d0add07dc`.
-Production deployment: `dpl_HfwhiUCgHa3KCuJPg8nZ8bDade2e`, READY, aliased to `namdar.co.uk`; errors-only build log clean.
+PR #88 fixed the production Edit booking dialog horizontal scrollbar/clipping. `admin-modal-layout.css` lets direct wide-card dialogs grow responsively up to 980px, constrains form controls, wraps long context and collapses to one column on narrow screens. Production verification passed.
 
-The owner supplied a production screenshot showing **Admin → Edit booking** with a horizontal scrollbar, clipped right-hand fields and a hidden/off-screen right edge.
-
-Root cause:
-- the shared base `.modal` style capped dialogs at `max-width:520px`;
-- `#bookingEditor` contains `.modal-card.wide` for the two-column editor;
-- the old wide-dialog rule changed width but did not override the inherited 520px maximum, so the card overflowed the dialog.
-
-Live fix:
-- `admin-modal-layout.css` gives dialogs containing a direct `.modal-card.wide` a responsive width up to 980px while keeping them inside the viewport;
-- the wide card is constrained to `width:100%`, `max-width:100%`, `min-width:0`;
-- Admin form controls can shrink safely, long booking context text wraps, and <=700px views collapse the wide form to one column;
-- `admin.js` loads `/admin-modal-layout.css?v=6.4.38-admin-wide-modal-fix-1` without changing the existing JavaScript module pin;
-- `scripts/booking-operations.test.mjs` contains regression coverage for the booking-editor structure and overflow guard.
-
-### Production verification
-- live `/admin.js` HTTP 200 and loads `admin-modal-layout.css` with cache token `6.4.38-admin-wide-modal-fix-1`;
-- live `/admin-modal-layout.css` HTTP 200 and contains the 980px max-width override, `overflow-x:hidden`, constrained wide card and mobile one-column rule;
-- `/api/health` HTTP 200 / `ok:true` at `2026-09-15T14:30:31.829Z`;
-- production runtime scan found no new application exception from this release; the known Node `url.parse()` deprecation warning remains open tech debt;
-- no database migration, environment-variable change, booking mutation, payment activation or security relaxation occurred.
-
-Owner verification step: hard-refresh the Admin page, reopen **Edit booking**, and confirm the dialog fits the viewport with no horizontal scrollbar or clipped right side.
-
-## Admin Website & legal crash fix — LIVE
-Product PR: #86 `Fix Admin Website tab crash after logo file selection`.
-Exact tested head: `370ec326f5d5d462de34a4140f667d7d25acba81`.
-CI: GitHub run `34976265435` SUCCESS.
-Exact-head preview: `dpl_4SaDLWtHnfrmDr7QwoCcjZQXaDrW`, READY; errors-only build log clean.
-Merge/main: `3e41cb5837d6394688d1ab5dbef11d9bdf8e5781`.
-
-Live fix:
-- `admin-brand-assets.js` ensures a **Public review URL** control exists before legacy website settings load, preventing the prior null `.value` crash;
-- `admin-mfa-guard.js` separates real privileged-session/MFA failures from later dashboard initialization errors;
-- Admin JavaScript cache version remains `6.4.37-admin-website-crash-fix-1`;
-- regression coverage protects the missing-control and error-boundary fixes.
-
-## Admin logo upload — LIVE
-PR #84 added secure Admin logo upload. Website & legal supports PNG/JPG/WebP/AVIF up to 2 MB, server-side signature validation, dedicated `brand-assets` Storage, audit logging, and an explicit **Save website settings** publish step. Upload remains protected by Staff/Admin `settings` permission plus AAL2/TOTP MFA.
+## Admin Website & legal / logo — LIVE
+PR #86 repaired the Website & legal null-field crash and false MFA error boundary. PR #84 provides secure Admin logo upload with server-side validation, dedicated Storage and an explicit Save website settings publish step.
 
 ## Flexible Payment & Deposit Policy Engine — LIVE
-PR #82 remains live. It supports revisioned flat/tiered deposits, frozen booking-specific payment terms, configurable balance timing and overdue operational escalation, with no automatic consumer late-payment fee/interest. B2B statutory recovery remains preview/manual only.
+PR #82 remains live with revisioned flat/tiered deposits, frozen booking-specific terms, configurable balance timing and operational overdue escalation. There is no automatic consumer late fee/interest. B2B statutory recovery is preview/manual only.
 
-Commercial invariant: customer Stripe payments remain OFF; production has `0` `site_settings` rows with key `payments`. Fallback 20% / £10 values are inactive code defaults only, not an approved commercial policy.
+Commercial invariant: customer Stripe payments remain OFF; fallback 20% / £10 values are inactive defaults only, not an approved commercial policy.
 
 ## Stable live systems
-- Fair 48-hour cancellation/deposit policy remains live and is incorporated into current Terms.
-- Privacy Centre / UK GDPR operations remain live; controller legal name/public postal address publication is still postponed by owner.
+- Fair 48-hour cancellation/deposit policy remains live.
+- Privacy Centre / UK GDPR operations remain live; controller legal name/public postal address publication is postponed by owner.
 - Security Hardening and Staff My Jobs auth recovery remain live.
 - Business Finance and Smart Receipts remain private/sole-trader-first.
 - Newsletter Centre remains consent-aware/resumable.
@@ -78,10 +78,7 @@ Commercial invariant: customer Stripe payments remain OFF; production has `0` `s
 - Support tickets remain customer-only/private.
 
 ## Open manual/commercial items
-- Owner should hard-refresh Admin and verify the live **Edit booking** dialog has no horizontal overflow/clipping.
-- Owner can retry Admin → Website & legal → **Choose file** → **Upload logo** → **Save website settings**.
-- Commercial Stripe activation and actual deposit amounts/bands remain deliberately OFF/unapproved until a separate owner decision.
-- B2B customer classification and automatic commercial-debt enforcement are not implemented.
-- ICO data-protection fee self-assessment.
-- Supabase Leaked Password Protection.
-- Google review-request URL, Window real-job pricing calibration, SMS/legal checks, `url.parse()` cleanup.
+- Complete and verify the Owner/custom-role release candidate.
+- Owner can retry Website & legal logo upload/publish flow.
+- Commercial Stripe activation and actual deposit amounts/bands remain OFF/unapproved until a separate owner decision.
+- ICO data-protection fee self-assessment, Supabase Leaked Password Protection, Google review URL, real-job pricing calibration, SMS/legal checks and Node `url.parse()` cleanup remain open.
