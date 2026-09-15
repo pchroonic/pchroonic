@@ -21,8 +21,8 @@ test('booking schema records durable policy and statutory service-start evidence
 
 test('customer appointment request visibly requires both policy acknowledgements',()=>{
   const ui=read('account-booking-policy.js');
-  assert.match(ui,/6\.4\.34-cancellation-policy-1/);
-  assert.match(ui,/Cancellation & deposit policy/);
+  assert.match(ui,/6\.4\.35-payment-policy-engine-1/);
+  assert.match(ui,/Booking, cancellation & payment terms/);
   assert.match(ui,/bookingPolicyAccept/);
   assert.match(ui,/bookingEarlyServiceRequest/);
   assert.match(ui,/reasonable direct loss/i);
@@ -51,6 +51,6 @@ test('future Stripe checkout cannot proceed without booking policy evidence',()=
 
 test('My Namdar loader ships the policy module at the current version',()=>{
   const account=read('account.js');
-  assert.match(account,/6\.4\.34-cancellation-policy-1/);
+  assert.match(account,/6\.4\.35-payment-policy-engine-1/);
   assert.match(account,/account-booking-policy\.js/);
 });
