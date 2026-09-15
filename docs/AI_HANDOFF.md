@@ -1,6 +1,22 @@
 # Namdar AI handoff
 
-Last verified: 2026-09-14 UTC
+Last verified: 2026-09-15 UTC
+
+## Booking confirmation modes — prepared, pending deployment
+User authorized both manual approval and automatic confirmation for eligible bookings, plus pause and per-quote manual overrides. Final-price review and customer acceptance remain mandatory; payments remain OFF.
+
+Release `6.4.33-booking-modes-1`:
+- `lib/booking-operations.js`, `admin-booking-operations.js`: saved confirmationMode in existing booking_operations settings (manual fallback); paused policy returns no customer slots. Diary/policy DB errors now propagate instead of advertising empty availability.
+- `api/booking-core.js` and `api/booking.js`: active authenticated customer required; server-only `reserve_customer_booking` RPC serializes reservations, rechecks ownership/acceptance/calendar/capacity/overlap/route/service policy, derives status itself and returns the existing booking on an identical retry. Both routes enforce the same policy. No browser-supplied status or price is trusted.
+- `api/customer-quote-action-core.js` and its wrapper: shared availability and confirmation messaging, including pause; no direct-core availability bypass.
+- `api/admin-quote-update.js`, `admin-original.js`: staff-controlled `booking_requires_review`, default true. Clear for suitable quotes to allow automatic confirmation when global mode is automatic. Unusual jobs remain manual. Customer RLS grants SELECT only, so customers cannot change this flag.
+- `account-original.js`, `account-booking-journey.js`: confirmed/requested/completed labels, contextual appointment button and paused state. Address continuity retained. `account.js` and changed Admin modules cache-busted.
+- Confirmed jobs use existing queued confirmation emails and reminders. Notification failures do not turn a persisted booking into an apparent failure. Existing invoice/promo/reward handling retained; failures logged for operational follow-up.
+- Migration `20260915070501_booking_confirmation_modes.sql` APPLIED on 2026-09-15 to `qjigldxjcpnrlyxgmlqq`; do not repeat. Non-destructive column addition plus SECURITY INVOKER function; EXECUTE revoked from PUBLIC/anon/authenticated and granted only to service_role. Read-only permission checks passed; current global mode remains manual.
+- 152 local tests PASS. `scripts/booking-confirmation-sql.test.mjs` executes migration and booking scenarios in isolated PGlite Postgres; CI installs pinned PGlite 0.3.14 in /tmp. No operational production records created.
+- Security advisor: existing private-table informational findings and known Leaked Password Protection warning remain; no new function security warning.
+- No environment-variable changes. Production baseline below is the previous product release; live domain was reverified at docs-only main commit `44d26ff206ea4163dbe2f83c1e0a93ff6a0c857b`, deployment `dpl_4ebMyGLw9rJyZZevgKu8cbWErdrA` READY before this work.
+- Next: preview and CI verification, publish, update continuity with the actual deployment. Full authenticated live customer booking remains untested because no operational test records were authorized.
 
 Read `docs/AI_START.md` first.
 

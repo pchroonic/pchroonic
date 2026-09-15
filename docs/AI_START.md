@@ -1,6 +1,15 @@
 # Namdar AI fast resume
 
-Last verified: 2026-09-14 UTC
+Last verified: 2026-09-15 UTC
+
+## Current work: booking confirmation modes
+- Version `6.4.33-booking-modes-1` prepared on `feature/booking-confirmation-modes-20260915`; not yet deployed.
+- Admin → Bookings supports Manual, Automatic for eligible bookings, and Pause new customer bookings.
+- Admin → Quotes has a per-quote manual review checkbox. Existing/new quotes default to review-first; clear it only for suitable jobs after reviewing the final price.
+- Server-only atomic reservation checks ownership, accepted final price, operating calendar, notice, daily capacity, overlap, route zone and live service. Automatic confirmation applies only to eligible Window Cleaning. Same-slot retries return the saved booking.
+- Migration `20260915070501_booking_confirmation_modes.sql` APPLIED to production; do not repeat. Adds review flag and server-only reservation function. Manual policy remains active; no records created for testing.
+- 152 local tests PASS, including isolated Postgres SQL tests. Production function permissions verified: anon/customer denied, service_role allowed. No new environment variables; payments remain OFF.
+- Immediate next action: complete preview/CI verification and publish the booking modes, then record the deployment.
 
 Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PROJECT_STATUS.md` for roadmap/status.
 

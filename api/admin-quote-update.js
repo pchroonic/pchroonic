@@ -17,6 +17,10 @@ module.exports=async function handler(req,res){
     const patch={final_price:price,status,admin_notes:notes,customer_quote_note:customerNote,expires_at:expiresAt,updated_at:nowIso};if(shouldSendFinal)patch.sent_at=nowIso;
     const reopening=['sent','approved'].includes(status)&&!['sent','approved'].includes(current.status);if(reopening||priceChanged&&current.customer_response!=='pending'){patch.customer_response='pending';patch.customer_responded_at=null;patch.customer_response_note=null;if(status==='approved'&&priceChanged)patch.status='sent'}
     if(status==='declined')patch.customer_response='declined';
+    if(b.bookingRequiresReview!==undefined){
+      if(typeof b.bookingRequiresReview!=='boolean')return json(res,400,{ok:false,error:'Choose a valid booking review setting.'});
+      patch.booking_requires_review=b.bookingRequiresReview;
+    }
     const rows=await db(`quotes?id=eq.${encodeURIComponent(id)}`,{method:'PATCH',prefer:'return=representation',body:patch});const q=rows?.[0];if(!q)return json(res,404,{ok:false,error:'Quote not found.'});
     if(priceChanged){const booking=(await db(`bookings?quote_id=eq.${encodeURIComponent(id)}&status=neq.cancelled&select=*&limit=1`))?.[0];if(booking)await ensureInvoiceForBooking(booking,{issue:['sent','approved'].includes(q.status)}).catch(()=>null)}
     if(!['sent','approved'].includes(q.status)||q.customer_response!=='pending')await cancelPendingBusinessNotifications('quote',q.id,'quote_reminder').catch(()=>null);
