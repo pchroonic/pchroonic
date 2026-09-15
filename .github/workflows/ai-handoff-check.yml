@@ -40,6 +40,7 @@ jobs:
           node --test scripts/privileged-login-captcha.test.mjs
           node --check admin.js
           node --check admin-original.js
+          node --check admin-brand-assets.js
           node --check admin-inbox-safety.js
           node --check admin-mfa-guard.js
           node --check admin-security-hardening.js
@@ -65,6 +66,7 @@ jobs:
           node --check api/admin-booking-update.js
           node --check api/admin-review-settings.js
           node --check api/admin-payment-settings.js
+          node --check api/admin-brand-logo.js
           node --check api/admin-window-performance.js
           node --check api/admin-job-economics.js
           node --check api/admin-business-finance.js
@@ -122,6 +124,7 @@ jobs:
           node --check lib/notification-cron-resilience.js
           node --check lib/payment-policy.js
           node --check lib/stripe-payments.js
+          node --check lib/brand-logo.js
           node --check lib/uk-tax.js
           node --check lib/receipt-intelligence.js
           node --check lib/system-health.js
@@ -141,6 +144,7 @@ jobs:
           node --test scripts/booking-notification-resilience.test.mjs
           node --test scripts/stripe-payments.test.mjs
           node --test scripts/payment-policy-engine.test.mjs
+          node --test scripts/brand-logo.test.mjs
           node --test scripts/uk-tax.test.mjs
           node --test scripts/business-finance.test.mjs
           node --test scripts/receipt-intelligence.test.mjs
