@@ -1,58 +1,74 @@
 # Namdar AI fast resume
 
-Last verified: 2026-09-14 UTC
+Last verified: 2026-09-15 UTC
 
 Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PROJECT_STATUS.md` for roadmap/status.
 
 ## Production source of truth
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current live product release: PR #75 `Improve customer quote-to-booking journey`.
-- Exact tested PR head: `7610856d2d9a20280897f019c1b61415472b8596`.
-- GitHub CI run `34888850208`: SUCCESS.
-- Exact-head Vercel preview `dpl_2xEFQ4vf4ERB1P5Q4TxYrmbKTobR`: READY; errors-only build log clean; Vercel commit status SUCCESS.
-- PR #75 merge/main product commit: `09d3ed99ab63652cb165cc409bf7b69f20e629f0`.
-- Production deployment: `dpl_FUv52bL3ZgdDGLYrnGVSS58D96id`: READY on `https://namdar.co.uk`; errors-only build clean.
-- Production `/api/health`: HTTP 200 after release.
-- Live customer journey version: `6.4.32-booking-journey-1`.
-- Live `conversion.js`, `booking-journey.js`, `account.js`, and `account-booking-journey.js`: HTTP 200/current.
-- Safe GET check of `/api/customer-quote-claim`: HTTP 405 as designed; no quote/customer mutation performed.
-- Post-release production error/fatal runtime log check: no matching logs.
-- Supabase production: `qjigldxjcpnrlyxgmlqq`.
-- Vercel project: `prj_4fILo0pCaLGUSUIMWrBIVGzeWVDC`, team `team_8Az8WtWcnfwtYRdhR8vGqC3L`.
+- Current main before this privacy feature: `44d26ff206ea4163dbe2f83c1e0a93ff6a0c857b` (PR #76 docs sync).
+- Current live product release remains PR #75 `Improve customer quote-to-booking journey` until this feature PR is merged.
 - Window Cleaning is the only live/quotable/bookable service.
-- Privileged Staff/Admin requires CAPTCHA + AAL2/MFA.
+- Privileged Staff/Admin requires CAPTCHA + AAL2/TOTP MFA.
 - Stripe commercial customer payment policy remains OFF; no live Stripe credentials.
 - Ask Namdar provider AI remains disabled (`aiEnabled:false`).
+- Staff My Jobs auth recovery remains live and user-confirmed fixed.
 
-## Customer booking journey — LIVE
-Version: `6.4.32-booking-journey-1`
+## Privacy Centre / UK GDPR package — IMPLEMENTED ON BRANCH, NOT FULLY RELEASED YET
+Branch: `feature/privacy-centre-20260915`
+Release version: `6.4.33-privacy-centre-1`
 
-Live behavior:
-- postcode/coverage checking is moved to the beginning of the Window Cleaning quote journey;
-- the existing postcode verifier remains authoritative on the client and server coverage checks remain authoritative on quote creation;
-- postcode/address UI appears before property/job detail fields; promo/reward fields remain available but are collapsed as optional extras;
-- selected public address is retained without requiring the guest browser to call customer-only `/api/address-get` merely to select the returned address;
-- selected address is stored with the quote request in a structured `[Requested address]` block inside existing quote notes;
-- the guide-estimate result clearly explains estimate saved → final quote review → customer decision → appointment selection;
-- Continue sends the customer to the exact quote in My Namdar;
-- guest journey context is kept in session storage only;
-- protected `/api/customer-quote-claim` lets an authenticated active customer attach an unowned guest quote only when the authenticated Auth email exactly matches the quote email;
-- quotes already owned by another account are refused;
-- My Namdar pre-fills the matching email, claims the quote after sign-in/auth-state changes, reloads the portal and shows Request → Final quote → Decision → Appointment progress;
-- when scheduling an accepted quote, saved profile address remains first choice; if blank, the requested quote address can be reused;
-- no automatic quote acceptance, booking creation, pricing change, payment, or Stripe enablement was added.
+### Database / policies already applied safely
+Production Supabase project `qjigldxjcpnrlyxgmlqq` has migration `privacy_centre` applied from repo SQL `supabase/migrations/20260915083000_privacy_centre.sql`.
+- New private `privacy_requests` table.
+- RLS enabled, no direct browser policies (`policy_count=0`).
+- No privacy requests were created by deployment work (`0` immediately after migration).
+- Privacy Policy and Cookie Policy were upgraded to version 2 and published.
+- Public policy text deliberately does **not** claim Namdar is fully GDPR compliant.
 
-Verification notes:
-- the first PR CI run failed only because the new regression test expected literal `[Requested address]` text while the parser source contains an escaped regex. Product code was unchanged for that correction.
-- no real customer, quote, booking, payment or account was created as a deployment test.
-- final interactive browser smoke from postcode → estimate → My Namdar remains user-driven; do not create an operational test quote unless the user intentionally wants one.
+### Customer privacy features on branch
+- New authenticated `/api/customer-privacy` lets customers submit and track privacy-rights requests.
+- Signed-in portal requests are marked identity-verified; one-month response target comes from DB default.
+- New authenticated `/api/customer-data-export` downloads a structured JSON copy of main customer-facing account data.
+- Export intentionally excludes internal staff/admin notes, private newsletter tokens, chat guest tokens and payment-provider internals.
+- My Namdar gets a new `Privacy & data` tab with:
+  - privacy request form/history;
+  - self-service account-data download;
+  - Privacy/Cookie policy links;
+  - cookie preference controls;
+  - link to the existing verified account-deletion flow.
 
-## Recent stable releases
-- Staff My Jobs auth recovery PR #73 remains live; user explicitly confirmed the old null-`auth` / hard-refresh problem is fixed.
-- Security Hardening PR #71 remains live: rate limits, secure invitations, owner-confirmed email changes, admin lifecycle safeguards and Admin inactivity timeout.
+### Admin privacy features on branch
+- New `Privacy & GDPR` Admin tab, permission-gated by existing `legal` permission and AAL2 server enforcement.
+- Admin can record requests received by email/phone/in person, track identity/status/due dates, keep internal notes and write customer-facing response summaries.
+- Completing/refusing requires a response summary and sends a customer email.
+- Audit log records request creation/updates.
+- Readiness checklist keeps manual/legal gaps visible rather than hiding them.
+- Legal publishing is moved through `/api/admin-legal`, which sanitizes HTML, increments document versions and audit-logs publication.
 
-## Existing invariants / open items
-- Security Hardening remains live; Supabase Leaked Password Protection remains a manual Auth-setting follow-up until enabled and re-verified.
-- Business Finance remains private/sole-trader-first; Smart Receipts remain private and review-first.
+### Cookie controls on branch
+- Existing optional advertising remains consent-gated.
+- New persistent `Cookie settings` control lets visitors reopen the choice.
+- Withdrawing from optional advertising to essential-only reloads the page so already-loaded ad code is no longer active.
+- Choice metadata records choice/version/timestamp in first-party browser storage while keeping legacy compatibility.
+
+### Important remaining manual/legal items
+Do not describe Namdar as “fully GDPR compliant” yet.
+- Add the sole trader's formal legal/controller name and postal correspondence address to the Privacy Policy before wider commercial launch; these were intentionally not invented or exposed in code.
+- Complete the ICO data-protection fee self-assessment; pay/register only if required.
+- Continue periodic retention/provider-contract review so practice matches the policy.
+- Supabase Leaked Password Protection remains a separate manual security setting to enable/re-verify.
+
+## Release gate / next action
+- Update all three continuity docs (this branch does).
+- CI syntax-checks privacy modules/APIs and runs `scripts/privacy-center.test.mjs`.
+- Open PR only after implementation review.
+- Require exact-head GitHub CI SUCCESS + exact-head Vercel preview READY/clean before merge.
+- After merge verify `/api/health`, live v2 legal pages, `account.js`/`admin.js` version `6.4.33-privacy-centre-1`, privacy assets and safe unauthenticated API behavior.
+- Do not create a real privacy request or send a real privacy-response email merely as a deployment test.
+
+## Stable invariants
+- Customer booking journey v6.4.32 remains live and payment rules are unchanged.
+- Security Hardening remains live.
+- Business Finance remains private/sole-trader-first; Smart Receipts remain private/review-first.
 - Customer payment policy stays OFF until a separate deliberate decision.
-- Do not create real invitation/marketing/quote/chat/payment records merely as deployment tests.
