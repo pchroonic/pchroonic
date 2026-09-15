@@ -1,5 +1,5 @@
 (()=>{
-  const v='6.4.33-privacy-centre-1';
+  const v='6.4.34-cancellation-policy-1';
   const supabaseVersion='2.116.0';
   document.write(`<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@${supabaseVersion}"><\/script>`);
   document.write(`<script src="/account-auth-hotfix.js?v=${v}"><\/script>`);
@@ -10,5 +10,6 @@
   document.write(`<script src="/account-service-availability.js?v=${v}"><\/script>`);
   document.write(`<script src="/account-payments.js?v=${v}"><\/script>`);
   document.write(`<script src="/account-booking-journey.js?v=${v}"><\/script>`);
+  document.write(`<script src="/account-booking-policy.js?v=${v}"><\/script>`);
   document.write(`<script src="/account-privacy-center.js?v=${v}"><\/script>`);
 })();

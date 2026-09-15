@@ -4,121 +4,92 @@ Last updated: 2026-09-15 UTC
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current main/live product release: `3b56a12620c754853f3d5145c3daa277caa07c70` (PR #78 Privacy Centre / UK GDPR operations).
-- Production deployment: `dpl_Ew4HKZdj1fGjpuT8KHMTM5YbRdeH`, READY on `namdar.co.uk`.
+- Current main: `a48a8acbf7d7ab98916d66d4e0ac0fc04f275e0c` (PR #79 docs sync).
+- Current live product release: PR #78 Privacy Centre / UK GDPR operations; product merge `3b56a12620c754853f3d5145c3daa277caa07c70`.
+- Production is healthy on `namdar.co.uk`.
 - Supabase production: `qjigldxjcpnrlyxgmlqq`.
 - Window Cleaning only live.
 - Privileged Staff/Admin requires CAPTCHA + AAL2/TOTP MFA.
-- Stripe customer payment policy OFF; do not infer live commercial payment readiness from health secret-presence booleans.
+- Stripe customer payment policy OFF.
 - Ask Namdar provider AI disabled (`aiEnabled:false`).
-- Staff My Jobs auth recovery live and user-confirmed fixed.
+
+## Booking cancellation / deposit policy — RELEASE CANDIDATE
+Branch: `feature/cancellation-deposit-policy-20260915`
+Version: `6.4.34-cancellation-policy-1`
+Policy version: `2026-09-15-v1`
+
+### Approved commercial rule
+- More than 48 hours before appointment: deposit normally refundable or transferable.
+- Within 48 hours, no-show or no agreed access: Namdar may retain some/all only to cover reasonable direct loss, accounting for savings and whether the slot can be filled.
+- No blanket non-refundable term.
+- Namdar cancellation with no replacement date: refund payments for the unprovided service.
+- Statutory consumer rights remain unaffected.
+
+### Terms and booking evidence
+New migration `20260915104500_booking_cancellation_policy.sql`:
+- adds booking terms/policy version and acceptance timestamps;
+- records express service-start request/acknowledgement for any appointment falling within an applicable statutory cancellation period;
+- stores cancellation window and a non-PII policy snapshot;
+- publishes Terms & Conditions v2 with 48-hour cancellation/deposit terms, 14-day statutory cancellation wording, access/safety/weather and complaints provisions.
+
+### Customer booking experience
+New `account-booking-policy.js` + `booking-policy.css`:
+- show policy before appointment submission;
+- require Terms/cancellation acceptance;
+- require explicit statutory early-service request/acknowledgement;
+- show cancellation-policy summary in Manage appointment.
+
+`api/booking-core.js` enforces these acknowledgements server-side, reads the current Terms version, records acceptance evidence and includes the policy link/summary in the booking acknowledgement email.
+
+`api/create-checkout.js` blocks future Stripe checkout if a booking has no policy evidence. Payments remain OFF and no deposit percentage/mode was changed.
+
+Customer privacy export now includes booking policy acceptance metadata.
+
+### Release gate status
+Pending:
+- open PR;
+- exact-head GitHub CI SUCCESS;
+- exact-head Vercel preview READY + clean errors-only build;
+- production migration apply and schema/Terms v2 verification;
+- exact-head merge;
+- production health/assets/API verification.
+
+Do not create a real booking, cancellation, deposit, refund or payment as a deployment test.
 
 ## Privacy Centre / UK GDPR operations — LIVE
-Version: `6.4.33-privacy-centre-1`
-Feature PR: #78
-
-### Database and legal documents
-Migration `privacy_centre` has been safely applied to production from `supabase/migrations/20260915083000_privacy_centre.sql`.
-- `privacy_requests` table created.
-- RLS enabled; zero direct browser policies.
-- Response target defaults to one calendar month.
-- Immediately after migration: zero privacy requests.
-- Privacy Policy published at version 2.
-- Cookie Policy published at version 2.
-
-Policy v2 covers personal-data categories, lawful bases, service providers, transfers, retention criteria, customer rights, marketing choices, security, automated guide-estimate review and ICO complaints. Cookie Policy covers essential browser storage, optional advertising consent, current first-party page-view behavior and changing the choice.
-
-The policy intentionally says the controller's formal legal name and postal correspondence address still need to be added before wider commercial launch. Those details were not invented or taken from private context without explicit approval.
-
-### Customer privacy features live
-Authenticated APIs:
-- `/api/customer-privacy`: create/list privacy-rights requests.
-- `/api/customer-data-export`: download a structured JSON account-data copy.
-
-My Namdar `Privacy & data` includes:
-- account-data download;
-- privacy request form/history;
-- status/identity/target-date visibility;
-- links to policies;
-- existing account deletion handoff;
-- cookie choice controls.
-
-Self-service export excludes internal staff/admin notes, private newsletter/chat tokens and payment-provider internals. Quote photo storage paths are not exposed; only a photo count is included. It is described as an account-data copy, not a guaranteed complete statutory SAR response.
-
-### Admin privacy features live
-`Privacy & GDPR` tab:
-- permission-gated by `legal`;
-- AAL2 enforced by server via existing `requireStaff` wrapper;
-- open/due-soon/overdue/total counts;
-- record email/phone/in-person privacy requests;
-- identity/status workflow;
-- internal notes separated from customer-facing response summary;
-- completion/refusal requires a response summary;
-- customer completion/refusal email;
-- audit logging.
-
-`/api/admin-legal` replaces browser-direct legal publishing for the existing editor:
-- legal permission + AAL2;
-- server HTML sanitization;
-- proper version increment;
-- update attribution;
-- audit log.
-
-### Cookie controls live
-`privacy-controls.js` adds a persistent footer `Cookie settings` control on the public/legal pages.
-- essential-only and optional-advertising choices;
-- legacy choice remains compatible;
-- choice metadata stores version/timestamp;
-- marketing -> essential reloads the page so already-loaded optional ad code is removed from the active page.
-
-### Release verification
-- Exact feature head `57785dbcbcf0054c79817032846025afa159c89d`.
-- GitHub CI run `34943637689`: SUCCESS.
-- Exact-head preview `dpl_5cA21wmSZjQBo5vAq9TVWY4kCteV`: READY, clean errors-only build.
-- PR #78 merged as `3b56a12620c754853f3d5145c3daa277caa07c70`.
-- Production `dpl_Ew4HKZdj1fGjpuT8KHMTM5YbRdeH`: READY, clean errors-only build.
-- Live `/api/health`: HTTP 200, healthy.
-- Live `account.js` and `admin.js`: `6.4.33-privacy-centre-1` and load the privacy modules.
-- Live privacy/cookie legal endpoints: version 2.
-- Unauthenticated customer privacy/data-export APIs: HTTP 401.
-- No real privacy request or privacy completion email was generated during deployment verification.
-
-### Remaining manual/privacy items
-Do not label Namdar “fully GDPR compliant” yet.
-- Owner must explicitly approve/supply the sole trader/controller legal name and postal correspondence address for publication.
-- Owner must complete the official ICO data-protection fee self-assessment; registration/payment is only required if the official assessment says so.
-- Retention and processor/provider contracts need periodic operational review.
-- Supabase Leaked Password Protection remains a separate manual setting to enable/re-verify.
+Version `6.4.33-privacy-centre-1`, PR #78.
+- Privacy/Cookie v2 live.
+- My Namdar Privacy & data and Admin Privacy & GDPR live.
+- Controller legal name/public postal address publication postponed by owner.
+- ICO fee self-assessment and Supabase Leaked Password Protection remain open manual items.
 
 ## Customer booking journey — LIVE
-- v6.4.32 coverage-first flow remains live.
-- Guest quote claim still requires exact authenticated email match.
-- My Namdar quote progress remains Request → Final quote → Decision → Appointment.
-- No pricing or payment-policy changes in Privacy Centre work.
+- v6.4.32 coverage-first quote-to-booking flow remains the base journey.
+- Guest quote claim requires exact authenticated email match.
+- My Namdar progress: Request → Final quote → Decision → Appointment.
 
 ## Security Hardening — LIVE
-- Private server-side rate limits with HMAC-hashed identities.
-- Secure invitations; no temporary passwords.
-- Owner-confirmed email changes.
-- Admin lifecycle safeguards.
-- Admin inactivity sign-out.
+- private server-side rate limits with HMAC-hashed identities;
+- secure invitations, no temporary passwords;
+- owner-confirmed email changes;
+- Admin lifecycle safeguards and inactivity sign-out;
 - CAPTCHA + AAL2/TOTP MFA + CSP/security headers.
 
 ## Business / operations stable state
-- Sole-trader-first Business Finance live/private.
-- Smart Receipts review-first/private.
-- Newsletter Centre consent-aware/resumable.
-- Ask Namdar Guided assistant live; provider AI off.
-- Customer support tickets customer-only/private.
+- sole-trader-first Business Finance live/private;
+- Smart Receipts review-first/private;
+- Newsletter Centre consent-aware/resumable;
+- Ask Namdar Guided assistant live; provider AI off;
+- customer support tickets customer-only/private;
 - Stripe infrastructure exists but commercial customer payments remain OFF.
 
 ## Open roadmap
-- Publish controller formal legal name/address after explicit user approval.
+- Finish cancellation/deposit policy release gate.
+- Later choose commercial deposit amount/payment mode and live Stripe rollout separately.
+- Publish controller formal legal name/address when owner is ready.
 - Complete ICO fee self-assessment.
-- Manually enable Supabase Leaked Password Protection and re-run advisor.
-- User-driven authenticated Privacy Centre smoke when convenient, without creating unnecessary real privacy requests.
-- User-driven booking journey smoke.
-- Decide commercial Stripe payment policy before live rollout.
+- Enable/re-verify Supabase Leaked Password Protection.
+- User-driven booking/privacy smoke tests when convenient.
 - Google review-request URL.
 - Window real-job pricing calibration.
 - SMS/legal checks.

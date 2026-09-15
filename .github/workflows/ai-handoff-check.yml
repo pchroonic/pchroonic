@@ -27,6 +27,7 @@ jobs:
           node --check account.js
           node --check account-original.js
           node --check account-booking-journey.js
+          node --check account-booking-policy.js
           node --check account-privacy-center.js
           node --check account-captcha-guard.js
           node --check account-auth-hotfix.js
@@ -149,6 +150,7 @@ jobs:
           node --test scripts/security-hardening.test.mjs
           node --test scripts/customer-booking-journey.test.mjs
           node --test scripts/privacy-center.test.mjs
+          node --test scripts/booking-cancellation-policy.test.mjs
           node --check lib/server.js
           node --check lib/server-original.js
           node --check staff.js

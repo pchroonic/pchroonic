@@ -53,7 +53,7 @@ test('Admin privacy operations require the legal permission and create audit rec
 
 test('My Namdar and Admin load the privacy centres at the current release version',()=>{
   const account=read('account.js'),admin=read('admin.js'),customer=read('account-privacy-center.js'),staff=read('admin-privacy-center.js');
-  assert.match(account,/6\.4\.33-privacy-centre-1/);
+  assert.match(account,/6\.4\.34-cancellation-policy-1/);
   assert.match(account,/account-privacy-center\.js/);
   assert.match(admin,/6\.4\.33-privacy-centre-1/);
   assert.match(admin,/admin-privacy-center\.js/);

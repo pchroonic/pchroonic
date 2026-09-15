@@ -34,7 +34,7 @@ test('guest quote claiming requires an authenticated customer and exact matching
 
 test('My Namdar continues a guest quote after sign-in and shows quote-to-booking progress',()=>{
   const loader=read('account.js'),source=read('account-booking-journey.js');
-  assert.match(loader,/6\.4\.33-privacy-centre-1/);
+  assert.match(loader,/6\.4\.34-cancellation-policy-1/);
   assert.match(loader,/account-booking-journey\.js/);
   assert.match(source,/customer-quote-claim/);
   assert.match(source,/onAuthStateChange/);
