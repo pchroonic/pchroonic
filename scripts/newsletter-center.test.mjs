@@ -59,8 +59,8 @@ test('email preference endpoint supports topic preferences and full unsubscribe'
   assert.match(source,/status:'unsubscribed'/);
 });
 
-test('Admin loader keeps Newsletter Centre in the current security release',()=>{
+test('Admin loader keeps Newsletter Centre in the current release',()=>{
   const loader=read('admin.js');
-  assert.match(loader,/6\.4\.30-security-hardening-1/);
+  assert.match(loader,/6\.4\.33-privacy-centre-1/);
   assert.match(loader,/admin-newsletter-center\.js/);
 });

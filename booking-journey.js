@@ -1,5 +1,5 @@
 (()=>{
-  const VERSION='6.4.32-booking-journey-1';
+  const VERSION='6.4.33-privacy-centre-1';
   const PENDING_KEY='namdar_pending_quote_journey';
   const $=s=>document.querySelector(s);
   const safeText=v=>String(v??'').trim();
@@ -122,5 +122,7 @@
     const top=document.querySelector('.quote-conversion-top span');if(top)top.textContent='Check coverage first, then complete the job details. Photos and codes are optional.';
   }
 
-  injectStyles();moveLocationFirst();collapseExtras();installAddressChoice();autoVerifyPostcode();wrapApi();wrapShowQuote();ownQuoteButton();updateSubmitCopy();
+  function loadPrivacyChoices(){if(document.querySelector('script[data-namdar-privacy-choices]'))return;const script=document.createElement('script');script.src=`/privacy-controls.js?v=${VERSION}`;script.defer=true;script.dataset.namdarPrivacyChoices='1';document.body.appendChild(script)}
+
+  injectStyles();moveLocationFirst();collapseExtras();installAddressChoice();autoVerifyPostcode();wrapApi();wrapShowQuote();ownQuoteButton();updateSubmitCopy();loadPrivacyChoices();
 })();
