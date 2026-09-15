@@ -1,5 +1,5 @@
 (()=>{
-  const v='6.4.36-admin-logo-upload-1';
+  const v='6.4.37-admin-website-crash-fix-1';
   document.write(`<link rel="stylesheet" href="/admin-inbox-safety.css?v=${v}">`);
   document.write(`<script src="/privileged-login-captcha.js?v=${v}"><\/script>`);
   document.write(`<script src="/admin-original.js?v=${v}"><\/script>`);

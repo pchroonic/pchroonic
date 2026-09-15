@@ -36,5 +36,10 @@
     if(verified.length)return challenge(session,verified.find(f=>f.factor_type==='totp')||verified[0],d);
     return enroll(session,profile.role,all,d);
   }
-  enter=async function(session){if(!gatePromise)gatePromise=secureSession(session).finally(()=>{gatePromise=null});try{return await originalEnter(await gatePromise)}catch(error){if(error?.message==='Signed out.')return showLogin('Signed out.');showLogin(`Two-step verification could not be completed: ${error.message}`)}};
+  enter=async function(session){
+    let securedSession;
+    if(!gatePromise)gatePromise=secureSession(session).finally(()=>{gatePromise=null});
+    try{securedSession=await gatePromise}catch(error){if(error?.message==='Signed out.')return showLogin('Signed out.');return showLogin(`Two-step verification could not be completed: ${error?.message||'Unknown verification error.'}`)}
+    try{return await originalEnter(securedSession)}catch(error){console.error('Namdar Admin dashboard failed to load',error);return showLogin(`Admin dashboard could not be loaded: ${error?.message||'Unknown dashboard error.'}`)}
+  };
 })();

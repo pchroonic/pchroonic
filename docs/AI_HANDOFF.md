@@ -6,15 +6,49 @@ Read `docs/AI_START.md` first.
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current live product merge: `f2e7eedb4a795242dfacd350f0704b85e4e67885` (PR #84).
+- Current main HEAD: `70d02ee6d4b441c5b4f194c836678f292bf2f82e` (PR #85, docs-only release record). Current live product code merge remains `f2e7eedb4a795242dfacd350f0704b85e4e67885` (PR #84).
 - Current Admin release version: `6.4.36-admin-logo-upload-1`; customer loader remains `6.4.35-payment-policy-engine-1`.
 - Supabase production `qjigldxjcpnrlyxgmlqq`.
 - Vercel project `prj_4fILo0pCaLGUSUIMWrBIVGzeWVDC`, team `team_8Az8WtWcnfwtYRdhR8vGqC3L`.
-- Current production deployment `dpl_DYJtSFFYZeH8xAK1mX4WgNRDULZb`, READY.
+- Current production deployment `dpl_EyRwGk1VcejxRWWRTnmgNBvAiTAa`, READY from current `main`.
+- `/api/health` returned HTTP 200 / `ok:true` at `2026-09-15T13:31:18.229Z` on that deployment.
 - Window Cleaning only live.
 - Stripe commercial customer payment policy OFF. Production has `0` `site_settings.payments` rows.
 - Ask Namdar provider AI OFF (`aiEnabled:false`).
 - Privileged Staff/Admin requires CAPTCHA + AAL2/TOTP MFA.
+
+# Admin Website & legal crash fix — PR #86 IN RELEASE CHECKS
+
+## Incident / root cause
+After the secure logo-upload release, the owner selected a file in Website & legal and the Admin returned to the sign-in card with:
+`Two-step verification could not be completed: Cannot set properties of null (setting 'value')`.
+
+Code inspection confirmed two coupled defects:
+1. legacy `websiteTools()` assigns to `$('#settingReviewUrl').value`, but current `admin.html` has no element with id `settingReviewUrl`;
+2. `admin-mfa-guard.js` wrapped both the MFA gate and the later `originalEnter()` dashboard initialization in one `try/catch`, so an ordinary dashboard exception was falsely described as an MFA failure.
+
+The existing TOTP/AAL2 setup itself was not removed or bypassed.
+
+## Fix in PR #86
+Branch: `fix/admin-logo-upload-website-crash-20260915`.
+PR: #86 `Fix Admin Website tab crash after logo file selection`.
+
+Changed files before continuity updates:
+- `admin-brand-assets.js`: adds `ensureReviewUrlField()` and invokes it before legacy `websiteTools()`. If the expected field is absent, the module creates a `Public review URL` input inside Website & legal, preserving the existing saved review URL workflow and preventing the null assignment.
+- `admin-mfa-guard.js`: separates privileged-session/MFA gating from `originalEnter()` dashboard initialization. MFA/session errors keep the MFA message; post-MFA dashboard failures now show `Admin dashboard could not be loaded: ...` and are logged distinctly.
+- `admin.js`: Admin cache/version bump from `6.4.36-admin-logo-upload-1` to `6.4.37-admin-website-crash-fix-1` so browsers fetch the corrected modules.
+- `scripts/brand-logo.test.mjs`: adds VM-based regression coverage proving the missing review field is repaired before website settings load, proving dashboard failures are not mislabeled as MFA failures, proving real privileged-session failures still use the MFA message, and pinning the new Admin loader version.
+
+No database migration or environment-variable change is required. No security requirement is weakened. Commercial Stripe payments remain OFF and no customer, booking, payment, late-fee, refund or logo data is created by the fix/tests.
+
+## Release state / next action
+At this checkpoint PR #86 is open and **not production-live yet**. Required sequence:
+1. let full GitHub CI finish on the final PR head;
+2. verify the exact-head Vercel preview is READY and inspect errors-only build logs;
+3. inspect the PR diff/head for only intended changes;
+4. merge only after those checks pass;
+5. verify the resulting production deployment, `/api/health`, live `admin.js` version/module source, and runtime error/fatal logs;
+6. then update continuity docs to mark the fix LIVE and have the owner retry Website & legal → Choose file / Upload logo / Save website settings.
 
 # Admin website logo upload — LIVE
 
@@ -23,8 +57,7 @@ Exact tested head: `9995e8e2a199beee24cabe4d24175f82bd293398`.
 GitHub CI run `34973739008`: SUCCESS.
 Exact-head Vercel preview `dpl_Dvu9ctLyXRB16qrH1Q1wJXr8c7KF`: READY, errors-only build log clean.
 Product merge/main: `f2e7eedb4a795242dfacd350f0704b85e4e67885`.
-Production deployment `dpl_DYJtSFFYZeH8xAK1mX4WgNRDULZb`: READY, errors-only build log clean.
-Production `/api/health`: HTTP 200 / `ok:true` at `2026-09-15T13:15:44.843Z`.
+Product production deployment `dpl_DYJtSFFYZeH8xAK1mX4WgNRDULZb`: READY, errors-only build log clean. A later docs-only main deployment is now current production.
 
 ## Owner request
 The owner asked for the existing Website & legal → Logo URL setting to also support uploading a logo directly from the Admin dashboard instead of requiring a manually hosted URL.
@@ -40,7 +73,7 @@ The owner asked for the existing Website & legal → Logo URL setting to also su
 - preserves the existing explicit **Save website settings** step, so upload alone does not silently change the published brand setting;
 - shows a preview for the saved/current URL when Website & legal is opened.
 
-`admin.js` loads the feature after `admin-original.js` and uses Admin loader version `6.4.36-admin-logo-upload-1`.
+Current production still uses Admin loader version `6.4.36-admin-logo-upload-1` until PR #86 is released.
 
 ## Secure upload endpoint
 `api/admin-brand-logo.js`:
@@ -84,14 +117,12 @@ This avoids widening the existing `job-images` permissions and keeps brand asset
 - `lib/brand-logo.js`
 - `scripts/brand-logo.test.mjs`
 
-During release preparation, older regression tests that intentionally pin the Admin loader version were updated to the new `6.4.36-admin-logo-upload-1` value while preserving their original protected-module assertions. The final full CI run passed.
+The same existing test entry now also carries the PR #86 regression coverage, so no extra workflow command was required.
 
-## Live release verification
-- `admin.js` HTTP 200 and serves `6.4.36-admin-logo-upload-1`.
+## Live release verification for PR #84
+- live `admin.js` currently serves `6.4.36-admin-logo-upload-1` pending PR #86.
 - `admin.js` loads `admin-brand-assets.js` while retaining payment settings, finance, health, newsletter, privacy and security modules.
-- `admin-brand-assets.js` HTTP 200/current.
 - `/api/health` HTTP 200 / healthy.
-- release deployment runtime error/fatal scan found no logs for the new deployment.
 - Supabase `brand-assets` bucket remains public for reads, capped at 2 MB and limited to JPEG/PNG/WebP/AVIF.
 - production still has `0` `site_settings` rows with key `payments`.
 - no logo was uploaded as release test data, so the saved production brand was not changed during verification.
@@ -265,6 +296,7 @@ Production verification confirmed `0` `site_settings` rows with key `payments`; 
 - Commercial Stripe payments remain OFF until a separate explicit owner decision on activation and actual bands.
 
 ## Remaining open items
+- Release/verify PR #86, then have the owner retry Admin Website & legal → logo selection/upload/save.
 - Owner later chooses actual commercial deposit bands/amounts and whether/when to activate Stripe.
 - Explicit business-customer classification before any automated B2B statutory-debt workflow.
 - ICO data-protection fee self-assessment.
