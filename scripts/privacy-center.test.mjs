@@ -59,7 +59,7 @@ test('My Namdar and Admin keep the privacy centres in the current release loader
   const account=read('account.js'),admin=read('admin.js'),customer=read('account-privacy-center.js'),staff=read('admin-privacy-center.js');
   assert.match(account,/6\.4\.35-payment-policy-engine-1/);
   assert.match(account,/account-privacy-center\.js/);
-  assert.match(admin,/6\.4\.35-payment-policy-engine-1/);
+  assert.match(admin,/6\.4\.36-admin-logo-upload-1/);
   assert.match(admin,/admin-privacy-center\.js/);
   assert.match(customer,/Privacy & data/);
   assert.match(customer,/customer-data-export/);
