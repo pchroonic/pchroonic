@@ -13,6 +13,7 @@ module.exports=async function handler(req,res){
     const booking=(await db(`bookings?id=eq.${encodeURIComponent(bookingId)}&select=*&limit=1`))?.[0];
     if(!booking)return json(res,404,{ok:false,error:'Booking not found.'});
     if(booking.customer_id!==user.id)return json(res,403,{ok:false,error:'This booking does not belong to your account.'});
+    if(!booking.booking_policy_accepted_at||!booking.booking_policy_version||booking.early_service_acknowledged!==true)return json(res,409,{ok:false,error:'Review and accept the current booking, cancellation and statutory service-start terms before making an online payment.'});
     if(!['pending','confirmed','completed'].includes(booking.status))return json(res,409,{ok:false,error:'This booking cannot accept an online payment.'});
     const quote=booking.quote_id?(await db(`quotes?id=eq.${encodeURIComponent(booking.quote_id)}&select=id,email,customer_name,customer_id,service_key&limit=1`))?.[0]:null;
     if(!quote)return json(res,404,{ok:false,error:'Quote not found.'});
@@ -26,6 +27,6 @@ module.exports=async function handler(req,res){
     const idempotencyKey=checkoutIdempotencyKey({invoiceId:invoice.id,net:state.net,outstanding:state.outstanding,kind:plan.kind,amount:plan.amount});
     const {session}=await createCheckoutSession({secret:env('STRIPE_SECRET_KEY'),booking,invoice,quote,amount:plan.amount,kind:plan.kind,origin:requestOrigin(req),idempotencyKey});
     await db(`bookings?id=eq.${encodeURIComponent(booking.id)}`,{method:'PATCH',prefer:'return=minimal',body:{stripe_checkout_session_id:session.id}});
-    return json(res,200,{ok:true,url:session.url,sessionId:session.id,invoiceId:invoice.id,paymentKind:plan.kind,amount:plan.amount,outstanding:state.outstanding,depositPercent:policy.depositPercent,minimumDeposit:policy.minimumDeposit,required:plan.required});
+    return json(res,200,{ok:true,url:session.url,sessionId:session.id,invoiceId:invoice.id,paymentKind:plan.kind,amount:plan.amount,outstanding:state.outstanding,depositPercent:policy.depositPercent,minimumDeposit:policy.minimumDeposit,required:plan.required,bookingPolicyVersion:booking.booking_policy_version});
   }catch(e){return safeError(res,e)}
 };
