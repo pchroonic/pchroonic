@@ -1,7 +1,7 @@
-const VERSION='namdar-staff-v6.4.31-staff-auth-recovery-1';
+const VERSION='namdar-staff-v6.4.40-staff-experience-v2-1';
 const STATIC_CACHE=`${VERSION}-static`;
 const RUNTIME_CACHE=`${VERSION}-runtime`;
-const LOCAL_ASSETS=['/staff','/staff.html','/staff.js','/staff-original.js','/staff-auth-readiness.js','/privileged-login-captcha.js','/staff-mfa-guard.js','/staff-closeout.js','/styles.css','/staff.webmanifest','/staff-icon-180.png','/staff-icon-192.png','/staff-icon-512.png'];
+const LOCAL_ASSETS=['/staff','/staff.html','/staff.js','/staff-original.js','/staff-experience-v2.js','/staff-experience-v2.css','/staff-auth-readiness.js','/privileged-login-captcha.js','/staff-mfa-guard.js','/staff-closeout.js','/styles.css','/staff.webmanifest','/staff-icon-180.png','/staff-icon-192.png','/staff-icon-512.png'];
 const AUTH_CRITICAL=new Set(['/staff.js','/staff-original.js','/staff-auth-readiness.js','/privileged-login-captcha.js','/staff-mfa-guard.js']);
 const REMOTE_ASSETS=['https://unpkg.com/leaflet@1.9.4/dist/leaflet.css','https://unpkg.com/leaflet@1.9.4/dist/leaflet.js','https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0'];
 self.addEventListener('install',event=>{event.waitUntil((async()=>{const cache=await caches.open(STATIC_CACHE);await cache.addAll(LOCAL_ASSETS);await Promise.allSettled(REMOTE_ASSETS.map(async url=>{try{const r=await fetch(url,{mode:'cors',cache:'no-store'});if(r.ok)await cache.put(url,r.clone())}catch{}}));await self.skipWaiting()})())});
