@@ -1,120 +1,131 @@
 # Namdar project status
 
-Last updated: 2026-09-14 UTC
+Last updated: 2026-09-15 UTC
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current live product release: PR #75 `Improve customer quote-to-booking journey`.
-- Exact tested PR head `7610856d2d9a20280897f019c1b61415472b8596`.
-- GitHub CI `34888850208`: SUCCESS.
-- Exact preview `dpl_2xEFQ4vf4ERB1P5Q4TxYrmbKTobR`: READY with clean errors-only build and Vercel status SUCCESS.
-- Product merge/main: `09d3ed99ab63652cb165cc409bf7b69f20e629f0`.
-- Production deployment `dpl_FUv52bL3ZgdDGLYrnGVSS58D96id`: READY with clean errors-only build.
-- Production `/api/health`: HTTP 200 after release.
-- Live customer journey version `6.4.32-booking-journey-1`.
-- Live journey/account assets verified HTTP 200; claim API safe GET returns 405 as designed.
-- Post-release error/fatal runtime log check found no matching logs.
-- Supabase production `qjigldxjcpnrlyxgmlqq`.
-- Window Cleaning is the only live service.
-- Privileged Staff/Admin requires CAPTCHA + AAL2/MFA.
-- Stripe customer payment policy remains OFF; no live Stripe credentials.
-- Ask Namdar remains Guided assistant because `aiEnabled:false`.
+- Current main before Privacy Centre: `44d26ff206ea4163dbe2f83c1e0a93ff6a0c857b`.
+- Current live product release before this branch: PR #75 customer quote-to-booking journey.
+- Supabase production: `qjigldxjcpnrlyxgmlqq`.
+- Window Cleaning only live.
+- Privileged Staff/Admin requires CAPTCHA + AAL2/TOTP MFA.
+- Stripe customer payment policy OFF; no live Stripe credentials.
+- Ask Namdar provider AI disabled (`aiEnabled:false`).
+- Staff My Jobs auth recovery live and user-confirmed fixed.
+
+## Privacy Centre / UK GDPR operations — RELEASE CANDIDATE
+Branch: `feature/privacy-centre-20260915`
+Version: `6.4.33-privacy-centre-1`
+
+### Database and legal documents
+Migration `privacy_centre` has already been safely applied to production from `supabase/migrations/20260915083000_privacy_centre.sql`.
+- `privacy_requests` table created.
+- RLS enabled; zero direct browser policies.
+- Response target defaults to one calendar month.
+- Immediately after migration: zero privacy requests.
+- Privacy Policy upgraded/published to version 2.
+- Cookie Policy upgraded/published to version 2.
+
+Policy v2 now covers personal-data categories, lawful bases, service providers, transfers, retention criteria, customer rights, marketing choices, security, automated guide-estimate review and ICO complaints. Cookie Policy covers essential browser storage, optional advertising consent, current first-party page-view behavior and changing the choice.
+
+The policy intentionally says the controller's formal legal name and postal correspondence address still need to be added before wider commercial launch. Those details were not invented or taken from private context without explicit approval.
+
+### Customer privacy features
+New authenticated APIs:
+- `/api/customer-privacy`: create/list privacy-rights requests.
+- `/api/customer-data-export`: download a structured JSON account-data copy.
+
+My Namdar adds `Privacy & data`:
+- account-data download;
+- privacy request form/history;
+- status/identity/target-date visibility;
+- links to policies;
+- existing account deletion handoff;
+- cookie choice controls.
+
+Self-service export excludes internal staff/admin notes, private newsletter/chat tokens and payment-provider internals. It is described as an account-data copy, not a guaranteed complete statutory SAR response.
+
+### Admin privacy features
+New `Privacy & GDPR` tab:
+- permission-gated by `legal`;
+- AAL2 enforced by server via existing `requireStaff` wrapper;
+- open/due-soon/overdue/total counts;
+- record email/phone/in-person privacy requests;
+- identity/status workflow;
+- internal notes separated from customer-facing response summary;
+- completion/refusal requires a response summary;
+- customer completion/refusal email;
+- audit logging.
+
+New `/api/admin-legal` replaces browser-direct legal publishing for the existing editor:
+- legal permission + AAL2;
+- server HTML sanitization;
+- proper version increment;
+- update attribution;
+- audit log.
+
+### Cookie controls
+`privacy-controls.js` adds a persistent footer `Cookie settings` control on the public/Legal pages.
+- essential-only and optional-advertising choices;
+- legacy choice remains compatible;
+- choice metadata stores version/timestamp;
+- marketing -> essential reloads the page so already-loaded optional ad code is removed from the active page.
+
+### Regression coverage
+- New `scripts/privacy-center.test.mjs`.
+- CI syntax checks new account/admin/cookie/API modules.
+- Existing booking-journey regression updated for the new account loader version only.
+- All three AI continuity docs updated.
+
+### Release gate status
+Pending:
+- open feature PR;
+- exact-head GitHub CI SUCCESS;
+- exact-head Vercel preview READY + clean error-only build;
+- exact-head merge;
+- production health/assets/API verification.
+
+Do not create real privacy requests or send real privacy completion emails as deployment tests.
+
+### Remaining manual/privacy items
+Do not label Namdar “fully GDPR compliant” yet.
+- User must approve/formally supply the sole trader/controller legal name and postal correspondence address for publication.
+- User must complete the official ICO data-protection fee self-assessment; registration/payment is only required if the official assessment says so.
+- Retention and processor/provider contracts need periodic operational review.
+- Supabase Leaked Password Protection remains a separate manual setting to enable/re-verify.
 
 ## Customer booking journey — LIVE
-Release: `6.4.32-booking-journey-1`
-
-### Conversion improvements
-- Postcode/service-area checking now appears at the beginning of the quote journey instead of after most job fields.
-- Existing postcode verification remains authoritative on the client and `/api/quote` still rechecks service/coverage server-side.
-- Quote progress language is Location → Property → Job → Photos → Details → Extras.
-- Promotion/reward inputs remain available but are collapsed as optional extras.
-- The guide-estimate result explains estimate saved → Namdar final review → customer decision → appointment selection.
-- Continue sends the customer to the exact quote in My Namdar.
-
-### Address continuity
-- Public address selection no longer depends on customer-only `/api/address-get` just to select an address returned by public search.
-- The returned display address is retained and stored with the quote request as a structured `[Requested address]` entry in existing quote notes.
-- No address/database migration was required.
-- When an accepted quote is scheduled, saved profile address remains first choice; if blank, My Namdar can reuse the requested address captured with that quote.
-
-### Guest estimate → My Namdar continuity
-Protected endpoint `api/customer-quote-claim.js` is live:
-- requires an authenticated active customer;
-- only claims an unowned quote (`customer_id` null);
-- authenticated Supabase email must exactly match the email originally used for the quote;
-- refuses a quote already owned by another account;
-- does not modify final price, quote status, customer decision or booking state.
-
-My Namdar:
-- shows a continuation banner for a quote created before sign-in;
-- pre-fills the same email into sign-in/account creation when session continuity is available;
-- claims the matching guest quote after an existing session or subsequent auth-state change;
-- reloads the exact quote after claim;
-- shows Request → Final quote → Decision → Appointment progress and contextual next-step copy.
-
-### Safety / scope
-- Window Cleaning remains the only live service.
-- No pricing-rule change.
-- No automatic quote acceptance.
-- No automatic booking creation.
-- No Stripe/payment enablement.
-- No database migration or environment-variable change.
-- No real customer, quote, booking or payment was created merely as a deployment smoke test.
-
-### Release verification
-- First CI failure was only an over-specific test assertion around escaped `[Requested address]` parser source; product code was unchanged for the correction.
-- Final exact head `7610856d2d9a20280897f019c1b61415472b8596` passed CI `34888850208`.
-- Exact preview `dpl_2xEFQ4vf4ERB1P5Q4TxYrmbKTobR` READY/clean.
-- Product merge `09d3ed99ab63652cb165cc409bf7b69f20e629f0`.
-- Production `dpl_FUv52bL3ZgdDGLYrnGVSS58D96id` READY/clean.
-- Production `/api/health` HTTP 200.
-- `conversion.js`, `booking-journey.js`, `account.js`, `account-booking-journey.js` HTTP 200/current.
-- GET `/api/customer-quote-claim` returned 405, confirming the route is live without mutating data.
-- Post-release error/fatal logs: none found.
-
-### Interactive verification pending
-The deployment itself is verified. The remaining test is user-driven because a successful guide estimate creates a real quote record. When desired, intentionally test postcode → guide estimate → Continue to My Namdar using the same email. Do not accept/book unless intended. If a controlled test quote is created, remove it after validation.
+- v6.4.32 coverage-first flow remains live.
+- Guest quote claim still requires exact authenticated email match.
+- My Namdar quote progress remains Request → Final quote → Decision → Appointment.
+- No pricing or payment-policy changes in Privacy Centre work.
 
 ## Security Hardening — LIVE
 - Private server-side rate limits with HMAC-hashed identities.
-- Secure Supabase invitations; no temporary passwords.
-- Account owners confirm email changes themselves.
-- Current/last administrator safeguards live.
-- Admin 30-minute inactivity sign-out live.
-- CAPTCHA, AAL2/TOTP MFA, CSP/security headers and audit redaction preserved.
-- Supabase Leaked Password Protection remains a manual Auth-setting follow-up until enabled/re-verified.
+- Secure invitations; no temporary passwords.
+- Owner-confirmed email changes.
+- Admin lifecycle safeguards.
+- Admin inactivity sign-out.
+- CAPTCHA + AAL2/TOTP MFA + CSP/security headers.
 
-## Stable feature status
-### Accounts / authentication
-- My Namdar portal live with pinned Supabase JS `2.116.0` and bounded session restore.
-- Staff My jobs auth/cache recovery is live and user-confirmed fixed.
-- Privileged MFA and CAPTCHA live.
-- Self-service password/email/authenticator controls live.
-
-### Operations
-- Quotes/bookings/Admin CRM live.
-- Window Cleaning live; later services planned.
-- Customer support tickets remain customer-only/private.
-- Stripe payment infrastructure exists but commercial customer payment policy remains OFF.
-
-### Business Finance
-- Sole-trader-first Business Finance live.
-- Cash-basis reporting/tax estimate framework live.
-- Smart Receipt workflow private and review-first.
-- Sandbox Stripe excluded from finance figures.
-
-### Reliability / Newsletter / Chat
-- System Health history live.
-- Newsletter Centre consent-aware/resumable; never send a campaign as a deployment test.
-- Ask Namdar grounded Guided assistant live; provider AI optional and currently disabled.
+## Business / operations stable state
+- Sole-trader-first Business Finance live/private.
+- Smart Receipts review-first/private.
+- Newsletter Centre consent-aware/resumable.
+- Ask Namdar Guided assistant live; provider AI off.
+- Customer support tickets customer-only/private.
+- Stripe infrastructure exists but commercial customer payments remain OFF.
 
 ## Open roadmap
-- User-driven browser smoke of the live customer booking journey.
+- Complete Privacy Centre release gate and production verification.
+- Publish controller formal legal name/address after explicit user approval.
+- Complete ICO fee self-assessment.
 - Manually enable Supabase Leaked Password Protection and re-run advisor.
-- Decide commercial Stripe payment policy before any live Stripe rollout.
+- User-driven booking journey smoke.
+- Decide commercial Stripe payment policy before live rollout.
 - Google review-request URL.
 - Window real-job pricing calibration.
 - SMS/legal checks.
-- Optional duplicate Supabase include cleanup on account HTML.
+- Optional duplicate Supabase include cleanup.
 - `url.parse()` deprecation cleanup.
 - Address-data pilot remains parked.
