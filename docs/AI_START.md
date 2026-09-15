@@ -6,14 +6,25 @@ Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PR
 
 ## Production source of truth
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current live product merge: `f2e7eedb4a795242dfacd350f0704b85e4e67885` (PR #84).
+- Current main HEAD: `70d02ee6d4b441c5b4f194c836678f292bf2f82e` (PR #85, documentation-only release record). Current live product code merge remains `f2e7eedb4a795242dfacd350f0704b85e4e67885` (PR #84).
 - Current Admin release: v`6.4.36-admin-logo-upload-1`; customer loader remains v`6.4.35-payment-policy-engine-1`.
-- Current production deployment: `dpl_DYJtSFFYZeH8xAK1mX4WgNRDULZb`, READY on `namdar.co.uk`.
-- `/api/health` returned HTTP 200 / `ok:true` at `2026-09-15T13:15:44.843Z` after the release deployment.
+- Current production deployment: `dpl_EyRwGk1VcejxRWWRTnmgNBvAiTAa`, READY on the current `main` HEAD.
+- `/api/health` returned HTTP 200 / `ok:true` at `2026-09-15T13:31:18.229Z` on that deployment.
 - Window Cleaning is the only live/quotable/bookable service.
 - Stripe commercial customer payment policy is OFF. Production has `0` `site_settings` rows with key `payments`. Do not infer a commercially approved deposit amount from fallback code values.
 - Ask Namdar provider AI remains disabled (`aiEnabled:false`).
 - Privileged Staff/Admin requires CAPTCHA + AAL2/TOTP MFA.
+
+## Admin Website & legal crash fix — PR #86 IN RELEASE CHECKS
+A production regression was reproduced after the Admin logo-upload release: opening/reloading Website & legal could throw `Cannot set properties of null (setting 'value')` because legacy `websiteTools()` reads `#settingReviewUrl` although that control is absent from current `admin.html`. The broad MFA wrapper then mislabeled the dashboard exception as `Two-step verification could not be completed`.
+
+PR #86 `Fix Admin Website tab crash after logo file selection` fixes this without weakening MFA:
+- `admin-brand-assets.js` ensures a `Public review URL` control exists **before** legacy website settings load, so the existing review setting remains usable and the null `.value` crash is removed;
+- `admin-mfa-guard.js` now reports privileged-session failures as MFA failures but reports later dashboard initialization failures separately as `Admin dashboard could not be loaded`;
+- `admin.js` cache version is bumped to `6.4.37-admin-website-crash-fix-1`;
+- `scripts/brand-logo.test.mjs` now covers both regressions.
+
+No database migration, environment-variable change, payment activation or real customer/logo test data is required. Commercial Stripe payments remain OFF. The fix is **not production-live yet** in this checkpoint: complete full CI, exact-head Vercel preview/build-log verification, then merge and post-merge production verification before marking it live.
 
 ## Admin logo upload — LIVE
 Product PR: #84 `Add secure Admin logo upload`.
@@ -21,9 +32,9 @@ Exact tested head: `9995e8e2a199beee24cabe4d24175f82bd293398`.
 CI: GitHub run `34973739008` SUCCESS.
 Exact-head preview: `dpl_Dvu9ctLyXRB16qrH1Q1wJXr8c7KF`, READY; errors-only build log clean.
 Merge/main: `f2e7eedb4a795242dfacd350f0704b85e4e67885`.
-Production: `dpl_DYJtSFFYZeH8xAK1mX4WgNRDULZb`, READY; errors-only build log clean.
+Production product deployment: `dpl_DYJtSFFYZeH8xAK1mX4WgNRDULZb`, READY; later docs-only main deployment is now current production.
 
-The Website & legal Admin tab now keeps the existing Logo URL field and also provides a secure file-upload option:
+The Website & legal Admin tab keeps the existing Logo URL field and also provides a secure file-upload option:
 - `admin-brand-assets.js` adds PNG/JPG/WebP/AVIF selection, a 2 MB client limit, local preview, upload status and automatic Logo URL fill;
 - `api/admin-brand-logo.js` requires Staff/Admin `settings` permission plus the existing AAL2/TOTP gate before upload;
 - `lib/brand-logo.js` verifies the actual file signature server-side instead of trusting the browser MIME type or filename;
@@ -37,10 +48,9 @@ Supabase production migration `20260915130427` / `brand_assets_logo_upload` is a
 
 ### Production verification
 - `/api/health` HTTP 200 / `ok:true`.
-- `admin.js` HTTP 200 and loads v`6.4.36-admin-logo-upload-1` plus `admin-brand-assets.js`.
-- `admin-brand-assets.js` HTTP 200/current.
+- current live `admin.js` still loads v`6.4.36-admin-logo-upload-1` until PR #86 is released.
+- `admin-brand-assets.js` HTTP 200/current production version.
 - unauthenticated GET `/api/admin-brand-logo` returns HTTP 405 `Method not allowed`; uploads require POST through authenticated Admin.
-- release deployment runtime error/fatal scan returned no matching logs.
 - no logo was uploaded as release test data and the existing saved brand setting was not changed.
 - no customer, booking, deposit, payment, late fee or refund data was created.
 - commercial Stripe activation remains OFF.
@@ -119,6 +129,7 @@ Fallback values remain only inactive defaults while no payments row exists: 20% 
 - Ask Namdar guided assistant remains live; provider AI remains off.
 
 ## Open manual/commercial items
+- Release and verify PR #86 before retrying the Admin Website/logo upload flow in production.
 - Commercial Stripe activation and actual deposit amounts/bands remain deliberately OFF/unapproved until a separate owner decision.
 - B2B customer classification and automatic commercial-debt enforcement are not implemented.
 - ICO data-protection fee self-assessment.
