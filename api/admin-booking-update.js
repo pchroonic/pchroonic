@@ -1,15 +1,29 @@
 const { json, parseBody, db, env, requireStaff, ensureInvoiceForBooking, syncInvoicePaymentState, sendBookingNotificationNow, scheduleBookingReminder, scheduleBookingFollowUp, cancelPendingBookingNotifications, scheduleCancelledBookingFollowUp, cancelPendingBusinessNotifications, auditLog, safeError } = require('../lib/server');
-const {loadPaymentPolicy,paymentRequirementMet}=require('../lib/payment-policy');
+const {loadPaymentPolicy,paymentPolicyFromSnapshot,paymentRequirementMet}=require('../lib/payment-policy');
 const STATUSES=new Set(['pending','confirmed','completed','cancelled']);
 const PAYMENTS=new Set(['unpaid','deposit_paid','paid','refunded']);
 function validDate(v){const d=new Date(v);return Number.isFinite(d.getTime())?d:null}
 async function quoteFor(id){return (await db(`quotes?id=eq.${encodeURIComponent(id)}&select=*&limit=1`))?.[0]||null}
 async function enforcePaymentBeforeConfirmation(quote,booking=null){
   if(!quote||quote.service_key!=='windows')return null;
-  const policy=await loadPaymentPolicy({db,env});if(!policy.effectiveActive||policy.mode==='optional')return null;
-  if(!booking?.id){const e=new Error(policy.mode==='full_required'?'Create this appointment as Pending so the customer can pay in full before confirmation.':'Create this appointment as Pending so the customer can pay the required deposit before confirmation.');e.status=409;throw e}
+  const livePolicy=await loadPaymentPolicy({db,env});
+  if(!booking?.id){
+    if(!livePolicy.effectiveActive||livePolicy.mode==='optional')return null;
+    const e=new Error(livePolicy.mode==='full_required'?'Create this appointment as Pending so the customer can pay in full before confirmation.':'Create this appointment as Pending so the customer can pay the required deposit before confirmation.');e.status=409;throw e;
+  }
+  const policy=paymentPolicyFromSnapshot(livePolicy,booking.payment_policy_snapshot||null);
+  if(policy.legacyBooking){
+    if(!livePolicy.effectiveActive||livePolicy.mode==='optional')return null;
+    policy.mode=livePolicy.mode;policy.effectiveActive=true;policy.lockedDepositAmount=null;
+  }else{
+    if(!policy.contractActive||policy.mode==='optional')return null;
+    policy.effectiveActive=true;
+  }
   const invoice=await ensureInvoiceForBooking(booking,{issue:true}),state=await syncInvoicePaymentState(invoice.id),paymentStatus=state.outstanding<=.004?'paid':state.net>.004?'deposit_paid':'unpaid';
-  if(!paymentRequirementMet(policy,paymentStatus)){const e=new Error(policy.mode==='full_required'?'Full payment is required before this Window Cleaning booking can be confirmed.':'The required deposit must be paid before this Window Cleaning booking can be confirmed.');e.status=409;throw e}
+  if(!paymentRequirementMet(policy,paymentStatus,{net:state.net,total:invoice.total})){
+    const required=policy.mode==='full_required'?Number(invoice.total||0):Number(policy.lockedDepositAmount||0);
+    const e=new Error(policy.mode==='full_required'?`Full payment of £${required.toFixed(2)} is required before this Window Cleaning booking can be confirmed.`:`The recorded £${required.toFixed(2)} deposit must be paid before this Window Cleaning booking can be confirmed.`);e.status=409;throw e;
+  }
   return{policy,paymentStatus,state};
 }
 async function validateAssignedStaff(id){
