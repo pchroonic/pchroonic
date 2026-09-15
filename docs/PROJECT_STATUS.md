@@ -4,75 +4,87 @@ Last updated: 2026-09-15 UTC
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current main before this release: `64de3f653d294a31afb4ef690189017272c33766`.
-- Current live customer product: v`6.4.34-cancellation-policy-1`, PR #80.
-- Production healthy on `namdar.co.uk`.
+- Current live main/product merge: `ab1d95930816f3116828e410bf07e6208e93216f` (PR #82).
+- Current release: v`6.4.35-payment-policy-engine-1`.
+- Production deployment `dpl_GvU42X4GGN3mGRojFJTcvRBZfsV4`, READY on `namdar.co.uk`.
+- Production health HTTP 200 / `ok:true` verified after deployment.
 - Supabase production: `qjigldxjcpnrlyxgmlqq`.
 - Window Cleaning only live.
 - Privileged Staff/Admin requires CAPTCHA + AAL2/TOTP MFA.
 - Stripe customer payment policy OFF; production has no `site_settings.payments` row and no commercial deposit bands have been approved/enabled.
 - Ask Namdar provider AI disabled (`aiEnabled:false`).
 
-## Flexible Payment & Deposit Policy Engine — RELEASE CANDIDATE
-Branch `feature/flexible-payment-policy-engine-20260915`.
-Version `6.4.35-payment-policy-engine-1`.
+## Flexible Payment & Deposit Policy Engine — LIVE
+PR #82 / v`6.4.35-payment-policy-engine-1`.
 
-### Goal
-Make payment protection adaptable as Namdar learns from real jobs:
-- future Admin-editable deposits;
-- optional flat rule or higher deposit bands for higher job values;
-- frozen booking-specific payment terms so later increases do not rewrite older agreements;
-- configurable balance-due timing;
-- overdue reminders, booking hold and recovery review;
-- no automatic/compounding consumer monetary penalty;
-- B2B statutory late-payment calculation kept separate/manual.
+Release evidence:
+- exact tested head `54e480a00e93bb780e687d0f59a0f14a2aa3bc29`
+- CI run `34965887792` SUCCESS
+- exact preview `dpl_uUHG5oQaiP6gTiV3sFXoxwRisM3F` READY and clean
+- migration `flexible_payment_policy_engine` applied successfully
+- merge/main `ab1d95930816f3116828e410bf07e6208e93216f`
+- production `dpl_GvU42X4GGN3mGRojFJTcvRBZfsV4` READY and clean
+- account/admin loaders and policy modules verified live
+- Terms v3 verified live
+- no real booking/deposit/payment/late fee/refund created for release verification.
 
-### Implemented on branch
-- `lib/payment-policy.js`: revisioned flat/tiered rules, band validation, deposit resolver, booking snapshot, exact-money deposit check, force-balance checkout, overdue stage, manual B2B preview.
-- `admin-payment-settings.js` / API: editable future deposit bands, balance hours and overdue stages; audit/revision tracking; Stripe activation guards retained.
-- `api/customer-quote-action.js`: customer-safe exact payment commitment.
-- `account-booking-policy.js`: displays deposit/balance/overdue terms before appointment request and sends presented policy revision.
-- `api/booking-core.js`: rejects stale revisions, freezes payment policy on booking, can pause a new appointment for an older materially overdue active-policy invoice.
-- `lib/server.js`: copies active payment snapshot to invoice and applies recorded due timing.
-- `api/create-checkout.js`: frozen-policy checkout and full outstanding balance after completion/due date.
-- `api/admin-booking-update.js`: exact frozen deposit/full-payment enforcement before confirmation.
-- `api/customer-billing.js` / `account-payments.js`: customer-visible frozen terms and overdue state.
-- `lib/business-followup-batched.js`: frozen configurable reminder schedule; legacy schedule preserved.
-- `api/customer-data-export.js`: safe payment-policy evidence added to privacy data copy.
+### Live capabilities
+- Revisioned flat or job-value-tiered deposit policies.
+- Higher-value jobs can be configured for higher percentage/minimum deposits.
+- Continuous/non-decreasing tier validation.
+- Frozen booking-specific payment policy revision, snapshot and deposit amount.
+- Future Admin policy changes do not rewrite an earlier booking’s terms.
+- Configurable balance due timing after job end (0–168 hours).
+- Configurable overdue reminders, future-booking hold and recovery-review thresholds.
+- Exact-money deposit/full-payment check before a required-payment booking can be confirmed.
+- Completed/due invoices can request the full outstanding balance.
+- Customer billing surfaces show frozen terms and overdue state without exposing processor-private fields.
+- Customer data export contains safe payment-policy evidence.
 
-### Safety / commercial invariants
-- Customer payments remain OFF in production.
-- No settings row is created merely by deploying this code.
-- Fallback 20%/£10 values are inactive code defaults, not an approved commercial policy.
-- Existing/legacy bookings are not retroactively forced into new required deposits.
+### Legacy/non-retroactivity protection
+A final release review found and fixed an Admin-confirmation edge case. New Admin-created Window appointments now snapshot the current policy at creation. True legacy bookings with no payment-policy snapshot are not later forced into a newly enabled deposit requirement merely because Admin confirms them after the policy changes.
+
+### Consumer / B2B safeguards
 - Consumer invoice amounts are never automatically increased for lateness by this engine.
-- Business late-payment interest/recovery is not automatically posted.
+- No automatic consumer penalty, compounding fee or interest.
+- Consumer escalation is reminders, possible new-booking hold, then manual recovery review.
+- B2B statutory interest/recovery calculation is preview/manual only and is never automatically posted.
+- Explicit business-customer classification is still required before any future automated commercial-debt workflow.
+
+### Production database / Terms
+Migration `20260915111500_flexible_payment_policy_engine.sql` is applied.
+
+Bookings now have:
+- payment policy revision
+- lock timestamp
+- payment-policy snapshot
+- frozen deposit amount.
+
+Invoices now have:
+- payment policy revision/snapshot
+- frozen deposit amount
+- balance-due hours
+- overdue booking-hold days
+- overdue final-review days.
+
+Published Terms are v3 and include `Payment due dates and overdue balances`, preserving non-retroactivity and consumer fairness.
+
+### Commercial invariants
+- Customer Stripe payments remain OFF.
+- Production has `0` `site_settings` rows with key `payments`.
+- Fallback 20% / £10 values are inactive code defaults only, not an approved commercial policy.
 - Window Cleaning remains the only live payment-capable service.
 
-### Migration pending green gate
-`20260915111500_flexible_payment_policy_engine.sql` adds payment-policy snapshot/evidence fields to bookings/invoices and appends Terms “Payment due dates and overdue balances” (Terms at least v3).
-
-It has NOT yet been applied to production. Apply only after exact-head CI and preview are green.
-
-### Release gate pending
-- exact candidate CI SUCCESS;
-- exact Vercel preview READY and errors-only build clean;
-- final diff review;
-- production migration + schema/Terms verification;
-- exact-head merge;
-- production deployment READY, health 200 and v6.4.35 live assets;
-- no real booking/deposit/payment/late fee/refund created for deployment verification.
-
 ## Booking cancellation / deposit policy — LIVE
-PR #80 / v`6.4.34-cancellation-policy-1`.
-- >48h deposit normally refundable/transferable.
-- <48h, no-show/no access: retention only for reasonable direct loss after savings/rebooking are considered.
-- Namdar cancellation/no replacement: refund unprovided service payments.
-- statutory consumer rights unaffected.
-- Terms v2 live; booking acceptance evidence is recorded.
+The earlier fair 48-hour policy remains live and is incorporated into the current v3 Terms:
+- >48h deposit normally refundable/transferable;
+- <48h, no-show/no access: retention only for reasonable direct loss after savings/rebooking are considered;
+- Namdar cancellation/no replacement: refund unprovided service payments;
+- statutory consumer rights unaffected;
+- booking acceptance evidence recorded.
 
 ## Privacy Centre / UK GDPR — LIVE
-- Privacy/Cookie v2 and My Namdar/Admin privacy centres live.
+- Privacy/Cookie and My Namdar/Admin privacy centres live.
 - Controller legal name/public postal address publication postponed by owner.
 - ICO fee self-assessment still open.
 
@@ -85,13 +97,13 @@ PR #80 / v`6.4.34-cancellation-policy-1`.
 - Ask Namdar guided assistant live; provider AI off.
 - Support tickets customer-only/private.
 
-## Open roadmap after this release
+## Known technical debt / open roadmap
 - Owner later chooses actual commercial deposit bands/amounts and whether/when to activate Stripe.
 - Build explicit business-customer classification before any automated B2B statutory-debt workflow.
-- ICO fee self-assessment.
+- ICO data-protection fee self-assessment.
 - Supabase Leaked Password Protection.
 - Google review-request URL.
 - Window real-job pricing calibration.
 - SMS/legal checks.
-- `url.parse()` deprecation cleanup.
+- Node `url.parse()` deprecation cleanup; this warning was still visible in the post-release runtime scan.
 - Address-data pilot remains parked.
