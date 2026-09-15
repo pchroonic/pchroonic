@@ -4,42 +4,49 @@ Last updated: 2026-09-15 UTC
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current `main`: `e4b35a26e2ccf6884edb36891b71f75a38c9aaa2` (docs-only PR #83 on top of product PR #82).
-- Current live product merge: `ab1d95930816f3116828e410bf07e6208e93216f` (PR #82).
-- Current release: v`6.4.35-payment-policy-engine-1`.
-- Current production deployment `dpl_Fk3mQc1TGhY5QAHDY5Gq2NF7MoRC`, READY on `namdar.co.uk`.
+- Current live product merge: `f2e7eedb4a795242dfacd350f0704b85e4e67885` (PR #84).
+- Current Admin release: v`6.4.36-admin-logo-upload-1`; customer loader remains v`6.4.35-payment-policy-engine-1`.
+- Current production deployment `dpl_DYJtSFFYZeH8xAK1mX4WgNRDULZb`, READY on `namdar.co.uk`.
 - Production health HTTP 200 / `ok:true` verified after deployment.
 - Supabase production: `qjigldxjcpnrlyxgmlqq`.
 - Window Cleaning only live.
 - Privileged Staff/Admin requires CAPTCHA + AAL2/TOTP MFA.
-- Stripe customer payment policy OFF; production has no `site_settings.payments` row and no commercial deposit bands have been approved/enabled.
+- Stripe customer payment policy OFF; production has `0` `site_settings.payments` rows and no commercial deposit bands have been approved/enabled.
 - Ask Namdar provider AI disabled (`aiEnabled:false`).
 
-## Admin logo upload — RELEASE CANDIDATE
-Branch `feature/admin-logo-upload-20260915`, candidate Admin version `6.4.36-admin-logo-upload-1`.
+## Admin logo upload — LIVE
+PR #84 / Admin v`6.4.36-admin-logo-upload-1`.
 
-Implemented:
-- Website & legal keeps the existing Logo URL field and gains a direct **Upload logo** option;
+Release evidence:
+- exact tested head `9995e8e2a199beee24cabe4d24175f82bd293398`
+- CI run `34973739008` SUCCESS
+- exact preview `dpl_Dvu9ctLyXRB16qrH1Q1wJXr8c7KF` READY and clean
+- Supabase migration `20260915130427` / `brand_assets_logo_upload` applied successfully
+- merge/main `f2e7eedb4a795242dfacd350f0704b85e4e67885`
+- production deployment `dpl_DYJtSFFYZeH8xAK1mX4WgNRDULZb` READY and clean
+- `/api/health` HTTP 200 / `ok:true`
+- live `admin.js` serves `6.4.36-admin-logo-upload-1` and loads `admin-brand-assets.js`
+- live `admin-brand-assets.js` HTTP 200/current
+- GET `/api/admin-brand-logo` fails closed with HTTP 405; real upload is POST-only and Staff/Admin protected
+- release deployment error/fatal runtime scan returned no matching logs
+- no logo was uploaded as release test data and no customer/payment data was created.
+
+Live behavior:
+- Website & legal keeps the existing Logo URL field and now also has **Upload logo**;
 - Admin can select PNG/JPG/WebP/AVIF up to 2 MB and preview it before upload;
-- successful upload automatically fills the Logo URL field;
-- the existing **Save website settings** button remains the explicit publish step;
+- a successful upload automatically fills the Logo URL field with the permanent public Storage URL;
+- **Save website settings** remains the explicit publish step, so upload alone does not silently change the public brand setting;
 - server upload requires `settings` permission and AAL2/TOTP MFA;
 - actual file signatures are validated server-side, so renamed HTML/SVG/arbitrary files are rejected;
 - upload is audit logged;
 - brand files use a dedicated public `brand-assets` Supabase Storage bucket instead of widening existing job/customer file permissions;
-- production migration `20260915130427` / `brand_assets_logo_upload` has already been applied;
-- bucket limits are 2 MB and JPEG/PNG/WebP/AVIF only;
-- no direct browser Storage upload policy was added; the server endpoint performs the upload after authorization;
-- CI includes syntax checks plus `scripts/brand-logo.test.mjs`.
+- the bucket is capped at 2 MB and accepts JPEG/PNG/WebP/AVIF only;
+- no direct browser Storage upload policy exists; the server endpoint performs the write only after authorization.
 
-Pending before live release:
-- PR CI and Vercel preview verification;
-- merge to `main` and post-deploy health/runtime verification.
-
-This change does not activate Stripe and does not create customer/payment data.
+This feature did not activate Stripe. Production still has `0` `site_settings` rows with key `payments`.
 
 ## Flexible Payment & Deposit Policy Engine — LIVE
-PR #82 / v`6.4.35-payment-policy-engine-1`.
+PR #82 / customer v`6.4.35-payment-policy-engine-1`; its modules remain loaded under the newer Admin release.
 
 Release evidence:
 - exact tested head `54e480a00e93bb780e687d0f59a0f14a2aa3bc29`
@@ -48,7 +55,7 @@ Release evidence:
 - migration `flexible_payment_policy_engine` applied successfully
 - merge/main `ab1d95930816f3116828e410bf07e6208e93216f`
 - product production deployment `dpl_GvU42X4GGN3mGRojFJTcvRBZfsV4` READY and clean
-- account/admin loaders and policy modules verified live
+- account/admin payment-policy modules verified live
 - Terms v3 verified live
 - no real booking/deposit/payment/late fee/refund created for release verification.
 
@@ -66,7 +73,7 @@ Release evidence:
 - Customer data export contains safe payment-policy evidence.
 
 ### Legacy/non-retroactivity protection
-A final release review found and fixed an Admin-confirmation edge case. New Admin-created Window appointments now snapshot the current policy at creation. True legacy bookings with no payment-policy snapshot are not later forced into a newly enabled deposit requirement merely because Admin confirms them after the policy changes.
+New Admin-created Window appointments snapshot the current policy at creation. True legacy bookings with no payment-policy snapshot are not later forced into a newly enabled deposit requirement merely because Admin confirms them after the policy changes.
 
 ### Consumer / B2B safeguards
 - Consumer invoice amounts are never automatically increased for lateness by this engine.
@@ -122,7 +129,6 @@ The earlier fair 48-hour policy remains live and is incorporated into the curren
 - Support tickets customer-only/private.
 
 ## Known technical debt / open roadmap
-- Finish and release the Admin logo-upload candidate.
 - Owner later chooses actual commercial deposit bands/amounts and whether/when to activate Stripe.
 - Build explicit business-customer classification before any automated B2B statutory-debt workflow.
 - ICO data-protection fee self-assessment.
@@ -130,5 +136,5 @@ The earlier fair 48-hour policy remains live and is incorporated into the curren
 - Google review-request URL.
 - Window real-job pricing calibration.
 - SMS/legal checks.
-- Node `url.parse()` deprecation cleanup; this warning was still visible in the post-release runtime scan.
+- Node `url.parse()` deprecation cleanup.
 - Address-data pilot remains parked.
