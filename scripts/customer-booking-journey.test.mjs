@@ -34,7 +34,7 @@ test('guest quote claiming requires an authenticated customer and exact matching
 
 test('My Namdar continues a guest quote after sign-in and shows quote-to-booking progress',()=>{
   const loader=read('account.js'),source=read('account-booking-journey.js');
-  assert.match(loader,/6\.4\.34-cancellation-policy-1/);
+  assert.match(loader,/6\.4\.35-payment-policy-engine-1/);
   assert.match(loader,/account-booking-journey\.js/);
   assert.match(source,/customer-quote-claim/);
   assert.match(source,/onAuthStateChange/);
@@ -44,10 +44,12 @@ test('My Namdar continues a guest quote after sign-in and shows quote-to-booking
   assert.match(source,/Requested address/);
 });
 
-test('booking journey does not enable payment or bypass final-quote acceptance',()=>{
-  const home=read('booking-journey.js'),account=read('account-booking-journey.js'),claim=read('api/customer-quote-claim.js');
+test('base booking journey does not bypass final-quote acceptance and payment controls remain layered separately',()=>{
+  const home=read('booking-journey.js'),account=read('account-booking-journey.js'),claim=read('api/customer-quote-claim.js'),loader=read('account.js');
   assert.doesNotMatch(home,/stripeEnabled\s*=\s*true/);
   assert.doesNotMatch(account,/create-checkout|payment_policy|stripe/i);
   assert.doesNotMatch(claim,/final_price|customer_response\s*=/);
   assert.match(account,/accepted final price stays unchanged unless the job scope changes/);
+  assert.match(loader,/account-payments\.js/);
+  assert.match(loader,/account-booking-policy\.js/);
 });

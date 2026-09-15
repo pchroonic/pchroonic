@@ -140,6 +140,7 @@ jobs:
           node --test scripts/post-job-followup.test.mjs
           node --test scripts/booking-notification-resilience.test.mjs
           node --test scripts/stripe-payments.test.mjs
+          node --test scripts/payment-policy-engine.test.mjs
           node --test scripts/uk-tax.test.mjs
           node --test scripts/business-finance.test.mjs
           node --test scripts/receipt-intelligence.test.mjs

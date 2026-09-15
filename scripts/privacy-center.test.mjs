@@ -31,11 +31,15 @@ test('customer privacy requests require an authenticated active customer',()=>{
   assert.match(api,/several privacy requests open/i);
 });
 
-test('self-service data copy is authenticated and excludes staff notes private tokens and provider internals',()=>{
+test('self-service data copy is authenticated, includes customer payment-policy evidence and excludes private provider fields',()=>{
   const api=read('api/customer-data-export.js');
   assert.match(api,/requireCustomer\(req\)/);
   assert.match(api,/Content-Disposition/);
   assert.match(api,/formal subject access response/i);
+  assert.match(api,/payment_policy_revision/);
+  assert.match(api,/payment_policy_locked_at/);
+  assert.match(api,/payment_policy_snapshot/);
+  assert.match(api,/deposit_required/);
   for(const forbidden of ['admin_notes','staff_notes','guest_token','confirmation_token','unsubscribe_token','provider_payment_id','provider_balance_transaction','provider_fee','recorded_by'])assert.doesNotMatch(api,new RegExp(forbidden));
 });
 
@@ -51,11 +55,11 @@ test('Admin privacy operations require the legal permission and create audit rec
   assert.match(legal,/legal\.publish/);
 });
 
-test('My Namdar and Admin load the privacy centres at the current release version',()=>{
+test('My Namdar and Admin keep the privacy centres in the current release loader',()=>{
   const account=read('account.js'),admin=read('admin.js'),customer=read('account-privacy-center.js'),staff=read('admin-privacy-center.js');
-  assert.match(account,/6\.4\.34-cancellation-policy-1/);
+  assert.match(account,/6\.4\.35-payment-policy-engine-1/);
   assert.match(account,/account-privacy-center\.js/);
-  assert.match(admin,/6\.4\.33-privacy-centre-1/);
+  assert.match(admin,/6\.4\.35-payment-policy-engine-1/);
   assert.match(admin,/admin-privacy-center\.js/);
   assert.match(customer,/Privacy & data/);
   assert.match(customer,/customer-data-export/);

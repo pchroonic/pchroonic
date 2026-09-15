@@ -1,6 +1,7 @@
 const core=require('./customer-quote-action-core');
-const {json,queryParam,db,safeError}=require('../lib/server');
+const {json,queryParam,db,env,safeError}=require('../lib/server');
 const {availabilityForQuote}=require('../lib/booking-operations');
+const {loadPaymentPolicy,snapshotPaymentPolicy}=require('../lib/payment-policy');
 
 function captureResponse(){
   const headers={};
@@ -13,10 +14,17 @@ module.exports=async function handler(req,res){
     const capture=captureResponse();
     await core(req,capture);
     let body={};try{body=capture.payload?JSON.parse(capture.payload):{}}catch{return json(res,500,{ok:false,error:'Invalid customer quote response.'})}
-    if(capture.statusCode!==200||!body?.ok||!Array.isArray(body.slots)||!body.slots.length)return json(res,capture.statusCode||200,body);
+    if(capture.statusCode!==200||!body?.ok)return json(res,capture.statusCode||200,body);
     const quoteId=String(queryParam(req,'quoteId')||'').trim();
-    const quote=(await db(`quotes?id=eq.${encodeURIComponent(quoteId)}&select=id,postcode,service_key&limit=1`))?.[0];
+    const quote=(await db(`quotes?id=eq.${encodeURIComponent(quoteId)}&select=id,postcode,service_key,final_price,automatic_estimate&limit=1`))?.[0];
     if(!quote)return json(res,capture.statusCode||200,body);
+    const paymentPolicy=await loadPaymentPolicy({db,env}),payment=snapshotPaymentPolicy(paymentPolicy,Number(quote.final_price??quote.automatic_estimate??0));
+    body.paymentCommitment={
+      revision:payment.revision,active:payment.active,onlinePaymentsAvailable:paymentPolicy.effectiveActive===true,mode:payment.mode,depositStrategy:payment.depositStrategy,
+      depositAmount:payment.depositAmount,initialPaymentRequired:payment.initialPaymentRequired,initialPaymentAmount:payment.initialPaymentAmount,allowFullPayment:payment.allowFullPayment,balanceDueHours:payment.balanceDueHours,
+      overdue:{reminderDays:payment.overdue.reminderDays,bookingHoldAfterDays:payment.overdue.bookingHoldAfterDays,finalReviewAfterDays:payment.overdue.finalReviewAfterDays,consumerMonetaryLateFees:false}
+    };
+    if(!Array.isArray(body.slots)||!body.slots.length)return json(res,capture.statusCode||200,body);
     const availability=await availabilityForQuote(db,quote);
     body.slots=availability.slots;
     body.scheduling={
