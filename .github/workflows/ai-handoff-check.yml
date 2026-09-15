@@ -22,9 +22,12 @@ jobs:
         run: |
           node --check app.js
           node --check booking-journey.js
+          node --check privacy-controls.js
+          node --check legal-page.js
           node --check account.js
           node --check account-original.js
           node --check account-booking-journey.js
+          node --check account-privacy-center.js
           node --check account-captcha-guard.js
           node --check account-auth-hotfix.js
           node --test scripts/account-auth-hotfix.test.mjs
@@ -50,6 +53,7 @@ jobs:
           node --check admin-finance-receipts.js
           node --check admin-system-health.js
           node --check admin-newsletter-center.js
+          node --check admin-privacy-center.js
           node --check chat-experience.js
           node --check api/address-harvest-cron.js
           node --check api/account-purge.js
@@ -70,6 +74,8 @@ jobs:
           node --check api/admin-newsletter.js
           node --check api/admin-newsletter-send.js
           node --check api/admin-users.js
+          node --check api/admin-privacy.js
+          node --check api/admin-legal.js
           node --check api/newsletter-subscribe.js
           node --check api/newsletter-unsubscribe.js
           node --check api/chat.js
@@ -83,6 +89,8 @@ jobs:
           node --check api/quote.js
           node --check api/quote-core.js
           node --check api/customer-quote-claim.js
+          node --check api/customer-privacy.js
+          node --check api/customer-data-export.js
           node --check api/postcode.js
           node --check api/postcode-core.js
           node --check api/subscription.js
@@ -140,6 +148,7 @@ jobs:
           node --test scripts/chat-assistant.test.mjs
           node --test scripts/security-hardening.test.mjs
           node --test scripts/customer-booking-journey.test.mjs
+          node --test scripts/privacy-center.test.mjs
           node --check lib/server.js
           node --check lib/server-original.js
           node --check staff.js
