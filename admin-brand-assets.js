@@ -11,6 +11,16 @@
     wrap.innerHTML=value?`<div class="crm-context" style="margin-top:10px"><small>Logo preview</small><div style="margin-top:8px;min-height:74px;display:flex;align-items:center;justify-content:center;border:1px solid #dfe5df;border-radius:12px;background:#fff;padding:12px"><img src="${esc(value)}" alt="Current Namdar logo preview" style="display:block;max-width:100%;max-height:86px;object-fit:contain"></div></div>`:'';
   }
   function fileToBase64(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>{const result=String(reader.result||''),comma=result.indexOf(',');resolve(comma>=0?result.slice(comma+1):result)};reader.onerror=()=>reject(new Error('The logo image could not be read. Please choose it again.'));reader.readAsDataURL(file)})}
+  function ensureReviewUrlField(){
+    const existing=document.getElementById('settingReviewUrl');
+    if(existing)return existing;
+    const grid=document.querySelector('#website .admin-form-grid');
+    if(!grid)return null;
+    const html='<label>Public review URL<input id="settingReviewUrl" type="url" placeholder="https://..."></label>';
+    const supportLabel=document.getElementById('settingSupportEmail')?.closest('label');
+    if(supportLabel)supportLabel.insertAdjacentHTML('afterend',html);else grid.insertAdjacentHTML('beforeend',html);
+    return document.getElementById('settingReviewUrl');
+  }
   function ensureLogoUpload(){
     const urlInput=document.getElementById('settingLogoUrl');
     if(!urlInput||document.getElementById('settingLogoFile'))return;
@@ -38,6 +48,7 @@
   }
 
   const originalWebsiteTools=websiteTools;
-  websiteTools=async function(...args){const result=await originalWebsiteTools.apply(this,args);ensureLogoUpload();previewLogo(document.getElementById('settingLogoUrl')?.value||'');return result};
+  websiteTools=async function(...args){ensureReviewUrlField();const result=await originalWebsiteTools.apply(this,args);ensureLogoUpload();previewLogo(document.getElementById('settingLogoUrl')?.value||'');return result};
+  ensureReviewUrlField();
   ensureLogoUpload();
 })();
