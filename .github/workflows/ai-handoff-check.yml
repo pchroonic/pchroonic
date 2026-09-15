@@ -44,6 +44,7 @@ jobs:
           node --check admin-inbox-safety.js
           node --check admin-mfa-guard.js
           node --check admin-security-hardening.js
+          node --check admin-role-management.js
           node --check admin-address-harvest.js
           node --check admin-services.js
           node --check admin-booking-operations.js
@@ -77,6 +78,7 @@ jobs:
           node --check api/admin-newsletter.js
           node --check api/admin-newsletter-send.js
           node --check api/admin-users.js
+          node --check api/admin-roles.js
           node --check api/admin-privacy.js
           node --check api/admin-legal.js
           node --check api/newsletter-subscribe.js
@@ -132,6 +134,7 @@ jobs:
           node --check lib/chat-assistant.js
           node --check lib/security.js
           node --check lib/auth-invite.js
+          node --check lib/access-roles.js
           node --check scripts/os-open-data-import.mjs
           node --test scripts/address-harvest-priority.test.mjs
           node --test scripts/address-commercial-foundation.test.mjs
@@ -153,6 +156,7 @@ jobs:
           node --test scripts/newsletter-center.test.mjs
           node --test scripts/chat-assistant.test.mjs
           node --test scripts/security-hardening.test.mjs
+          node --test scripts/access-roles.test.mjs
           node --test scripts/customer-booking-journey.test.mjs
           node --test scripts/privacy-center.test.mjs
           node --test scripts/booking-cancellation-policy.test.mjs
