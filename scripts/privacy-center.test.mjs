@@ -19,7 +19,7 @@ test('published privacy information covers lawful bases retention rights transfe
   assert.match(sql,/Your data-protection rights/i);
   assert.match(sql,/Information Commissioner's Office \(ICO\)/i);
   assert.match(sql,/formal legal name and postal correspondence address will be added/i);
-  assert.match(sql,/guide estimate does not itself create a booking or final price/i);
+  assert.match(sql,/estimate does not itself create a booking or final price/i);
 });
 
 test('customer privacy requests require an authenticated active customer',()=>{
