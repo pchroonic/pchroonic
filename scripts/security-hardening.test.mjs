@@ -64,5 +64,5 @@ test('account owner controls verified email changes and Admin does not expose pa
   assert.match(admin,/30\*60\*1000/);
   assert.match(admin,/editTempPassword/);
   assert.match(adminLoader,/admin-security-hardening\.js/);
-  assert.match(adminLoader,/6\.4\.33-privacy-centre-1/);
+  assert.match(adminLoader,/6\.4\.35-payment-policy-engine-1/);
 });
