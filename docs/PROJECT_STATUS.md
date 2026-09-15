@@ -4,51 +4,52 @@ Last updated: 2026-09-15 UTC
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current main `9bbf0b57e8a1fb5c1031ab6632add14ccb22e042` after PR #91 documentation; live product behavior includes PR #90 Owner/custom access roles.
+- Current live product merge `ab218cdc0aceec0cb68b346a73c56d13393132c9` (PR #92 Staff app v2).
 - Admin base JS v`6.4.37-admin-website-crash-fix-1`; modal CSS v`6.4.38-admin-wide-modal-fix-1`; access-role extension v`6.4.39-access-roles-1`; customer loader v`6.4.35-payment-policy-engine-1`.
-- Current production Staff app is still v`6.4.31-staff-auth-recovery-1` until the Staff v2 candidate is released.
-- Production deployment `dpl_GFYggUDm33USwygrhPfzLcdDFiqp` is READY and aliased to `namdar.co.uk`.
-- Production health HTTP 200 / `ok:true` at `2026-09-15T14:57:54.408Z`.
+- Staff experience v`6.4.40-staff-experience-v2-1`; auth/security modules remain v`6.4.31-staff-auth-recovery-1`.
+- Production deployment `dpl_5ZryWTBFm95WeXNxJvUrc26eiFnU` is READY and aliased to `namdar.co.uk`.
+- Production health HTTP 200 / `ok:true` at `2026-09-15T15:26:16.537Z`.
 - Supabase production: `qjigldxjcpnrlyxgmlqq`.
 - Window Cleaning only live.
 - Privileged Staff/Admin requires CAPTCHA + AAL2/TOTP MFA.
 - Customer Stripe remains OFF; no commercial deposit bands were activated.
 - Ask Namdar provider AI disabled.
 
-## Staff app v2 — RELEASE CANDIDATE
-Branch `feature/staff-app-v2-20260915`, cache token `6.4.40-staff-experience-v2-1`.
+## Staff app v2 — LIVE
+PR #92 improves the field-team experience without replacing the secure job action engine.
 
-Candidate UX improvements:
+Live UX:
 - Today progress command centre with completed/remaining jobs and visual progress;
-- smart current/next job focus card;
+- smart current/next-job focus card;
 - Call, Navigate and Open job shortcuts;
-- quick actions and before/after photo counts on job cards;
+- quick Call/Navigate actions and before/after photo counts on job cards;
 - contextual Open / Continue / View job labels;
 - four-stage Assigned → On the way → In progress → Complete workflow strip;
 - Job brief from existing quote inputs/notes;
 - photo/note readiness summary;
-- sticky mobile job action zone with safe-area handling;
+- sticky mobile job actions with safe-area handling;
 - guarded 3-minute online refresh that pauses while the job dialog is open;
-- separate JS/CSS cache version plus new PWA cache generation.
+- separate Staff v2 JS/CSS version plus refreshed PWA cache generation.
 
 Compatibility/security:
 - existing `staff-original.js` remains authoritative for job updates;
-- no direct action API bypass was added;
-- existing assignment checks, route planner, photos, notes, offline privacy, PWA install, CAPTCHA, MFA and auth recovery remain intact;
-- no database migration or API schema change is required;
-- no test customer/staff/booking/payment data is needed;
+- no direct action-API bypass was added;
+- assignment checks, route planner, photos, notes, offline privacy, PWA install, CAPTCHA, MFA and auth recovery remain intact;
+- no database migration or API schema change was required;
+- no customer/staff/booking/payment test data was created;
 - Stripe remains OFF.
 
-Files:
-- `staff-experience-v2.js`
-- `staff-experience-v2.css`
-- `staff.js`
-- `staff-sw.js`
-- `scripts/staff-experience-v2.test.mjs`
-- `.github/workflows/staff-experience-v2-check.yml`
-- continuity docs.
+Release evidence:
+- exact head `83ae22b232009927baa7e33055d775b34a4a362f`;
+- full CI `34988278569` SUCCESS;
+- dedicated Staff v2 CI `34988278242` SUCCESS;
+- preview `dpl_BvGbxPz4QAcGseoxc7DiVbvrNoma` READY / clean build;
+- merge `ab218cdc0aceec0cb68b346a73c56d13393132c9`;
+- production `dpl_5ZryWTBFm95WeXNxJvUrc26eiFnU` READY / clean build / aliased to `namdar.co.uk`;
+- live `/staff`, Staff loader, Staff v2 JS/CSS and service worker all HTTP 200 with the new version/cache token;
+- post-release health HTTP 200 and runtime scan found no 5xx logs.
 
-Release status: implementation is on the feature branch. Exact-head GitHub CI, Vercel preview/build verification, merge and production verification still need to complete before marking LIVE. Visual owner smoke testing should confirm `/staff` on mobile and desktop after preview/production because the full job UI is authenticated.
+Manual follow-up: authenticated phone smoke-test of the Today overview, quick actions and workflow strip with a real assigned job.
 
 ## Owner & custom access roles — LIVE
 PR #90 is live with protected Owner and Administrator system roles plus reusable custom Staff roles. Owner can create/edit/delete custom roles, manage Administrator accounts and grant Owner access. Administrator keeps full normal operational Admin access. Assigned custom roles are protected from deletion and permission edits propagate to assigned Staff. Current-account, last-Owner and last-Administrator safeguards prevent lockout.
@@ -61,7 +62,7 @@ PR #90 is live with protected Owner and Administrator system roles plus reusable
 - Fair cancellation terms, Privacy Centre, Security Hardening, Staff auth recovery, Business Finance, Smart Receipts, Newsletter Centre and guided Ask Namdar remain live/stable.
 
 ## Open roadmap
-- Finish and verify Staff app v2 release.
+- Owner visual smoke-test of Staff app v2.
 - Commercial Stripe decision and actual deposit policy.
 - ICO data-protection fee self-assessment.
 - Supabase Leaked Password Protection.
