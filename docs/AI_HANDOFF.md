@@ -5,94 +5,97 @@ Last verified: 2026-09-16 UTC
 Read `docs/AI_START.md` first. Use `docs/PROJECT_STATUS.md` for roadmap/status.
 
 ## Production baseline
-- Repo: `pchroonic/pchroonic`, default `main`.
-- Current live Staff experience: v2 `6.4.40-staff-experience-v2-1`; auth/security base `6.4.31-staff-auth-recovery-1`.
+- Repo `pchroonic/pchroonic`, default `main`.
+- Current live merge `784b7c766ed88fe8f53057dd1a657555d57da69d` from PR #94.
+- Staff operations v3 token `6.4.41-staff-operations-v3-1`; Staff v2 token `6.4.40-staff-experience-v2-1`; Staff auth/security base `6.4.31-staff-auth-recovery-1`.
 - Admin base `6.4.37-admin-website-crash-fix-1`; modal layout `6.4.38-admin-wide-modal-fix-1`; access roles `6.4.39-access-roles-1`.
-- Customer loader `6.4.35-payment-policy-engine-1`.
+- Customer base loader `6.4.35-payment-policy-engine-1` with a separate v3 ETA extension.
 - Supabase production: `qjigldxjcpnrlyxgmlqq`.
-- Vercel project: `prj_4fILo0pCaLGUSUIMWrBIVGzeWVDC`; team `team_8Az8WtWcnfwtYRdhR8vGqC3L`.
+- Vercel project `prj_4fILo0pCaLGUSUIMWrBIVGzeWVDC`; team `team_8Az8WtWcnfwtYRdhR8vGqC3L`.
+- Production deployment `dpl_BvETZL2tzcUvfx9Nivaid1RATUrJ` is READY on `namdar.co.uk`.
+- Health HTTP 200 / `ok:true` at `2026-09-16T09:40:33.475Z`.
 - Window Cleaning only live. Customer Stripe OFF. Provider AI OFF. Privileged access requires CAPTCHA + AAL2/TOTP.
 
-# Staff operations v3 — RELEASE CANDIDATE
+# Staff operations v3 — LIVE
 
-## User request
-After Staff v2 went live, improve the field app further with quality control, problem/incident reporting and a better On My Way/customer ETA flow.
+## Purpose
+Improve real field operations after Staff v2 by adding quality control, problem/incident reporting and a clearer On My Way/customer ETA flow, while retaining the existing secure Staff lifecycle.
 
-Branch: `feature/staff-operations-v3-20260916`.
-Version/cache token: `6.4.41-staff-operations-v3-1`.
+## Database
+Migration: `supabase/migrations/20260916103000_staff_field_quality_and_incidents.sql`.
 
-## Architecture decision
-Keep `staff-original.js` and the existing Staff v2 UX intact. Add a v3 extension layer for new field operations, and extend the existing server-side assigned-job mutation boundary rather than creating an insecure browser-only state path.
-
-### Database migration
-`supabase/migrations/20260916103000_staff_field_quality_and_incidents.sql` is backward-compatible and adds:
-- `bookings.on_my_way_eta_minutes` (5–120 minutes or null);
+Production migration `staff_field_quality_and_incidents` is applied and adds:
+- `bookings.on_my_way_eta_minutes` with a 5–120 minute bound;
 - `bookings.estimated_arrival_at`;
 - private `booking_field_quality` keyed by booking;
 - private `booking_field_incidents` with type, priority, details, evidence paths, status and resolution fields;
 - indexes for booking/recent and open incidents;
-- RLS enabled and anon/authenticated access revoked from both new private tables.
+- RLS on both new tables with direct `anon` / `authenticated` access revoked.
 
-Do **not** apply the migration to production until exact-head branch CI and preview/build verification are clean.
+Post-migration verification showed both new tables contained zero rows immediately after migration, both ETA columns existed, and RLS was enabled. No customer/staff/booking/payment test rows were created.
 
-### `api/staff-job-action.js`
-Still requires `requireStaff(req,'bookings')` and verifies the booking is assigned to the signed-in staff user before any job mutation.
+## Server boundary
+`api/staff-job-action.js` remains the only field mutation boundary. It still requires `requireStaff(req,'bookings')` and checks the booking is assigned to the signed-in Staff account before any mutation.
 
 New actions:
-- `checklist`: Window Cleaning only; sanitises the six supported boolean steps and upserts the private quality record with audit log;
-- `incident`: validates type/priority/summary/details, inserts a private incident, sends an Admin `staff_notification`, and audits it;
-- `incident_photo`: validates a booking/customer/incident-scoped private storage path before attaching up to ten evidence paths.
+- `checklist`: Window Cleaning only; sanitises six supported checklist booleans, upserts the private quality record and audit-logs the change;
+- `incident`: validates type/severity/summary/details, inserts a private incident, creates an Admin staff notification and audits it;
+- `incident_photo`: validates a customer/booking/incident-scoped private storage path before attaching evidence.
 
-Lifecycle updates:
-- `on_my_way` accepts a bounded ETA, stores ETA minutes + expected arrival time, and keeps the existing customer On My Way notification flow;
+Lifecycle changes:
+- `on_my_way` accepts a bounded ETA and stores ETA minutes + expected-arrival time while retaining the existing customer On My Way notification path;
 - `completed` performs a server-side Window Cleaning checklist gate before marking the job complete.
 
-Existing notes, before/after photos, economics, start/completion notifications, follow-up and audit behavior are retained.
+Existing notes, before/after photos, direct-cost closeout, start/completion notifications, follow-up and audit behavior remain intact.
 
-### `api/staff-jobs.js`
-Returns private field quality and incident summaries only to assigned authenticated Staff, plus ETA fields. Customer-facing data is not mixed into these private tables.
+## Staff UI
+`staff-operations-v3.js` / `staff-operations-v3.css` load after Staff v2 and wrap existing `openJob`, `renderJobs` and `runAction` rather than replacing the base engine.
 
-### `staff-operations-v3.js` / `.css`
-Loaded after Staff v2. It wraps the current `openJob`, `renderJobs` and `runAction` functions rather than replacing the base engine.
-
-Adds:
-- six-step Window Cleaning quality checklist with progress and explicit save;
+Live UI adds:
+- six-step Window Cleaning quality checklist and progress;
 - client completion guard backed by the server-side gate;
-- problem/incident section showing recent/open issues;
-- problem-report dialog with type, priority, summary, details and up to five evidence photos per report attempt;
-- Admin-office alert acknowledgement after save;
-- improved On My Way dialog with suggested/default ETA and expected-arrival preview;
-- ETA display inside the active job;
-- open-incident badge on Staff job cards;
-- responsive mobile styling.
+- Problems & incidents section with recent/open issues;
+- report dialog for no access, safety, weather, equipment, damage, complaint, extra work or other;
+- `info`, `attention`, `urgent` priorities;
+- up to five evidence photos per report attempt, stored in the existing private job-photo bucket path;
+- improved On My Way dialog with approximate ETA options and expected-arrival preview;
+- ETA display in the active Staff job;
+- open-incident badges on Staff job cards;
+- mobile responsive styling.
 
-### Admin incident handling
-`api/admin-booking-incidents.js` requires `bookings` permission. GET lists incidents for one booking; PATCH resolves/reopens them and writes an audit record.
+If Staff has already explicitly shared route location, the ETA dialog can use the existing route estimate as a suggestion; otherwise it uses a safe default. It does not silently request location.
 
-`admin-field-incidents.js` wraps `openBookingEditor` so the booking modal shows field incidents and resolve/reopen controls. `admin-field-incidents.css` keeps the display compact and priority-aware.
+## Admin incident handling
+`api/admin-booking-incidents.js` requires `bookings` permission. GET lists incidents for one booking; PATCH resolves/reopens an incident and audit-logs the action.
 
-### Customer ETA
-`api/customer-jobs.js` now returns only `onMyWayEtaMinutes` and `estimatedArrivalAt` in addition to the existing booking tracking fields. It does **not** expose quality checklists or incident records.
+`admin-field-incidents.js` wraps `openBookingEditor`; the booking editor now shows field incidents and resolve/reopen controls. `admin-field-incidents.css` provides priority-aware styling.
 
-`account-field-eta.js` wraps `renderBookings` and upgrades the existing On My Way banner to show the expected arrival time/approximate minutes.
+## Customer ETA
+`api/customer-jobs.js` exposes only `onMyWayEtaMinutes` and `estimatedArrivalAt` in addition to the existing booking tracking fields. It does not expose field checklist or incident records.
 
-### PWA/cache
+`account-field-eta.js` wraps the existing booking renderer and upgrades the On My Way banner with the expected-arrival time / approximate minutes.
+
+## PWA/cache
 - `staff.html` points to `staff.js?v=6.4.41-staff-operations-v3-1`.
-- `staff.js` retains Staff v2 and auth/security pins and loads v3 JS/CSS separately.
-- `staff-sw.js` uses cache generation `namdar-staff-v6.4.41-staff-operations-v3-1` and pre-caches the v3 assets while preserving network-first handling for auth-critical files.
+- `staff.js` keeps v2 and auth/security pins and separately loads v3 JS/CSS.
+- `staff-sw.js` cache generation is `namdar-staff-v6.4.41-staff-operations-v3-1`, includes v3 assets, and retains network-first auth-critical handling.
 
-## Verification plan
-1. Open PR and wait for both full `AI handoff and JavaScript checks` and dedicated `Staff operations v3 checks` on the exact head.
-2. Verify exact-head Vercel preview is READY and errors-only build logs are clean.
-3. Apply the migration to production only after steps 1–2 pass, then verify schema and no existing row mutations.
-4. Merge exact tested head.
-5. Verify production deployment, `/api/health`, live Staff/Admin/Account loader assets, new API auth behavior and runtime 5xx logs.
-6. Owner performs an authenticated mobile smoke test with a real assigned job: checklist save/gate, incident report, On My Way ETA, customer ETA display, Admin incident review.
+## Release evidence
+- PR #94 exact tested head: `370a75d47f6d757179b02ce5db79d7ea6b87c877`.
+- Full CI `35080584185`: SUCCESS.
+- Dedicated Staff v3 CI `35080584357`: SUCCESS.
+- Staff v2 compatibility CI `35080584294`: SUCCESS.
+- Exact-head preview `dpl_5ybJj7duWzrrYqZZbW7CBAVp9UXH`: READY, clean errors-only build logs.
+- Migration applied only after CI + preview passed; schema verification clean and zero new field rows.
+- Merge: `784b7c766ed88fe8f53057dd1a657555d57da69d`.
+- Production `dpl_BvETZL2tzcUvfx9Nivaid1RATUrJ`: READY, clean build, `namdar.co.uk` alias active.
+- `/api/health`: HTTP 200 / `ok:true`.
+- Live Staff loader, v3 JS, Staff service worker, Account ETA loader and Admin incident loader all serve the v3 token.
+- Unauthenticated Admin incident API request correctly returned 401.
+- Post-release production scan found no 5xx runtime logs.
 
-## Release constraints
-- No real/synthetic customer, staff, booking or payment data should be created during automated verification.
-- Do not activate Stripe or alter payment policy.
-- Do not relax CAPTCHA, MFA, assignment checks, offline privacy or current role protections.
+## Manual follow-up
+The remaining check is an authenticated phone smoke test using a real assigned job: checklist save/gate, incident report/evidence, On My Way ETA, customer ETA display and Admin incident resolution. Do not create fake production customer/job/payment data just for this check.
 
-# Existing live systems
-Owner/custom roles, Staff v2, responsive booking editor, secure logo upload, Website/Legal crash repair, Privacy Centre, Security Hardening, Business Finance, Smart Receipts, Newsletter Centre, guided Ask Namdar, and the flexible payment-policy engine remain live/stable. Commercial Stripe remains OFF.
+# Other live systems
+Owner/custom roles, Staff v2, responsive booking editor, secure logo upload, Website/Legal crash repair, Privacy Centre, Security Hardening, Business Finance, Smart Receipts, Newsletter Centre, guided Ask Namdar and the flexible payment-policy engine remain live/stable. Commercial Stripe remains OFF.

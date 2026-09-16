@@ -6,53 +6,53 @@ Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PR
 
 ## Production source of truth
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current live product behavior remains PR #92 Staff app v2 (`6.4.40-staff-experience-v2-1`) plus the previously verified Owner/custom-role release.
-- Staff auth/security modules remain `6.4.31-staff-auth-recovery-1`.
+- Current live product merge: `784b7c766ed88fe8f53057dd1a657555d57da69d` (PR #94 Staff operations v3).
+- Staff operations version/cache token: `6.4.41-staff-operations-v3-1`; Staff v2 remains loaded underneath as `6.4.40-staff-experience-v2-1`; auth/security modules remain `6.4.31-staff-auth-recovery-1`.
 - Admin base JavaScript remains `6.4.37-admin-website-crash-fix-1`; modal CSS `6.4.38-admin-wide-modal-fix-1`; access roles `6.4.39-access-roles-1`.
-- Customer loader remains `6.4.35-payment-policy-engine-1`.
-- Production Supabase project: `qjigldxjcpnrlyxgmlqq`.
-- Vercel project: `prj_4fILo0pCaLGUSUIMWrBIVGzeWVDC`; team `team_8Az8WtWcnfwtYRdhR8vGqC3L`.
+- Customer base loader remains `6.4.35-payment-policy-engine-1`, with the Staff-v3 ETA extension loaded separately.
+- Supabase production project: `qjigldxjcpnrlyxgmlqq`.
+- Vercel production deployment `dpl_BvETZL2tzcUvfx9Nivaid1RATUrJ` is READY and aliased to `namdar.co.uk`.
+- `/api/health` returned HTTP 200 / `ok:true` at `2026-09-16T09:40:33.475Z`.
 - Window Cleaning is the only live/quotable/bookable service.
 - Customer Stripe remains OFF; no commercial deposit bands are active.
 - Ask Namdar provider AI remains OFF.
 - Privileged Staff/Admin access requires CAPTCHA + AAL2/TOTP MFA.
 
-## Staff operations v3 — RELEASE CANDIDATE
-Branch: `feature/staff-operations-v3-20260916`.
-Version/cache token: `6.4.41-staff-operations-v3-1`.
+## Staff operations v3 — LIVE
+PR #94 adds field-quality and incident operations without replacing the existing secure Staff lifecycle.
 
-Goal: improve real field operations on top of Staff v2 without replacing the existing secure job engine.
+Live capabilities:
+- six-step Window Cleaning quality checklist;
+- server-side checklist gate before a Window Cleaning job can be completed;
+- field problem/incident reporting for no access, safety, weather, equipment, damage, complaints, extra work and other issues;
+- `info`, `attention` and `urgent` incident priorities plus optional private evidence photos;
+- Admin notifications for new incidents;
+- Admin booking-editor incident review with resolve/reopen controls and audit logging;
+- improved **On my way** flow with bounded ETA and expected-arrival time;
+- customer booking tracking shows the expected arrival while the team is on the way;
+- open-incident badges in Staff;
+- private `booking_field_quality` and `booking_field_incidents` stores with RLS and no direct anon/authenticated access;
+- refreshed Staff PWA cache generation `namdar-staff-v6.4.41-staff-operations-v3-1`.
 
-Candidate scope:
-- Window Cleaning field-quality checklist with six required completion steps;
-- server-side completion gate so the checklist cannot be bypassed in the browser;
-- problem/incident reporting for no access, safety, weather, equipment, damage, complaints, extra work or other issues;
-- incident priority (`info`, `attention`, `urgent`) and optional evidence-photo upload;
-- office notification for every new incident;
-- Admin booking incident review with resolve/reopen actions and audit logging;
-- improved **On my way** flow that records a realistic ETA and keeps the existing customer arrival notification;
-- customer booking tracking shows the ETA while the team is on the way;
-- open-incident badges on Staff job cards;
-- private server-only field-quality and incident tables protected by RLS/revoked customer access;
-- refreshed Staff PWA cache generation containing the new v3 assets.
+Security/compatibility:
+- `staff-original.js` remains authoritative for existing lifecycle, routing, photos, notes and offline behavior;
+- `api/staff-job-action.js` remains the assigned-job mutation boundary and requires `bookings` permission + AAL2 via `requireStaff`;
+- customer jobs expose ETA only, not private quality or incident records;
+- CAPTCHA, MFA, assignment checks, offline privacy and current role protections remain intact;
+- no real/synthetic customer, staff, booking or payment data was created during release verification;
+- Stripe remains OFF.
 
-Architecture/safety:
-- `staff-original.js` remains authoritative for the existing lifecycle, routing, photos, notes and offline behavior;
-- `api/staff-job-action.js` remains the single assigned-job mutation boundary and still requires `bookings` permission + AAL2 through `requireStaff`;
-- the new checklist and incident tables are never returned by the customer jobs API;
-- incident photos use the existing private customer-project-files storage path pattern;
-- no real customer/staff/booking/payment test data is required for release verification;
-- Stripe must remain OFF;
-- do not apply the production database migration until exact-head CI and Vercel preview/build verification are clean.
-
-Candidate files include:
-- `staff-operations-v3.js` / `staff-operations-v3.css`;
-- `api/staff-job-action.js`, `api/staff-jobs.js`, `api/customer-jobs.js`;
-- `api/admin-booking-incidents.js`;
-- `admin-field-incidents.js` / `.css`;
-- `account-field-eta.js`;
-- `supabase/migrations/20260916103000_staff_field_quality_and_incidents.sql`;
-- Staff v3 regression tests/workflow plus continuity docs.
+Release evidence:
+- exact tested head `370a75d47f6d757179b02ce5db79d7ea6b87c877`;
+- full CI `35080584185` SUCCESS;
+- Staff v3 CI `35080584357` SUCCESS;
+- Staff v2 compatibility CI `35080584294` SUCCESS;
+- exact-head preview `dpl_5ybJj7duWzrrYqZZbW7CBAVp9UXH` READY with clean errors-only build logs;
+- migration `staff_field_quality_and_incidents` applied only after CI/preview passed; both new tables were empty immediately after migration, ETA columns existed, and RLS was enabled;
+- merge `784b7c766ed88fe8f53057dd1a657555d57da69d`;
+- production `dpl_BvETZL2tzcUvfx9Nivaid1RATUrJ` READY, clean build, aliased to `namdar.co.uk`;
+- live Staff v3 loader/module/service worker, customer ETA loader and Admin incident loader are serving the new token;
+- post-release 5xx runtime scan found no 5xx logs.
 
 ## Existing live systems
 - Staff app v2 daily command centre and route workflow.
@@ -63,6 +63,6 @@ Candidate files include:
 - Privacy Centre, Security Hardening, Business Finance, Smart Receipts, Newsletter Centre and guided Ask Namdar.
 
 ## Open items
-- Complete Staff v3 exact-head CI and preview verification, then apply its backward-compatible migration, merge and verify production before marking LIVE.
-- Authenticated phone smoke test remains important after release.
+- Authenticated mobile smoke test with a real assigned job: checklist save/completion gate, incident report/photo, On My Way ETA, customer ETA display and Admin incident resolution.
+- Commercial Stripe decision and actual deposit policy remain separate owner decisions.
 - ICO self-assessment, Supabase Leaked Password Protection, Google review URL, real-job pricing calibration, SMS/legal checks, Node `url.parse()` cleanup and the parked address-data pilot remain open.
