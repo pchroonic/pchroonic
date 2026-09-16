@@ -43,7 +43,9 @@ test('Staff jobs API returns private quality/incident summaries and ETA',()=>{
 test('Staff v3 field UI adds checklist incidents evidence and ETA workflow',()=>{
   const source=read('staff-operations-v3.js'),css=read('staff-operations-v3.css');
   assert.match(source,/Window-cleaning checklist/);
+  assert.match(source,/staff-ops-quality/);
   assert.match(source,/Report a problem/);
+  assert.match(source,/staff-ops-incidents/);
   assert.match(source,/incident_photo/);
   assert.match(source,/staffEtaMinutes/);
   assert.match(source,/customerNotification/);
@@ -51,8 +53,8 @@ test('Staff v3 field UI adds checklist incidents evidence and ETA workflow',()=>
   assert.match(source,/baseRender=renderJobs/);
   assert.match(source,/baseRun=runAction/);
   assert.match(source,/missingQuality/);
-  assert.match(css,/staff-ops-quality/);
-  assert.match(css,/staff-ops-incidents/);
+  assert.match(css,/staff-ops-section/);
+  assert.match(css,/staff-ops-incident/);
   assert.match(css,/staff-ops-eta-live/);
   assert.match(css,/@media\(max-width:700px\)/);
 });
