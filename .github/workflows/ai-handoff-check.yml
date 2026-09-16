@@ -26,6 +26,7 @@ jobs:
           node --check legal-page.js
           node --check account.js
           node --check account-original.js
+          node --check account-field-eta.js
           node --check account-booking-journey.js
           node --check account-booking-policy.js
           node --check account-privacy-center.js
@@ -45,6 +46,7 @@ jobs:
           node --check admin-mfa-guard.js
           node --check admin-security-hardening.js
           node --check admin-role-management.js
+          node --check admin-field-incidents.js
           node --check admin-address-harvest.js
           node --check admin-services.js
           node --check admin-booking-operations.js
@@ -65,6 +67,7 @@ jobs:
           node --check api/admin-services.js
           node --check api/admin-booking-operations.js
           node --check api/admin-booking-update.js
+          node --check api/admin-booking-incidents.js
           node --check api/admin-review-settings.js
           node --check api/admin-payment-settings.js
           node --check api/admin-brand-logo.js
@@ -87,6 +90,7 @@ jobs:
           node --check api/address-search.js
           node --check api/staff-job-action.js
           node --check api/staff-jobs.js
+          node --check api/customer-jobs.js
           node --check api/feedback.js
           node --check api/booking-notifications.js
           node --check api/funnel-event.js
@@ -164,11 +168,15 @@ jobs:
           node --check lib/server-original.js
           node --check staff.js
           node --check staff-original.js
+          node --check staff-experience-v2.js
+          node --check staff-operations-v3.js
           node --check staff-auth-readiness.js
           node --check staff-closeout.js
           node --check staff-mfa-guard.js
           node --check staff-sw.js
           node --test scripts/staff-auth-readiness.test.mjs
+          node --test scripts/staff-experience-v2.test.mjs
+          node --test scripts/staff-operations-v3.test.mjs
           node --check conversion.js
           node --check feedback.js
           node --check seo-page.js

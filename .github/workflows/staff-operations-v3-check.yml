@@ -1,0 +1,66 @@
+name: Staff operations v3 checks
+
+on:
+  pull_request:
+    paths:
+      - 'staff.js'
+      - 'staff.html'
+      - 'staff-sw.js'
+      - 'staff-operations-v3.js'
+      - 'staff-operations-v3.css'
+      - 'account.js'
+      - 'account-field-eta.js'
+      - 'admin.js'
+      - 'admin-field-incidents.js'
+      - 'admin-field-incidents.css'
+      - 'api/staff-job-action.js'
+      - 'api/staff-jobs.js'
+      - 'api/customer-jobs.js'
+      - 'api/admin-booking-incidents.js'
+      - 'supabase/migrations/20260916103000_staff_field_quality_and_incidents.sql'
+      - 'scripts/staff-operations-v3.test.mjs'
+      - '.github/workflows/staff-operations-v3-check.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'staff.js'
+      - 'staff.html'
+      - 'staff-sw.js'
+      - 'staff-operations-v3.js'
+      - 'staff-operations-v3.css'
+      - 'account.js'
+      - 'account-field-eta.js'
+      - 'admin.js'
+      - 'admin-field-incidents.js'
+      - 'admin-field-incidents.css'
+      - 'api/staff-job-action.js'
+      - 'api/staff-jobs.js'
+      - 'api/customer-jobs.js'
+      - 'api/admin-booking-incidents.js'
+      - 'supabase/migrations/20260916103000_staff_field_quality_and_incidents.sql'
+      - 'scripts/staff-operations-v3.test.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  staff-v3:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Staff v3 JavaScript syntax
+        run: |
+          node --check staff.js
+          node --check staff-operations-v3.js
+          node --check staff-sw.js
+          node --check account.js
+          node --check account-field-eta.js
+          node --check admin.js
+          node --check admin-field-incidents.js
+          node --check api/staff-job-action.js
+          node --check api/staff-jobs.js
+          node --check api/customer-jobs.js
+          node --check api/admin-booking-incidents.js
+      - name: Run Staff v3 regression tests
+        run: node --test scripts/staff-operations-v3.test.mjs

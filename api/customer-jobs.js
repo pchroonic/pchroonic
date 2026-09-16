@@ -25,7 +25,7 @@ module.exports=async function handler(req,res){
       const q=quoteMap[b.quote_id]||{},s=staffMap[b.assigned_staff_id]||null,complete=(b.work_status==='completed'||b.status==='completed');
       return {
         id:b.id,quoteId:b.quote_id||null,startsAt:b.starts_at,endsAt:b.ends_at,address:b.address,status:b.status,paymentStatus:b.payment_status,
-        workStatus:b.work_status||'scheduled',onMyWayAt:b.on_my_way_at||null,startedAt:b.started_at||null,completedAt:b.completed_at||null,
+        workStatus:b.work_status||'scheduled',onMyWayAt:b.on_my_way_at||null,onMyWayEtaMinutes:b.on_my_way_eta_minutes==null?null:Number(b.on_my_way_eta_minutes),estimatedArrivalAt:b.estimated_arrival_at||null,startedAt:b.started_at||null,completedAt:b.completed_at||null,
         serviceKey:q.service_key||'',serviceLabel:SERVICE_LABELS[q.service_key]||q.service_key||'Namdar service',
         price:q.final_price!=null?Number(q.final_price):(q.automatic_estimate!=null?Number(q.automatic_estimate):null),postcode:q.postcode||'',
         assignedStaff:s,customerNote:String(b.customer_note||'').trim(),
