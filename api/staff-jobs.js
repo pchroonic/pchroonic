@@ -11,23 +11,33 @@ module.exports=async function handler(req,res){
     const quoteIds=[...new Set((bookings||[]).map(b=>b.quote_id).filter(Boolean))];
     const customerIds=[...new Set((bookings||[]).map(b=>b.customer_id).filter(Boolean))];
     const bookingIds=[...new Set((bookings||[]).map(b=>b.id).filter(Boolean))];
-    let quotes=[],customers=[],costs=[];
+    let quotes=[],customers=[],costs=[],qualityRows=[],incidentRows=[];
     if(quoteIds.length)quotes=await db(`quotes?id=in.(${quoteIds.map(x=>encodeURIComponent(x)).join(',')})&select=id,customer_id,customer_name,email,phone,postcode,service_key,final_price,automatic_estimate,inputs`);
     if(customerIds.length)customers=await db(`profiles?id=in.(${customerIds.map(x=>encodeURIComponent(x)).join(',')})&select=id,full_name,email,phone,postcode,address_line1,address_line2,city,district,region,latitude,longitude`);
-    if(bookingIds.length)costs=await db(`booking_job_costs?booking_id=in.(${bookingIds.map(x=>encodeURIComponent(x)).join(',')})&select=booking_id,consumables_cost,parking_cost,travel_cost,other_cost,travel_minutes,travel_miles,notes,updated_at`);
+    if(bookingIds.length){
+      [costs,qualityRows,incidentRows]=await Promise.all([
+        db(`booking_job_costs?booking_id=in.(${bookingIds.map(x=>encodeURIComponent(x)).join(',')})&select=booking_id,consumables_cost,parking_cost,travel_cost,other_cost,travel_minutes,travel_miles,notes,updated_at`),
+        db(`booking_field_quality?booking_id=in.(${bookingIds.map(x=>encodeURIComponent(x)).join(',')})&select=booking_id,checklist_version,checklist,updated_at`),
+        db(`booking_field_incidents?booking_id=in.(${bookingIds.map(x=>encodeURIComponent(x)).join(',')})&select=id,booking_id,incident_type,severity,summary,details,status,evidence_paths,created_at,resolved_at,resolution_note&order=created_at.desc&limit=500`)
+      ]);
+    }
     const quoteMap=Object.fromEntries((quotes||[]).map(q=>[q.id,q]));
     const customerMap=Object.fromEntries((customers||[]).map(p=>[p.id,p]));
     const costMap=Object.fromEntries((costs||[]).map(c=>[c.booking_id,c]));
+    const qualityMap=Object.fromEntries((qualityRows||[]).map(q=>[q.booking_id,q]));
+    const incidentMap={};for(const incident of incidentRows||[]){(incidentMap[incident.booking_id] ||= []).push(incident)}
     const jobs=(bookings||[]).map(b=>{
-      const q=quoteMap[b.quote_id]||{},p=customerMap[b.customer_id]||{},c=costMap[b.id]||null;
+      const q=quoteMap[b.quote_id]||{},p=customerMap[b.customer_id]||{},c=costMap[b.id]||null,quality=qualityMap[b.id]||null,incidents=incidentMap[b.id]||[];
       return {
         id:b.id,quoteId:b.quote_id||null,customerId:b.customer_id||q.customer_id||null,
         startsAt:b.starts_at,endsAt:b.ends_at,address:b.address,status:b.status,paymentStatus:b.payment_status,
-        workStatus:b.work_status||'scheduled',onMyWayAt:b.on_my_way_at||null,startedAt:b.started_at||null,completedAt:b.completed_at||null,
+        workStatus:b.work_status||'scheduled',onMyWayAt:b.on_my_way_at||null,onMyWayEtaMinutes:b.on_my_way_eta_minutes==null?null:Number(b.on_my_way_eta_minutes),estimatedArrivalAt:b.estimated_arrival_at||null,startedAt:b.started_at||null,completedAt:b.completed_at||null,
         beforeImages:Array.isArray(b.before_images)?b.before_images:[],afterImages:Array.isArray(b.after_images)?b.after_images:[],staffNotes:b.staff_notes||'',customerNote:b.customer_note||'',
         customer:{name:q.customer_name||p.full_name||'Customer',email:q.email||p.email||'',phone:q.phone||p.phone||'',postcode:q.postcode||p.postcode||'',latitude:p.latitude==null?null:Number(p.latitude),longitude:p.longitude==null?null:Number(p.longitude)},
         serviceKey:q.service_key||'',serviceLabel:SERVICE_LABELS[q.service_key]||q.service_key||'Namdar service',
         price:q.final_price!=null?Number(q.final_price):(q.automatic_estimate!=null?Number(q.automatic_estimate):null),inputs:q.inputs||{},
+        quality:quality?{version:quality.checklist_version||'',checklist:quality.checklist&&typeof quality.checklist==='object'?quality.checklist:{},updatedAt:quality.updated_at||null}:{version:q.service_key==='windows'?'windows_v1':'',checklist:{},updatedAt:null},
+        incidents:incidents.map(x=>({id:x.id,type:x.incident_type,severity:x.severity,summary:x.summary,details:x.details||'',status:x.status,evidenceCount:Array.isArray(x.evidence_paths)?x.evidence_paths.length:0,createdAt:x.created_at,resolvedAt:x.resolved_at||null,resolutionNote:x.resolution_note||''})),
         economics:c?{
           consumablesCost:Number(c.consumables_cost||0),parkingCost:Number(c.parking_cost||0),travelCost:Number(c.travel_cost||0),otherCost:Number(c.other_cost||0),
           travelMinutes:Number(c.travel_minutes||0),travelMiles:Number(c.travel_miles||0),notes:c.notes||'',updatedAt:c.updated_at||null

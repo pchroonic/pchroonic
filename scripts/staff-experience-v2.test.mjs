@@ -34,9 +34,9 @@ test('Staff v2 background refresh avoids overwriting an open job editor',()=>{
   assert.match(source,/180000/);
 });
 
-test('Staff PWA pre-caches the new experience assets under a new cache generation',()=>{
+test('Staff PWA keeps v2 assets while moving to the v3 cache generation',()=>{
   const sw=read('staff-sw.js');
-  assert.match(sw,/namdar-staff-v6\.4\.40-staff-experience-v2-1/);
+  assert.match(sw,/namdar-staff-v6\.4\.41-staff-operations-v3-1/);
   assert.match(sw,/staff-experience-v2\.js/);
   assert.match(sw,/staff-experience-v2\.css/);
 });

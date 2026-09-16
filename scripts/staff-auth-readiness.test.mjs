@@ -6,9 +6,10 @@ const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
 test('staff page pins the known Supabase build and current Staff loader',()=>{
   const html=read('staff.html'),loader=read('staff.js');
   assert.match(html,/@supabase\/supabase-js@2\.116\.0/);
-  assert.match(html,/staff\.js\?v=6\.4\.40-staff-experience-v2-1/);
+  assert.match(html,/staff\.js\?v=6\.4\.41-staff-operations-v3-1/);
   assert.match(loader,/6\.4\.31-staff-auth-recovery-1/);
   assert.match(loader,/6\.4\.40-staff-experience-v2-1/);
+  assert.match(loader,/6\.4\.41-staff-operations-v3-1/);
   assert.match(loader,/staff-auth-readiness\.js/);
   assert.ok(loader.indexOf('staff-original.js')<loader.indexOf('staff-auth-readiness.js'));
 });
@@ -36,7 +37,7 @@ test('staff auth recovery can reload the pinned browser client without a hard re
 
 test('staff service worker cannot hold auth-critical scripts on a stale cache-first bundle',()=>{
   const sw=read('staff-sw.js');
-  assert.match(sw,/namdar-staff-v6\.4\.40-staff-experience-v2-1/);
+  assert.match(sw,/namdar-staff-v6\.4\.41-staff-operations-v3-1/);
   assert.match(sw,/AUTH_CRITICAL/);
   assert.match(sw,/staff-auth-readiness\.js/);
   assert.match(sw,/@supabase\/supabase-js@2\.116\.0/);
