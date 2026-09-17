@@ -15,6 +15,34 @@ Last updated: 2026-09-17 UTC
 - Ask Namdar provider AI remains disabled.
 - No real Google Business review URL is configured yet, so public review requests/reminders remain off.
 
+## Stripe live readiness — RELEASE CANDIDATE
+PR #100 / `6.4.44-stripe-live-readiness-1`.
+
+Implemented:
+- classify Stripe secret keys as LIVE, TEST, unconfigured or unknown without exposing secret material;
+- production provider readiness now requires a recognised LIVE Stripe secret key plus configured webhook;
+- Stripe TEST keys can remain usable for preview/sandbox validation but can never make production customer payments effective;
+- unknown production key types fail closed;
+- Admin Payment & deposit policy shows Stripe mode, verified webhook state, production live-readiness and an explicit activation blocker;
+- activation checkbox stays unavailable when the current policy is off and production provider readiness is incomplete, while disabled policy drafts remain editable;
+- audit metadata records readiness mode/state, not secrets;
+- dedicated Stripe live-readiness CI was added and existing payment/payment-policy tests remain in the gate.
+
+Current Stripe account connected through the Stripe integration is a GB test-mode account (`acct_1UFAd1Cu9tojH31y`) and is not live-money ready: `charges_enabled=false`, `payouts_enabled=false`, `details_submitted=false`. Stripe still requires business profile completion and owner Terms acceptance. Namdar must not accept Stripe Terms or invent missing business details on the owner's behalf.
+
+Current candidate verification:
+- Stripe live-readiness check SUCCESS;
+- existing Stripe payment/policy tests SUCCESS;
+- Staff v3 compatibility SUCCESS;
+- Post-job compatibility SUCCESS;
+- Google Review compatibility SUCCESS;
+- Vercel preview clean/READY for tested product heads;
+- continuity docs updated in the same PR as required by the repository handoff guard.
+
+No customer payment activation, production payment-policy row, live Stripe secret, customer, booking or payment data is created by PR #100.
+
+Next Stripe stage after PR #100: owner completes Stripe onboarding/TOS, configure LIVE production secret + verified live webhook, confirm charges/payouts are enabled, then explicitly choose the commercial deposit/balance policy before switching customer payments on.
+
 ## Google Review System — LIVE
 PR #98 / Admin extension `6.4.43-google-reviews-1`.
 
@@ -72,11 +100,13 @@ Protected Owner/Administrator system roles and reusable custom Staff roles remai
 - Newsletter Centre and guided Ask Namdar.
 
 ## Open roadmap
+- Finish/merge Stripe live-readiness PR #100.
+- Complete Stripe account onboarding/TOS, then configure LIVE key + verified live webhook.
+- Choose and activate the commercial deposit/balance policy only after live provider readiness is verified.
 - Configure the real Google Business Profile review-request URL and choose whether the one-time reminder should be enabled.
 - Real-world Google review/post-job smoke with a genuine completed job.
 - Authenticated Staff v3 mobile smoke test.
 - Window real-job pricing calibration after genuine completed jobs accumulate.
-- Commercial Stripe decision and actual deposit policy.
 - ICO data-protection fee self-assessment.
 - Supabase Leaked Password Protection.
 - SMS/legal checks.
