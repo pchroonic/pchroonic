@@ -6,6 +6,7 @@ import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url);
 const {normalizePaymentPolicy,providerReadiness,checkoutPlan,headlinePriceWithAllowance}=require('../lib/payment-policy.js');
 const {checkoutIdempotencyKey,verifyStripeSignature,processorDetailsFromBalanceTransaction,readRawBody}=require('../lib/stripe-payments.js');
+const {receiptNumber}=require('../lib/payment-receipts.js');
 const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
 
 test('payment policy is safely disabled by default and needs both provider secrets',()=>{
@@ -90,4 +91,14 @@ test('Admin and customer payment surfaces are extensions and do not expose secre
   const adminApi=read('api/admin-payment-settings.js'),admin=read('admin-payment-settings.js'),account=read('account-payments.js');
   assert.match(adminApi,/requireStaff\(req,'settings'\)/);assert.match(adminApi,/!provider\.ready/);assert.match(adminApi,/payments\.settings_update/);assert.match(adminApi,/headline_allowance_active/);assert.doesNotMatch(adminApi,/STRIPE_SECRET_KEY.*return/);
   assert.match(read('admin.js'),/admin-payment-settings\.js/);assert.match(read('account.js'),/account-payments\.js/);assert.match(admin,/Enable secure online Stripe payments/);assert.match(admin,/verified webhook/);assert.match(account,/checkout\\\.stripe\\\.com/);
+});
+
+test('every payment has a stable customer-facing receipt number across email account PDF and Admin tracking',()=>{
+  const sample={id:'12345678-9abc-def0-1234-56789abcdef0'};
+  assert.equal(receiptNumber(sample),'RCP-12345678-9ABCDEF0');
+  assert.equal(receiptNumber(sample),receiptNumber({...sample,amount:50}));
+  const webhook=read('api/stripe-webhook.js'),customer=read('api/customer-billing.js'),account=read('account-payments.js'),pdf=read('api/billing-document.js'),adminApi=read('api/admin-payments.js'),adminReceipt=read('admin-payment-receipts.js'),adminLoader=read('admin.js');
+  assert.match(webhook,/Namdar payment receipt \$\{receiptNo\}/);assert.match(webhook,/Receipt number:/);assert.match(webhook,/receipt PDF and full payment history/i);
+  assert.match(customer,/receiptNumber:receiptNumber\(p\)/);assert.match(account,/p\.receiptNumber/);assert.match(pdf,/Receipt: \$\{receiptNo\}/);assert.match(pdf,/Quote \$\{receiptNo\}/);
+  assert.match(adminApi,/receipt_number:receiptNumber\(p\)/);assert.match(adminApi,/receiptNumber:receiptNo/);assert.match(adminReceipt,/search by Namdar receipt number/);assert.match(adminLoader,/admin-payment-receipts\.js/);
 });
