@@ -1,5 +1,6 @@
 const {json,db,requireCustomer,env,safeError}=require('../lib/server');
 const {loadPaymentPolicy,paymentPolicyFromSnapshot,checkoutPlan,overdueStage}=require('../lib/payment-policy');
+const {receiptNumber}=require('../lib/payment-receipts');
 const SERVICE_LABELS={windows:'Window cleaning',gutters:'Gutter cleaning',roof:'Roof cleaning',jetwash:'Jet washing',handyman:'Handyman',tour3d:'3D property tour'};
 
 module.exports=async function handler(req,res){
@@ -25,7 +26,7 @@ module.exports=async function handler(req,res){
         paymentTerms:{revision:i.payment_policy_revision??b.payment_policy_revision??snapshot?.revision??null,depositRequired:Number(i.deposit_required??b.deposit_required??0),balanceDueHours:i.balance_due_hours??snapshot?.balanceDueHours??null,legacy:contractPolicy.legacyBooking===true,consumerMonetaryLateFees:false},
         overdue:{...overdue,consumerMonetaryLateFees:false},
         onlinePayment:plan?{available:true,kind:plan.kind,amount:plan.amount,required:plan.required,allowFullPayment:contractPolicy.allowFullPayment&&plan.kind==='deposit',forceBalance}:{available:false},
-        payments:(pmap[i.id]||[]).map(p=>({id:p.id,direction:p.direction,kind:p.payment_kind,method:p.method,amount:Number(p.amount||0),reference:p.reference||'',paidAt:p.paid_at}))
+        payments:(pmap[i.id]||[]).map(p=>({id:p.id,receiptNumber:receiptNumber(p),direction:p.direction,kind:p.payment_kind,method:p.method,amount:Number(p.amount||0),reference:p.reference||'',paidAt:p.paid_at}))
       };
     });
     return json(res,200,{ok:true,invoices:rows,stripeEnabled:policy.effectiveActive,onlinePaymentsEnabled:policy.effectiveActive,stripeConfigured:policy.stripeConfigured,webhookConfigured:policy.webhookConfigured,paymentPolicy:{active:policy.active,effectiveActive:policy.effectiveActive,revision:policy.revision,mode:policy.mode,depositStrategy:policy.depositStrategy,depositPercent:policy.depositPercent,minimumDeposit:policy.minimumDeposit,allowFullPayment:policy.allowFullPayment,balanceDueHours:policy.balanceDueHours,consumerMonetaryLateFees:false}});
