@@ -1,5 +1,6 @@
 const { json, env, db, isManagedInboxAddress, processDueBookingNotifications, processDueBusinessNotifications, safeError } = require('../lib/server');
 const { processPostJobFollowUps } = require('../lib/post-job-followup');
+const { processReviewReminders } = require('../lib/review-reminders');
 const { scanBusinessFollowUpsBatched } = require('../lib/business-followup-batched');
 const { createResilientReadDb, retryTransient } = require('../lib/notification-cron-resilience');
 const { recordHealthState, statusFromFailures } = require('../lib/system-health');
@@ -34,10 +35,11 @@ module.exports=async function handler(req,res){
     const cronReadDb=createResilientReadDb(db,{maxAttempts:3,metrics:retryMetrics,label:'notification-cron'});
 
     const postJob=await runStage('post_job',()=>processPostJobFollowUps(10),retryMetrics);
+    const reviewReminders=await runStage('review_reminders',()=>processReviewReminders(10),retryMetrics);
     const booking=await runStage('booking_delivery',()=>processDueBookingNotifications(10),retryMetrics);
     const businessScan=await runStage('business_scan',()=>scanBusinessFollowUpsBatched({db:cronReadDb,env,isManagedInboxAddress}),retryMetrics);
     const businessDelivery=await runStage('business_delivery',()=>processDueBusinessNotifications(10),retryMetrics);
-    const stages={postJob,booking,businessScan,businessDelivery};
+    const stages={postJob,reviewReminders,booking,businessScan,businessDelivery};
     const failed=Object.values(stages).filter(x=>!x.ok).length;
     const status=failed===Object.keys(stages).length?503:200;
     const healthStatus=statusFromFailures(failed,Object.keys(stages).length),details=healthDetails(stages,retryMetrics);
