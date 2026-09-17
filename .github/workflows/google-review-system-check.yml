@@ -1,0 +1,33 @@
+name: Google review system checks
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  review-system:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Check review system JavaScript
+        run: |
+          node --check admin.js
+          node --check admin-post-job-followup.js
+          node --check api/admin-review-settings.js
+          node --check api/admin-review-dashboard.js
+          node --check api/review-click.js
+          node --check api/booking-notifications.js
+          node --check lib/server.js
+          node --check lib/post-job-followup.js
+          node --check lib/review-reminders.js
+      - name: Run review system regressions
+        run: |
+          node --test scripts/google-review-system.test.mjs
+          node --test scripts/post-job-followup.test.mjs
+          node --test scripts/post-job-customer-experience.test.mjs
