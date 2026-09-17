@@ -49,6 +49,23 @@ Current Stripe account connected through the Stripe integration is GB account `a
 
 Do not enable commercial production payments until the owner completes Stripe onboarding/TOS, LIVE credentials and a verified live webhook are configured, Stripe reports the live account ready to charge/payout, and the owner explicitly chooses the production deposit/balance policy.
 
+## Payment receipt tracking — RELEASE CANDIDATE
+Branch `feature/payment-receipt-tracking-20260917`; customer/Admin receipt asset candidate `6.4.45-payment-receipts-1`.
+
+Purpose: make every Namdar payment/refund easy to trace before live Stripe is enabled.
+
+Candidate behavior:
+- every `payment_records.id` deterministically maps to a stable customer-facing receipt number such as `RCP-12345678-9ABCDEF0` without exposing Stripe secrets;
+- Stripe and manually recorded payments/refunds include the receipt number in the customer email, staff/audit context and API response;
+- My Namdar Billing shows the receipt number beside each payment/refund and still provides a downloadable receipt PDF;
+- receipt PDFs use the same receipt number and tell the customer to quote it for support;
+- Admin transaction rows display the receipt number and the existing payment search can look up `RCP-...` receipt references through the receipt-tracking extension;
+- Stripe provider references/payment IDs remain available internally for reconciliation while processor fee/net fields remain excluded from customer surfaces;
+- no database migration is required: the receipt number is derived from the immutable payment UUID, so existing payment records remain valid and get the same reference every time;
+- this candidate does not activate Stripe, create payment policies or create customer/payment data.
+
+Production currently has 4 existing `payment_records`; the candidate does not rewrite or delete them. RLS on `payment_records` remains enabled.
+
 ## Google Review System — LIVE
 Product PR #98 remains live beneath this release. Admin can configure the official Google Business Profile review URL, fair review requests, one reminder and review funnel analytics. The URL remains intentionally unconfigured/off. Public review access never depends on a positive private rating and no reward/incentive is offered.
 
@@ -56,6 +73,7 @@ Product PR #98 remains live beneath this release. Admin can configure the offici
 Post-job Customer Experience PR #96 remains live: completed-job panels, private feedback, safe repeat quoting and next-clean guidance. Staff operations v3 PR #94 remains live with field checklist/completion gate, incidents/evidence, Admin incident handling and On My Way/customer ETA.
 
 ## Open items
+- Finish and verify the payment receipt-tracking release candidate before Stripe onboarding is completed.
 - Owner to complete Stripe business onboarding/TOS; then connect LIVE secret + verified live webhook and verify charges/payouts readiness.
 - Owner to choose exact commercial deposit/balance policy before customer payments are enabled.
 - Configure the real Google Business Profile review-request URL later; keep requests/reminders off until then.
