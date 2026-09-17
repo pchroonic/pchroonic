@@ -6,100 +6,97 @@ Read `docs/AI_START.md` first. Use `docs/PROJECT_STATUS.md` for roadmap/status.
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current live product merge `e3d6c2ac840e0fe0ac8a757100ade3fb418eeca5` from PR #96.
-- Customer base loader remains `6.4.35-payment-policy-engine-1`; Post-job Customer Experience extension is `6.4.42-post-job-experience-1`; Staff ETA extension remains `6.4.41-staff-operations-v3-1`.
-- Staff operations v3 token `6.4.41-staff-operations-v3-1`; Staff v2 token `6.4.40-staff-experience-v2-1`; Staff auth/security base `6.4.31-staff-auth-recovery-1`.
+- Current `main` `180817d4d6750d15a76bbf1c5ff1aa77e03f9403` (docs PR #97); live product merge `e3d6c2ac840e0fe0ac8a757100ade3fb418eeca5` from PR #96.
+- Customer base loader `6.4.35-payment-policy-engine-1`; Post-job Customer Experience `6.4.42-post-job-experience-1`; Staff operations/ETA `6.4.41-staff-operations-v3-1`.
 - Admin base `6.4.37-admin-website-crash-fix-1`; modal layout `6.4.38-admin-wide-modal-fix-1`; access roles `6.4.39-access-roles-1`.
-- Supabase production: `qjigldxjcpnrlyxgmlqq`.
+- Supabase production `qjigldxjcpnrlyxgmlqq`.
 - Vercel project `prj_4fILo0pCaLGUSUIMWrBIVGzeWVDC`; team `team_8Az8WtWcnfwtYRdhR8vGqC3L`.
-- Production deployment `dpl_2Cusp5Hv9gJkxu6QPi2c2MRgHJLX` is READY and aliased to `namdar.co.uk`.
-- Health HTTP 200 / `ok:true` at `2026-09-17T18:12:16.395Z`.
+- Current production deployment `dpl_Djbqajdyy6mPm6rxkzY3j6App5ED` READY on `namdar.co.uk`; health HTTP 200 / `ok:true` at `2026-09-17T18:15:34.571Z`.
 - Window Cleaning only live. Customer Stripe OFF. Provider AI OFF. Privileged access requires CAPTCHA + AAL2/TOTP.
+- Production has no `site_settings.reviews` row yet, so public Google review requests remain hidden/off until the owner configures the real link.
 
-# Post-job Customer Experience — LIVE
+# Google Review System — RELEASE CANDIDATE
 
-Product PR #96: `Add post-job customer experience and repeat quoting`.
-Exact tested head: `e652b25a7dc36c0172b0642971cbe403d955a9c2`.
-Full repository/handoff CI `35257058653`: SUCCESS.
-Dedicated Post-job CI `35257058714`: SUCCESS.
-Staff v3 compatibility CI `35257058663`: SUCCESS.
-Exact-head Vercel preview `dpl_J3863nqQnAt7EqxMPNKKKow6iP8M`: READY with clean errors-only build logs.
-Merge/main: `e3d6c2ac840e0fe0ac8a757100ade3fb418eeca5`.
-Production deployment `dpl_2Cusp5Hv9gJkxu6QPi2c2MRgHJLX`: READY, clean build, `namdar.co.uk` alias active.
+Branch `feature/google-review-system-20260917`; Admin asset token `6.4.43-google-reviews-1`.
 
 ## Goal
-Close the customer lifecycle after Staff marks a Window Cleaning job complete: completed-job clarity, private feedback, honest Google reviews, simple repeat quoting and recurring-clean guidance, while keeping the existing quote/booking/payment boundaries authoritative.
+Make the existing fair post-job review flow measurable and configurable without review gating, incentives, fake review data, or a parallel customer-feedback database.
 
-## Existing foundations reused
-- `lib/post-job-followup.js` continues to email every completed customer and offers private feedback plus an honest Google review when configured.
-- `api/feedback.js` remains the public feedback form boundary and does not gate public review access behind a positive rating.
-- `booking_feedback` remains the one feedback/review state per booking.
-- `site_settings.reviews.public_review_url` remains the source for the Google Business review URL.
-- `api/customer-jobs.js` / `account-original.js` continue to provide completed-job photos, timeline, price and billing status.
-- `/api/quote` remains the quote-creation boundary for repeat work, so current coverage/pricing/payment-policy logic is recalculated.
+## Database candidate
+Migration `supabase/migrations/20260917182721_google_review_tracking.sql`:
+- adds `booking_feedback.public_review_requested_at`;
+- adds `booking_feedback.public_review_reminder_sent_at`;
+- adds partial indexes for review-request analytics and pending-reminder lookups;
+- expands the existing `booking_notifications.notification_type` check to permit `review_reminder`;
+- creates no new table and does not add new direct client grants/policies.
 
-## Authenticated post-job API
-`api/customer-post-job.js`:
-- requires `requireCustomer(req)` for every request;
-- scopes booking actions to the signed-in customer's own booking;
-- refuses post-job actions unless the booking is completed;
-- GET returns review availability and feedback status for the signed-in customer's completed bookings without returning feedback tokens;
-- POST `feedback_link` uses `ensureBookingFeedbackInvite` and returns the existing private feedback path;
-- POST `public_review_click` loads the configured public review URL, ensures a booking-feedback row exists, records `public_review_clicked_at`, and returns the URL;
-- public-review availability is not conditional on a high rating.
+The existing `booking_feedback` table remains one row per booking and already contains rating, comments, status, support ticket, `public_review_clicked_at`, submission/resolution timestamps and RLS protections. The existing booking notification queue remains the retry/idempotence boundary.
 
-Production unauthenticated GET `/api/customer-post-job` returned HTTP 401 `Please sign in to your Namdar account.` as expected. This security verification did not create data.
+## Owner settings
+`api/admin-review-settings.js` still requires `bookings` permission for GET and `settings` permission for POST. It now stores under `site_settings.reviews`:
+- `public_review_url`;
+- `review_requests_enabled`;
+- `review_reminders_enabled`;
+- `review_reminder_delay_days` bounded to 2–30 days (UI choices 3/5/7/10/14).
 
-## Safe repeat quoting
-`api/customer-jobs.js` exposes a sanitised repeat template only for completed Window Cleaning jobs. Allowed repeat fields are bounded/revalidated units, detail factor, extra-work factor, floors, access, property type and recurring frequency.
+The saved URL must be HTTPS and on an approved Google host (`google.com`/subdomains, `g.page`, or `goo.gl`/subdomains). Enabling review requests without a valid saved link is rejected. `lib/server.js` independently revalidates the Google host and respects the enable/pause switch so a manual database misconfiguration cannot turn the review redirect into an arbitrary open redirect.
 
-Safeguards:
-- old free-text notes are not copied;
-- urgency resets to `standard`;
-- the old quote/final price is not used as the new price;
-- only completed Window Cleaning jobs receive a repeat template;
-- `Book again` asks for confirmation and POSTs to the normal `/api/quote` endpoint;
-- current coverage, pricing and payment-policy allowance are recalculated;
-- the action creates a new quote request only, never a booking or Stripe checkout.
+## Tracked initial request
+`lib/post-job-followup.js` continues to send private feedback to every completed customer. If public review requests are enabled, its Google button now uses a tracked Namdar URL generated by `lib/review-reminders.js` rather than linking directly to Google.
 
-The same customer-jobs response derives recurring intervals for 4/8/12-week and legacy monthly/quarterly frequency values.
+After the email provider confirms the follow-up was sent:
+- `booking_feedback.public_review_requested_at` is set if still null;
+- a single `review_reminder` queue item is created only when reminders are enabled;
+- queue failures are logged but do not retroactively turn the already-sent main follow-up into a delivery failure.
 
-## My Namdar UI
-`account-post-job.js` wraps the existing booking renderer instead of replacing it. Completed booking cards now gain:
-- `Job complete ✓` customer summary;
-- private feedback action;
-- Google-review action only when the configured public-review URL exists;
-- `Book again` when a safe repeat template exists;
-- an approximate next-clean guide for recurring jobs, explicitly saying nothing is booked automatically.
+`api/review-click.js` accepts only a valid random feedback token, loads the server-configured Google URL, records `public_review_clicked_at` once, and returns an HTTP 302 to that configured URL. There is no request-controlled redirect destination.
 
-`account-post-job.css` gives the extension responsive mobile actions. `account.js` keeps the base customer token unchanged and separately loads JS/CSS with token `6.4.42-post-job-experience-1`.
+## One reminder only
+`lib/review-reminders.js` uses the existing booking notification queue and retry pattern. It:
+- schedules at most one reminder per booking/completion event using the existing unique queue constraint;
+- defaults to 7 days and respects owner settings;
+- cancels before sending if public requests/reminders were disabled, the booking is no longer completed, the feedback invite is gone, the customer already submitted private feedback, or the customer already clicked Google review;
+- sends neutral copy that welcomes positive, neutral and negative experiences, offers private feedback as an alternative, states no review rewards are offered, and explicitly says it is the only automatic Google-review reminder for that job;
+- marks `public_review_reminder_sent_at` only after successful delivery.
 
-## Production verification
-- `/api/health`: HTTP 200 / `ok:true`.
-- `/account.js`: HTTP 200 and loads `account-post-job.css` + `account-post-job.js` at `6.4.42-post-job-experience-1`.
-- `/account-post-job.js`: HTTP 200/current.
-- `/api/customer-post-job`: unauthenticated GET returns 401 as required.
-- Production 5xx scan for `dpl_2Cusp5Hv9gJkxu6QPi2c2MRgHJLX`: no 5xx logs found.
-- Errors-only deployment build log was clean.
-- No migration was required.
-- No fake production customer, quote, booking, feedback, review or payment record was created during verification.
-- Customer commercial Stripe remains OFF.
+`api/booking-notifications.js` runs review reminders as an isolated `review_reminders` cron stage after post-job initial delivery and before general booking/business stages, so a review reminder failure cannot block operational notifications.
 
-The next functional smoke should occur with a genuine completed customer job so the private-feedback/review/repeat-quote experience can be exercised without manufacturing production data.
+## Admin dashboard
+`api/admin-review-dashboard.js` requires `bookings` permission and returns bounded 30/90/365-day reporting from completed bookings, quotes and existing feedback records. Metrics include:
+- completed jobs;
+- actual Google review requests emailed;
+- Google review clicks;
+- tracked-email click-through rate;
+- private feedback submissions/response rate;
+- average private rating;
+- reminders sent;
+- unresolved feedback needing attention.
 
-# Staff operations v3 — LIVE
-PR #94 remains the field-operations layer underneath this release. It includes the six-step Window Cleaning quality checklist, server-side completion gate, incident reporting/evidence, Admin incident review, On My Way ETA, customer ETA display and private RLS-protected field tables.
+It also returns recent completed-job review history with customer/service, private feedback, Google request, click and reminder timestamps.
 
-Release evidence:
-- exact tested head `370a75d47f6d757179b02ce5db79d7ea6b87c877`;
-- full CI `35080584185` SUCCESS;
-- Staff v3 CI `35080584357` SUCCESS;
-- Staff v2 compatibility CI `35080584294` SUCCESS;
-- exact-head preview `dpl_5ybJj7duWzrrYqZZbW7CBAVp9UXH` READY / clean;
-- merge `784b7c766ed88fe8f53057dd1a657555d57da69d`.
+`admin-post-job-followup.js` now renders settings, a customer-message preview, metrics and recent history. `admin-review-dashboard.css` supplies responsive layout. `admin.js` loads both with token `6.4.43-google-reviews-1` while leaving the older Admin base unchanged.
 
-## Manual Staff follow-up
-Authenticated phone smoke test using a real assigned job: checklist save/gate, incident report/evidence, On My Way ETA, customer ETA display and Admin incident resolution. Do not create fake production customer/job/payment data just for this check.
+## Fair-review invariants
+- Google review availability never depends on a positive private rating.
+- Private low ratings continue to route to Namdar support through the existing feedback API.
+- No reward/incentive is offered for a review.
+- The owner can pause public review requests independently of private feedback.
+- The reminder stops after either private-feedback submission or Google-review click.
 
-# Other live systems
-Owner/custom roles, Staff v2, responsive booking editor, secure logo upload, Website/Legal crash repair, Privacy Centre, Security Hardening, Business Finance, Smart Receipts, Newsletter Centre, guided Ask Namdar and the flexible payment-policy engine remain live/stable. Commercial Stripe remains OFF.
+## Tests / release plan
+Dedicated regression: `scripts/google-review-system.test.mjs` and `.github/workflows/google-review-system-check.yml`; existing post-job regression is updated for the new isolated cron stage.
+
+Release order:
+1. full repository/handoff CI + dedicated Google review CI + existing compatibility tests;
+2. exact-head Vercel preview/build/log check;
+3. only if code/preview are clean, apply migration `google_review_tracking` to production and verify the two columns/check constraint/indexes without inserting customer/review data;
+4. merge product PR;
+5. verify production deployment, health, live Admin assets/APIs, unauthenticated boundaries and 5xx runtime logs;
+6. record the release in docs.
+
+Do not configure a guessed Google Business review URL and do not create synthetic production customer/booking/feedback/review/payment rows. Commercial Stripe stays OFF.
+
+# Existing live product layers
+Post-job Customer Experience PR #96 remains live below this candidate: completed-job panel, private feedback, fair review access, safe repeat quoting and recurring next-clean guidance. Staff operations v3 PR #94 remains live below that with checklist/completion gate, incident reporting and On My Way/customer ETA.
+
+Manual real-world Staff/post-job smoke tests remain deferred until genuine production jobs exist; do not manufacture data solely for testing.
