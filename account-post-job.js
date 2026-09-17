@@ -45,7 +45,7 @@
     try{
       const result=await api('/api/customer-post-job',{method:'POST',body:JSON.stringify({action:'public_review_click',bookingId:job.id})});
       if(tab)tab.location=result.url;else location.href=result.url;
-      button.textContent='Google review opened';
+      setBusy(button,false);button.textContent='Google review opened';
     }catch(error){if(tab)tab.close();alert(error.message||'The Google review link is temporarily unavailable.');setBusy(button,false)}
   }
 
@@ -75,6 +75,6 @@
     const wrapped=async rows=>{const result=await base(rows);await decorate(rows);return result};
     wrapped.__postJobExperience=true;renderBookings=wrapped;
   }
-  if(Array.isArray(window.customerJobCache)&&window.customerJobCache.length)decorate(window.customerJobCache).catch(()=>{});
+  try{if(Array.isArray(customerJobCache)&&customerJobCache.length)decorate(customerJobCache).catch(()=>{})}catch{}
   window.NamdarPostJobExperience={version:VERSION,decorate};
 })();
