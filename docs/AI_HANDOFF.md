@@ -6,97 +6,121 @@ Read `docs/AI_START.md` first. Use `docs/PROJECT_STATUS.md` for roadmap/status.
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current `main` `180817d4d6750d15a76bbf1c5ff1aa77e03f9403` (docs PR #97); live product merge `e3d6c2ac840e0fe0ac8a757100ade3fb418eeca5` from PR #96.
+- Current live product merge `41150e6fcfc09a25e7ff62a0d63b94c48273cfc5` from PR #98.
 - Customer base loader `6.4.35-payment-policy-engine-1`; Post-job Customer Experience `6.4.42-post-job-experience-1`; Staff operations/ETA `6.4.41-staff-operations-v3-1`.
-- Admin base `6.4.37-admin-website-crash-fix-1`; modal layout `6.4.38-admin-wide-modal-fix-1`; access roles `6.4.39-access-roles-1`.
+- Admin base `6.4.37-admin-website-crash-fix-1`; Google Review System extension `6.4.43-google-reviews-1`.
 - Supabase production `qjigldxjcpnrlyxgmlqq`.
 - Vercel project `prj_4fILo0pCaLGUSUIMWrBIVGzeWVDC`; team `team_8Az8WtWcnfwtYRdhR8vGqC3L`.
-- Current production deployment `dpl_Djbqajdyy6mPm6rxkzY3j6App5ED` READY on `namdar.co.uk`; health HTTP 200 / `ok:true` at `2026-09-17T18:15:34.571Z`.
-- Window Cleaning only live. Customer Stripe OFF. Provider AI OFF. Privileged access requires CAPTCHA + AAL2/TOTP.
-- Production has no `site_settings.reviews` row yet, so public Google review requests remain hidden/off until the owner configures the real link.
+- Production deployment `dpl_8i33L4XnUJ2qexNqWdmtxYqLKeF2` READY on `namdar.co.uk`; health HTTP 200 / `ok:true` at `2026-09-17T18:38:41.433Z`.
+- Window Cleaning only live. Customer commercial Stripe OFF. Provider AI OFF. Privileged access requires CAPTCHA + AAL2/TOTP.
+- Production still has no `site_settings.reviews` row, so public Google review requests and reminders are intentionally inactive until the owner adds the real Google Business Profile review link.
 
-# Google Review System — RELEASE CANDIDATE
+# Google Review System — LIVE
 
-Branch `feature/google-review-system-20260917`; Admin asset token `6.4.43-google-reviews-1`.
+Product PR #98: `Add Google review controls, tracking and dashboard`.
+Exact tested head: `604ffaf6f4709395d61b1c708cbb7633b99ba1ee`.
 
-## Goal
-Make the existing fair post-job review flow measurable and configurable without review gating, incentives, fake review data, or a parallel customer-feedback database.
+## Release evidence
+- Handoff/full repository check `35259833381`: SUCCESS.
+- Dedicated Google Review System check `35259833492`: SUCCESS.
+- Post-job compatibility check `35259833441`: SUCCESS.
+- Staff v3 compatibility check `35259833556`: SUCCESS.
+- Vercel check: SUCCESS.
+- Exact-head preview `dpl_8Q72uN9HS8RtEZoNdjsxtHLx6b3g`: READY; errors-only build log clean.
+- Supabase migration `google_review_tracking`: applied successfully after code/preview gates passed.
+- Product merge `41150e6fcfc09a25e7ff62a0d63b94c48273cfc5`.
+- Production `dpl_8i33L4XnUJ2qexNqWdmtxYqLKeF2`: READY, clean build, `namdar.co.uk` alias active.
+- Live `/api/health`: HTTP 200 / `ok:true`.
+- Live `admin.js`: HTTP 200 and pins `6.4.43-google-reviews-1`.
+- Unauthenticated `/api/admin-review-dashboard?days=90`: HTTP 401 as required.
+- Invalid `/api/review-click?token=invalid`: HTTP 400, no redirect/write.
+- Production release 5xx scan: no 5xx logs.
+- No synthetic customer, booking, feedback, review or payment rows were created.
 
-## Database candidate
-Migration `supabase/migrations/20260917182721_google_review_tracking.sql`:
-- adds `booking_feedback.public_review_requested_at`;
-- adds `booking_feedback.public_review_reminder_sent_at`;
-- adds partial indexes for review-request analytics and pending-reminder lookups;
-- expands the existing `booking_notifications.notification_type` check to permit `review_reminder`;
-- creates no new table and does not add new direct client grants/policies.
+## Database
+Migration `supabase/migrations/20260917182721_google_review_tracking.sql` is live:
+- `booking_feedback.public_review_requested_at` timestamptz;
+- `booking_feedback.public_review_reminder_sent_at` timestamptz;
+- partial index for review-request reporting;
+- partial index for pending reminder lookup;
+- `review_reminder` added to the existing `booking_notifications.notification_type` check.
 
-The existing `booking_feedback` table remains one row per booking and already contains rating, comments, status, support ticket, `public_review_clicked_at`, submission/resolution timestamps and RLS protections. The existing booking notification queue remains the retry/idempotence boundary.
+Verification after migration:
+- both columns exist;
+- both indexes exist;
+- the notification check contains `review_reminder`;
+- RLS remains enabled on `booking_feedback` and `booking_notifications`;
+- `booking_feedback` had zero rows, zero request markers and zero reminder markers immediately after migration;
+- `site_settings.reviews` row count remained zero.
+
+No new table or direct client grant/policy was created.
 
 ## Owner settings
-`api/admin-review-settings.js` still requires `bookings` permission for GET and `settings` permission for POST. It now stores under `site_settings.reviews`:
-- `public_review_url`;
-- `review_requests_enabled`;
-- `review_reminders_enabled`;
-- `review_reminder_delay_days` bounded to 2–30 days (UI choices 3/5/7/10/14).
+`api/admin-review-settings.js`:
+- GET requires `bookings` Staff permission;
+- POST requires `settings` permission;
+- stores `public_review_url`, `review_requests_enabled`, `review_reminders_enabled`, `review_reminder_delay_days`;
+- rejects enabling public review requests without a valid official HTTPS Google-host link;
+- accepts only `google.com`/subdomains, `g.page`, or `goo.gl`/subdomains;
+- audits settings changes.
 
-The saved URL must be HTTPS and on an approved Google host (`google.com`/subdomains, `g.page`, or `goo.gl`/subdomains). Enabling review requests without a valid saved link is rejected. `lib/server.js` independently revalidates the Google host and respects the enable/pause switch so a manual database misconfiguration cannot turn the review redirect into an arbitrary open redirect.
+`lib/server.js` independently validates the saved Google URL at runtime and respects `review_requests_enabled`, preventing a manually corrupted setting from becoming an arbitrary redirect.
 
-## Tracked initial request
-`lib/post-job-followup.js` continues to send private feedback to every completed customer. If public review requests are enabled, its Google button now uses a tracked Namdar URL generated by `lib/review-reminders.js` rather than linking directly to Google.
+## Tracked review requests
+`lib/post-job-followup.js` keeps private feedback available to every completed customer. When public review requests are enabled, the Google button uses a Namdar tracked URL instead of linking straight to Google.
 
-After the email provider confirms the follow-up was sent:
-- `booking_feedback.public_review_requested_at` is set if still null;
-- a single `review_reminder` queue item is created only when reminders are enabled;
-- queue failures are logged but do not retroactively turn the already-sent main follow-up into a delivery failure.
+Only after the initial post-job email is successfully delivered:
+- `public_review_requested_at` is set if still null;
+- one `review_reminder` queue item may be created if reminders are enabled.
 
-`api/review-click.js` accepts only a valid random feedback token, loads the server-configured Google URL, records `public_review_clicked_at` once, and returns an HTTP 302 to that configured URL. There is no request-controlled redirect destination.
+`api/review-click.js`:
+- accepts only a valid random booking-feedback token;
+- loads the Google destination from server settings only;
+- records `public_review_clicked_at` once;
+- returns HTTP 302 to that configured Google URL;
+- does not accept a request-controlled redirect destination.
 
-## One reminder only
-`lib/review-reminders.js` uses the existing booking notification queue and retry pattern. It:
-- schedules at most one reminder per booking/completion event using the existing unique queue constraint;
-- defaults to 7 days and respects owner settings;
-- cancels before sending if public requests/reminders were disabled, the booking is no longer completed, the feedback invite is gone, the customer already submitted private feedback, or the customer already clicked Google review;
-- sends neutral copy that welcomes positive, neutral and negative experiences, offers private feedback as an alternative, states no review rewards are offered, and explicitly says it is the only automatic Google-review reminder for that job;
-- marks `public_review_reminder_sent_at` only after successful delivery.
+## One automatic reminder
+`lib/review-reminders.js` reuses the existing booking notification queue. It:
+- schedules at most one reminder per booking/completion event;
+- uses owner-configured delay, default 7 days, bounded 2–30 days (Admin exposes 3/5/7/10/14);
+- cancels if review requests/reminders are disabled, the booking is no longer completed, the feedback invite is missing, private feedback has already been submitted, or the Google review link was already clicked;
+- sends neutral language welcoming positive, neutral and negative experiences;
+- offers private feedback as an alternative;
+- explicitly says no review reward is offered and that it is the only automatic Google-review reminder for that job;
+- sets `public_review_reminder_sent_at` only after successful delivery.
 
-`api/booking-notifications.js` runs review reminders as an isolated `review_reminders` cron stage after post-job initial delivery and before general booking/business stages, so a review reminder failure cannot block operational notifications.
+`api/booking-notifications.js` runs this as an isolated `review_reminders` stage between initial post-job delivery and general booking/business stages so a review reminder failure cannot block operational notifications.
 
 ## Admin dashboard
-`api/admin-review-dashboard.js` requires `bookings` permission and returns bounded 30/90/365-day reporting from completed bookings, quotes and existing feedback records. Metrics include:
+`api/admin-review-dashboard.js` requires `bookings` permission and provides 30/90/365-day reporting:
 - completed jobs;
-- actual Google review requests emailed;
+- actual review requests emailed;
 - Google review clicks;
 - tracked-email click-through rate;
 - private feedback submissions/response rate;
 - average private rating;
 - reminders sent;
-- unresolved feedback needing attention.
+- unresolved private feedback needing attention.
 
-It also returns recent completed-job review history with customer/service, private feedback, Google request, click and reminder timestamps.
+It also returns recent completed-job review history with customer/service, feedback, request, click and reminder timestamps.
 
-`admin-post-job-followup.js` now renders settings, a customer-message preview, metrics and recent history. `admin-review-dashboard.css` supplies responsive layout. `admin.js` loads both with token `6.4.43-google-reviews-1` while leaving the older Admin base unchanged.
+`admin-post-job-followup.js` now provides owner review settings, message preview, metrics and recent history. `admin-review-dashboard.css` supplies responsive styling. `admin.js` loads both at `6.4.43-google-reviews-1` without changing the older Admin base.
 
 ## Fair-review invariants
 - Google review availability never depends on a positive private rating.
-- Private low ratings continue to route to Namdar support through the existing feedback API.
-- No reward/incentive is offered for a review.
-- The owner can pause public review requests independently of private feedback.
-- The reminder stops after either private-feedback submission or Google-review click.
+- Private low ratings continue into the existing support workflow.
+- No reward/incentive is offered for reviews.
+- Public review requests can be paused without disabling private feedback.
+- The one automatic reminder stops after either private-feedback submission or Google-review click.
 
-## Tests / release plan
-Dedicated regression: `scripts/google-review-system.test.mjs` and `.github/workflows/google-review-system-check.yml`; existing post-job regression is updated for the new isolated cron stage.
-
-Release order:
-1. full repository/handoff CI + dedicated Google review CI + existing compatibility tests;
-2. exact-head Vercel preview/build/log check;
-3. only if code/preview are clean, apply migration `google_review_tracking` to production and verify the two columns/check constraint/indexes without inserting customer/review data;
-4. merge product PR;
-5. verify production deployment, health, live Admin assets/APIs, unauthenticated boundaries and 5xx runtime logs;
-6. record the release in docs.
-
-Do not configure a guessed Google Business review URL and do not create synthetic production customer/booking/feedback/review/payment rows. Commercial Stripe stays OFF.
+## Commercial/safety state
+- Customer commercial Stripe remains OFF; production has zero `site_settings` rows with key `payments`.
+- Do not configure a guessed Google Business review URL.
+- Do not manufacture production customers/bookings/reviews just to test this feature.
+- Real-world functional review testing should occur with the first genuine completed customer job.
 
 # Existing live product layers
-Post-job Customer Experience PR #96 remains live below this candidate: completed-job panel, private feedback, fair review access, safe repeat quoting and recurring next-clean guidance. Staff operations v3 PR #94 remains live below that with checklist/completion gate, incident reporting and On My Way/customer ETA.
+Post-job Customer Experience PR #96 remains live below this release: completed-job panel, private feedback, fair review access, safe repeat quoting and recurring next-clean guidance. Staff operations v3 PR #94 remains live below that with checklist/completion gate, incident reporting and On My Way/customer ETA.
 
-Manual real-world Staff/post-job smoke tests remain deferred until genuine production jobs exist; do not manufacture data solely for testing.
+Manual real-world Staff/post-job review smoke tests remain deferred until genuine production jobs exist.
