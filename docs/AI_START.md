@@ -18,6 +18,30 @@ Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PR
 - Privileged Staff/Admin access requires CAPTCHA + AAL2/TOTP MFA.
 - No real Google Business review URL is configured yet: production has zero `site_settings.reviews` rows, so public Google review requests/reminders remain off until the owner adds the real link.
 
+## Stripe live readiness — RELEASE CANDIDATE
+PR #100 / branch `feature/stripe-live-readiness-20260917`; Admin payment asset candidate `6.4.44-stripe-live-readiness-1`.
+
+Purpose: allow Stripe TEST mode on previews while making it impossible to activate production customer payments with a test or unrecognised Stripe key.
+
+Candidate behavior:
+- `lib/payment-policy.js` classifies Stripe secret keys as `live`, `test`, `unconfigured` or `unknown` without exposing the secret;
+- production `providerReadiness` now requires a recognised LIVE Stripe secret plus configured webhook before `effectiveActive` can become true;
+- preview/test environments can still exercise recognised TEST Stripe keys with a webhook;
+- Admin Payment & deposit policy shows Stripe mode, webhook status, production live-readiness and the precise activation blocker;
+- when payments are currently off and production is not provider-ready, Admin cannot switch the activation checkbox on, but can still prepare/edit a disabled policy draft;
+- no payment policy row, customer, booking or payment is created by this candidate.
+
+Current Stripe account connected through the Stripe integration is a GB test-mode account (`acct_1UFAd1Cu9tojH31y`) and is not live-money ready: `charges_enabled=false`, `payouts_enabled=false`, `details_submitted=false`. Stripe still requires business profile completion and owner acceptance of Stripe Terms. Do not accept Stripe Terms on the owner's behalf and do not fabricate missing business details.
+
+Validation so far on current head:
+- dedicated Stripe live-readiness checks pass;
+- existing Stripe payment/policy tests pass;
+- Staff v3, Post-job and Google Review compatibility checks pass;
+- Vercel preview builds cleanly;
+- continuity docs are being updated in this same PR before merge.
+
+Do not enable commercial production payments until the owner completes Stripe onboarding/TOS, LIVE credentials and a verified live webhook are configured, and the owner explicitly chooses the production deposit/balance policy.
+
 ## Google Review System — LIVE
 Product PR #98: `Add Google review controls, tracking and dashboard`.
 Exact tested head: `604ffaf6f4709395d61b1c708cbb7633b99ba1ee`.
@@ -50,9 +74,11 @@ Live verification:
 Post-job Customer Experience PR #96 remains live below this release: completed-job panels, private feedback, safe repeat quoting and next-clean guidance. Staff operations v3 PR #94 remains live below that with field checklist/completion gate, incidents/evidence, Admin incident handling and On My Way/customer ETA.
 
 ## Open items
+- Finish/merge Stripe live-readiness PR #100 after all exact-head checks pass.
+- Owner to complete Stripe business onboarding/TOS before any LIVE activation; then connect LIVE secret + verified live webhook.
+- Owner to choose exact commercial deposit/balance policy before customer payments are enabled.
 - Configure the real Google Business Profile review-request URL in Admin when available; keep review requests/reminders off until then.
 - Real-world authenticated review/post-job smoke with the first genuine completed customer job.
 - Authenticated Staff v3 mobile smoke test with a real assigned job.
 - Window real-job pricing calibration after genuine completed jobs accumulate.
-- Commercial Stripe decision and actual deposit policy remain separate owner decisions.
 - ICO self-assessment, Supabase Leaked Password Protection, SMS/legal checks, Node `url.parse()` cleanup and the parked address-data pilot remain open.
