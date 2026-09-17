@@ -6,71 +6,70 @@ Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PR
 
 ## Production source of truth
 - Repo `pchroonic/pchroonic`, default `main`.
+- Current `main`: `180817d4d6750d15a76bbf1c5ff1aa77e03f9403` (docs PR #97).
 - Current live product merge: `e3d6c2ac840e0fe0ac8a757100ade3fb418eeca5` (PR #96 Post-job Customer Experience).
 - Customer base loader remains `6.4.35-payment-policy-engine-1`; post-job extension is `6.4.42-post-job-experience-1`; Staff ETA extension remains `6.4.41-staff-operations-v3-1`.
 - Staff operations v3 remains `6.4.41-staff-operations-v3-1`; Staff v2 remains `6.4.40-staff-experience-v2-1`.
 - Admin base remains `6.4.37-admin-website-crash-fix-1`; modal layout `6.4.38-admin-wide-modal-fix-1`; access roles `6.4.39-access-roles-1`.
 - Supabase production project: `qjigldxjcpnrlyxgmlqq`.
-- Vercel production deployment `dpl_2Cusp5Hv9gJkxu6QPi2c2MRgHJLX` is READY and aliased to `namdar.co.uk`.
-- `/api/health` returned HTTP 200 / `ok:true` at `2026-09-17T18:12:16.395Z` after deployment.
+- Current production deployment `dpl_Djbqajdyy6mPm6rxkzY3j6App5ED` is READY and aliased to `namdar.co.uk`.
+- `/api/health` returned HTTP 200 / `ok:true` at `2026-09-17T18:15:34.571Z`.
 - Window Cleaning is the only live/quotable/bookable service.
 - Customer Stripe remains OFF; no commercial deposit bands are active.
 - Ask Namdar provider AI remains OFF.
 - Privileged Staff/Admin access requires CAPTCHA + AAL2/TOTP MFA.
 
-## Post-job Customer Experience — LIVE
-Product PR: #96 `Add post-job customer experience and repeat quoting`.
-Exact tested head: `e652b25a7dc36c0172b0642971cbe403d955a9c2`.
-CI:
-- full repository/handoff run `35257058653` SUCCESS;
-- dedicated post-job run `35257058714` SUCCESS;
-- Staff v3 compatibility run `35257058663` SUCCESS.
-Exact-head preview: `dpl_J3863nqQnAt7EqxMPNKKKow6iP8M`, READY; errors-only build log clean.
-Merge/main: `e3d6c2ac840e0fe0ac8a757100ade3fb418eeca5`.
-Production: `dpl_2Cusp5Hv9gJkxu6QPi2c2MRgHJLX`, READY; clean build; `namdar.co.uk` alias active.
+## Google Review System — RELEASE CANDIDATE
+Branch: `feature/google-review-system-20260917`.
+Candidate Admin token: `6.4.43-google-reviews-1`.
 
-Live behavior:
-- completed My Namdar booking cards show a dedicated **Job complete** panel;
-- private service feedback can be opened directly from the completed job;
-- when `site_settings.reviews.public_review_url` is configured, every completed customer can open the honest Google-review link regardless of rating;
-- Google-review clicks are recorded on the existing `booking_feedback` row, with no reward or positive-rating gate;
-- **Book again** asks for confirmation and creates a fresh quote through the existing authenticated `/api/quote` path using only sanitised previous Window Cleaning job inputs;
-- repeat quotes re-run current postcode coverage, pricing and quote/payment-policy rules and never create a booking automatically;
-- previous free-text notes, old price and urgency are not blindly reused; urgency resets to standard and pricing is recalculated;
-- recurring 4/8/12-week and legacy monthly/quarterly jobs show an approximate next-clean guide date, explicitly stating that nothing is booked automatically.
+Purpose: turn the live post-job review option into a measurable, owner-controlled review funnel while keeping private feedback available to every customer and never gating Google reviews by rating.
 
-Security / release verification:
-- `/api/customer-post-job` requires signed-in customer access; unauthenticated GET returned HTTP 401 as expected;
-- `account.js` HTTP 200 and loads `6.4.42-post-job-experience-1` JS/CSS;
-- `account-post-job.js` HTTP 200/current;
-- post-release 5xx scan found no 5xx logs;
-- no database migration was required;
-- no fake production customer, quote, booking, feedback, review or payment record was created for verification;
+Candidate behavior:
+- Admin review settings gain an explicit public-review enable/pause switch;
+- Admin can enable at most one automatic Google-review reminder and choose a 3/5/7/10/14-day delay;
+- the real Google Business Profile review URL remains owner-configured and Google-host-only;
+- initial review emails use a Namdar tracking redirect, which records the click and then redirects only to the configured Google URL;
+- the initial review request timestamp is recorded only after the follow-up email actually sends;
+- reminder delivery is skipped/cancelled when the customer has already submitted private feedback or clicked the Google review link;
+- reminder copy explicitly welcomes positive, neutral and negative experiences and says Namdar does not offer rewards for reviews;
+- Admin gets 30/90/365-day metrics for completed jobs, review requests sent, tracked Google clicks/CTR, private feedback/response rate, average private rating, reminders sent and feedback needing attention;
+- recent completed-job history shows request/click/reminder/private-feedback state per customer job.
+
+Migration candidate: `supabase/migrations/20260917182721_google_review_tracking.sql` adds `booking_feedback.public_review_requested_at`, `booking_feedback.public_review_reminder_sent_at`, indexes for review tracking, and permits `review_reminder` in the existing private notification queue. It creates no new table and does not change customer-facing RLS access.
+
+New modules:
+- `api/admin-review-dashboard.js`
+- `api/review-click.js`
+- `lib/review-reminders.js`
+- `admin-review-dashboard.css`
+- `scripts/google-review-system.test.mjs`
+- `.github/workflows/google-review-system-check.yml`
+
+Changed modules include `api/admin-review-settings.js`, `lib/server.js`, `lib/post-job-followup.js`, `api/booking-notifications.js`, `admin-post-job-followup.js`, `admin.js`, and the existing post-job regression test.
+
+Release rules:
+- run full repository CI + dedicated Google review CI + existing post-job compatibility checks;
+- validate exact-head Vercel preview/build before applying the production migration;
+- apply the migration only after code/preview checks pass, then verify schema without inserting review/customer data;
+- do not configure a made-up Google Business review URL;
+- do not create fake production customers, bookings, feedback, reviews or payments for verification;
 - commercial Stripe remains OFF.
 
-## Staff operations v3 — LIVE
-PR #94 remains the live field-operations base under the new post-job customer layer. It includes the six-step Window Cleaning quality checklist, server-side completion gate, incident reporting/evidence, Admin incident review, On My Way ETA, customer expected-arrival display and private RLS-protected field tables.
+## Post-job Customer Experience — LIVE
+PR #96 / `6.4.42-post-job-experience-1` remains live: completed-job panels, private feedback, fair Google-review access when configured, safe repeat quoting and recurring next-clean guidance. Exact product merge `e3d6c2ac840e0fe0ac8a757100ade3fb418eeca5`; verified product deployment `dpl_2Cusp5Hv9gJkxu6QPi2c2MRgHJLX` was READY/clean before the documentation-only PR #97 deployment.
 
-Release evidence:
-- exact tested head `370a75d47f6d757179b02ce5db79d7ea6b87c877`;
-- full CI `35080584185` SUCCESS;
-- Staff v3 CI `35080584357` SUCCESS;
-- Staff v2 compatibility CI `35080584294` SUCCESS;
-- preview `dpl_5ybJj7duWzrrYqZZbW7CBAVp9UXH` READY / clean;
-- merge `784b7c766ed88fe8f53057dd1a657555d57da69d`.
+## Staff operations v3 — LIVE
+PR #94 remains the field-operations base: six-step Window Cleaning checklist, server completion gate, incidents/evidence, Admin incident handling, On My Way ETA and customer ETA display. Authenticated phone smoke on a real assigned job remains outstanding; do not manufacture production data for it.
 
 ## Existing live systems
-- Staff app v2 daily command centre and route workflow.
-- Owner + custom Admin roles.
-- Responsive Admin booking editor.
-- Secure Admin logo upload and Website/Legal crash fix.
-- Flexible payment/deposit policy engine with commercial Stripe still OFF.
-- Privacy Centre, Security Hardening, Business Finance, Smart Receipts, Newsletter Centre and guided Ask Namdar.
+Owner/custom roles, Staff v2, responsive booking editor, secure logo upload, Website/Legal crash repair, flexible payment-policy engine, Privacy Centre, Security Hardening, Business Finance, Smart Receipts, Newsletter Centre and guided Ask Namdar remain live/stable. Commercial Stripe remains OFF.
 
 ## Open items
-- Real-world authenticated smoke of Post-job Customer Experience when the first genuine completed customer job is available; do not create fake production data for this.
+- Finish CI/preview/release verification for the Google Review System candidate.
+- Configure the real Google Business Profile review-request URL when available; production currently has no `site_settings.reviews` row.
+- Real-world post-job/review smoke with a genuine completed customer job.
 - Authenticated Staff v3 mobile smoke test with a real assigned job.
-- Configure the real Google Business review-request URL when available; until then the public-review button remains hidden.
 - Window real-job pricing calibration after genuine completed jobs accumulate.
 - Commercial Stripe decision and actual deposit policy remain separate owner decisions.
 - ICO self-assessment, Supabase Leaked Password Protection, SMS/legal checks, Node `url.parse()` cleanup and the parked address-data pilot remain open.
