@@ -5,6 +5,7 @@
   const fieldOpsV='6.4.41-staff-operations-v3-1';
   const reviewV='6.4.43-google-reviews-1';
   const paymentV='6.4.44-stripe-live-readiness-1';
+  const receiptV='6.4.45-payment-receipts-1';
   document.write(`<link rel="stylesheet" href="/admin-inbox-safety.css?v=${v}">`);
   document.write(`<link rel="stylesheet" href="/admin-modal-layout.css?v=${modalLayoutV}">`);
   document.write(`<link rel="stylesheet" href="/admin-field-incidents.css?v=${fieldOpsV}">`);
@@ -22,6 +23,7 @@
   document.write(`<script src="/admin-field-incidents.js?v=${fieldOpsV}"><\/script>`);
   document.write(`<script src="/admin-post-job-followup.js?v=${reviewV}"><\/script>`);
   document.write(`<script src="/admin-payment-settings.js?v=${paymentV}"><\/script>`);
+  document.write(`<script src="/admin-payment-receipts.js?v=${receiptV}"><\/script>`);
   document.write(`<script src="/admin-window-performance.js?v=${v}"><\/script>`);
   document.write(`<script src="/admin-business-finance.js?v=${v}"><\/script>`);
   document.write(`<script src="/admin-business-finance-polish.js?v=${v}"><\/script>`);

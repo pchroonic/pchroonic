@@ -21,91 +21,63 @@ Read `docs/AI_START.md` first. Use `docs/PROJECT_STATUS.md` for roadmap/status.
 Product PR #100: `Harden Stripe live-mode activation`.
 Exact tested head `3d810d70a9201105075e2db410ff997d781f23d0`; merge `02590b881ef07db82cd5a1ddbbc77767bd5b8051`.
 
-## Why this release exists
-Namdar already had hosted Stripe Checkout, signed webhook reconciliation, deposits/balances, frozen policy snapshots, refunds and fee accounting. The missing production guard was that provider readiness previously checked only whether a Stripe secret and webhook secret existed. PR #100 makes the Stripe environment explicit and fails closed in production unless the credentials are recognisably LIVE.
+Production requires a recognised LIVE Stripe secret plus configured webhook before `effectiveActive` can become true. TEST credentials remain usable in previews only. Admin reports LIVE/TEST mode and production readiness without exposing secret material. Existing hosted Checkout, frozen payment policy snapshots, deposit/balance rules, signed webhook authority, refunds and processor-cost reconciliation remain in place.
 
-## Provider readiness rules
-`lib/payment-policy.js` now exports `stripeKeyMode(secret)` and expands `providerReadiness(env)`.
+Production verification for PR #100: deployment `dpl_FY31SSsYRAQpSwzsc11HiNaCgQoX` READY on `namdar.co.uk`; health 200; no release 5xx; `admin.js` pins `6.4.44-stripe-live-readiness-1`; production has zero payment settings rows/active policies.
 
-Recognised secret prefixes:
-- `sk_live_` or `rk_live_` => `live`;
-- `sk_test_` or `rk_test_` => `test`;
-- empty => `unconfigured`;
-- anything else => `unknown`.
+Current Stripe account `acct_1UFAd1Cu9tojH31y` is test-only/incomplete: `charges_enabled=false`, `payouts_enabled=false`, `details_submitted=false`. Owner must complete business onboarding and accept Stripe Terms. Do not accept those legal terms or invent missing business details for the owner.
 
-Readiness behavior:
-- production requires recognised LIVE Stripe secret + configured webhook for `ready=true`;
-- production TEST keys can be configured but never become ready/effective;
-- unknown production key types fail closed;
-- preview/test environments may use recognised TEST keys + webhook for sandbox validation;
-- `loadPaymentPolicy` still computes `effectiveActive=policy.active && provider.ready`, so a manually active policy cannot bypass the production credential guard.
+# Payment receipt tracking — RELEASE CANDIDATE
 
-No key material is returned by Admin APIs or stored in audit metadata.
+Branch `feature/payment-receipt-tracking-20260917`; asset token `6.4.45-payment-receipts-1`.
 
-## Admin behavior
-`api/admin-payment-settings.js` returns non-secret readiness state: `stripeMode`, `production`, `liveReady`, `testReady`, provider readiness and a human-readable activation blocker. Activation uses that blocker when provider readiness is incomplete.
+## Goal
+Before Stripe goes live, every successful payment/refund must have one stable Namdar receipt reference that the customer and Namdar staff can quote to trace the transaction.
 
-`admin-payment-settings.js` now shows:
-- secret configured/not connected;
-- Stripe mode LIVE / TEST only / unconfigured / unknown;
-- verified webhook configured/not configured;
-- production live-ready yes/no;
-- customer payments enabled/disabled.
+## Receipt identity
+`lib/payment-receipts.js` derives a receipt number from the immutable `payment_records.id` UUID:
+- format example: `RCP-12345678-9ABCDEF0`;
+- deterministic: the same payment always produces the same receipt number;
+- no Stripe secret/provider token is encoded;
+- no schema change is required, so existing rows are not rewritten.
 
-When payments are off and production readiness is incomplete, the activation checkbox is disabled; other commercial settings remain editable so the owner can prepare a disabled draft. Admin asset version is `6.4.44-stripe-live-readiness-1`.
+Production readback before this candidate found 4 `payment_records`; RLS is enabled on `public.payment_records`. Do not delete or rewrite those rows for this feature.
 
-## Existing Stripe/payment architecture preserved
-This release does not replace the established payment layer:
-- hosted full-page Stripe Checkout;
-- GBP one-time service payments;
-- Window Cleaning only;
-- customer authentication and booking-policy evidence required;
-- payment policy snapshot frozen per booking;
-- exact locked deposit amount and configurable deposit/full-payment modes;
-- balance due timing and full outstanding payment after completion/due;
-- Checkout idempotency keys;
-- signed raw-body Stripe webhook as payment authority;
-- idempotent payment records and refund handling;
-- exact processor fee/net accounting from Stripe balance transactions;
-- internal processor-cost fields excluded from customer billing/PDFs;
-- no automatic consumer monetary late penalties;
-- B2B statutory late-payment calculation remains preview/manual only.
+## Customer email
+`api/stripe-webhook.js` now sends a true payment-receipt email after an idempotently recorded Stripe payment. The email includes:
+- Namdar receipt number;
+- invoice number;
+- amount;
+- payment type and method;
+- payment date/time;
+- net paid/outstanding invoice state;
+- link to My Namdar Billing;
+- instruction to quote the receipt number for support.
 
-## Release evidence
-Exact-head checks on `3d810d70a9201105075e2db410ff997d781f23d0`:
-- Stripe live readiness `35262480364` SUCCESS;
-- AI handoff/full JavaScript `35262480235` SUCCESS;
-- Google Review compatibility `35262480241` SUCCESS;
-- Staff v3 compatibility `35262480256` SUCCESS;
-- Post-job compatibility `35262480434` SUCCESS.
+Stripe refund emails include the same traceable receipt reference. Existing `archiveForCustomer:true` behavior remains, so the billing email is also archived to the customer's Namdar message history.
 
-Exact-head preview `dpl_6iAk6C9G3uaZ2rg8uXSbMf1TRaX4` READY with clean errors-only build log.
+`api/admin-payments.js` applies the same receipt-number/email behavior to staff-recorded cash/bank/card/other payments and refunds. Stripe remains webhook-only and cannot be impersonated by manual staff entry.
 
-Production verification after merge:
-- deployment `dpl_FY31SSsYRAQpSwzsc11HiNaCgQoX` READY and aliased to `namdar.co.uk`;
-- `/api/health` HTTP 200 / `ok:true`;
-- `admin.js` HTTP 200 and pins `6.4.44-stripe-live-readiness-1`;
-- release-deployment 5xx scan returned no 5xx logs;
-- Supabase readback: `payments_settings_rows=0`, `active_payments_settings_rows=0`;
-- no customer, booking or payment records were created during verification.
+## My Namdar
+`api/customer-billing.js` returns a safe `receiptNumber` for each payment/refund. It still does not expose processor fee/net/balance-transaction/provider-payment fields.
 
-## Current Stripe account / owner action
-The connected Stripe context currently exposes GB account `acct_1UFAd1Cu9tojH31y` in test mode only. Stripe reports:
-- `charges_enabled=false`;
-- `payouts_enabled=false`;
-- `details_submitted=false`;
-- `business_type=null`.
+`account-payments.js` shows each receipt number in Billing payment history and keeps the authenticated receipt PDF download. Receipt filenames use the customer-facing receipt number. `account.js` cache-busts this customer asset with `6.4.45-payment-receipts-1`.
 
-Outstanding Stripe requirements include business profile product description, support phone, business URL and Stripe Terms acceptance. Owner acceptance of Stripe Terms must be performed by the owner; do not accept them on the owner's behalf. Do not invent a support phone, business type or other missing business identity details.
+## Receipt PDF
+`api/billing-document.js` uses the same receipt number in the PDF and filename, includes it in invoice payment history, and tells the customer to quote that number when contacting Namdar. Authentication/ownership/Staff payments-permission checks remain unchanged.
 
-Before production payments can be activated:
-1. owner completes Stripe onboarding and Terms;
-2. Stripe account becomes eligible for live charges/payouts;
-3. LIVE production secret is configured in Vercel;
-4. live webhook endpoint/secret is configured and verified;
-5. Admin reports Stripe mode LIVE and production live-ready Yes;
-6. owner explicitly chooses the commercial deposit/balance policy;
-7. only then enable `site_settings.payments.active`.
+## Admin tracking
+`api/admin-payments.js` adds `receipt_number` to the safe Admin payment payload and records the receipt number in payment audit metadata/summary.
+
+`admin-payment-receipts.js` decorates transaction rows with the receipt number and extends the existing Payments search so an `RCP-...` reference can be used to find the matching invoice/payment row without changing `admin-original.js`. `admin.js` loads this extension at `6.4.45-payment-receipts-1`.
+
+## Safety invariants
+- customer-facing receipt numbers are Namdar references, not Stripe secrets;
+- Stripe provider references/payment IDs remain internal reconciliation evidence;
+- customer billing/PDF surfaces continue to exclude processor-cost fields;
+- duplicate Stripe webhooks do not duplicate payment records/emails because provider-reference idempotency remains authoritative;
+- this feature does not enable Stripe or create a commercial payment policy;
+- do not manufacture production customer/payment rows to test it.
 
 # Google Review System — LIVE
 PR #98 remains live. Official review URL is not configured yet, so public review requests/reminders remain off. Review availability is never gated by positive private feedback and no incentive is offered.
@@ -113,9 +85,9 @@ PR #98 remains live. Official review URL is not configured yet, so public review
 # Existing live product layers
 Post-job Customer Experience PR #96 remains live with completed-job actions, private feedback, safe repeat quoting and next-clean guidance. Staff operations v3 PR #94 remains live with field checklist/completion gate, incidents/evidence and On My Way/customer ETA.
 
-## Safety invariants
-- Do not manufacture production customers/bookings/payments for testing.
-- Do not expose Stripe keys/secrets to browser/Admin responses.
-- Do not enable production customer payments with TEST/unknown credentials.
-- Do not accept Stripe legal terms for the owner.
-- Do not activate a commercial deposit policy until the owner chooses its terms.
+## Next steps
+1. run exact-head CI/Vercel checks for payment receipt tracking;
+2. merge only if receipt, Stripe/payment-policy, full handoff, Staff/Post-job/Review compatibility and Vercel checks are green;
+3. verify production health, loader tokens and no new payment/customer rows;
+4. only after this receipt layer is live should owner onboarding/live Stripe credentials continue;
+5. production payments remain OFF until owner completes Stripe onboarding/TOS, live charges/payouts are enabled, LIVE secret + verified live webhook are configured, and owner chooses the commercial deposit/balance policy.
