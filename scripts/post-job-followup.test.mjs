@@ -47,18 +47,20 @@ test('review settings are staff protected, Google-only and auditable',()=>{
   assert.match(api,/requireStaff\(req,'settings'\)/);
   assert.match(api,/googleHost/);
   assert.match(api,/reviews\.settings_update/);
-  assert.match(admin,/shown equally to completed customers/);
+  assert.match(admin,/every completed customer/);
   assert.match(admin,/official review-request link from your Google Business Profile/);
 });
 
-test('notification cron keeps post-job first while isolating bounded delivery and business scan stages',()=>{
+test('notification cron keeps post-job and review reminders isolated before booking and business stages',()=>{
   const api=read('api/booking-notifications.js');
   const post=api.indexOf("await runStage('post_job'");
+  const reviews=api.indexOf("await runStage('review_reminders'");
   const generic=api.indexOf("await runStage('booking_delivery'");
   const scan=api.indexOf("await runStage('business_scan'");
   const business=api.indexOf("await runStage('business_delivery'");
-  assert.ok(post>=0&&generic>post&&scan>generic&&business>scan);
+  assert.ok(post>=0&&reviews>post&&generic>reviews&&scan>generic&&business>scan);
   assert.match(api,/processPostJobFollowUps\(10\)/);
+  assert.match(api,/processReviewReminders\(10\)/);
   assert.match(api,/processDueBookingNotifications\(10\)/);
   assert.match(api,/scanBusinessFollowUpsBatched\(\{db:cronReadDb,env,isManagedInboxAddress\}\)/);
   assert.match(api,/processDueBusinessNotifications\(10\)/);
