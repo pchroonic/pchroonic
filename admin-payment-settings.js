@@ -29,7 +29,7 @@
         <div class="crm-context"><strong>Consumer late-payment money charges:</strong> automatically disabled. Namdar may remind, pause new bookings and review recovery, but this engine will not invent or compound a consumer penalty. <strong>Business-to-business statutory interest/recovery:</strong> manual review only and separate from consumer bookings.</div>
       </section>
       <label class="consent"><input id="onlinePaymentActive" type="checkbox"><span>Enable secure online Stripe payments for Window Cleaning</span></label>
-      <p class="muted">Production activation requires a recognised Stripe LIVE secret key and verified live webhook. Stripe TEST keys remain usable for preview/testing but can never activate customer payments on production.</p>
+      <p class="muted">Production activation requires a recognised Stripe LIVE secret key and a verified webhook configured for live Stripe. Stripe TEST keys remain usable for preview/testing but can never activate customer payments on production.</p>
       <hr style="margin:22px 0;border:0;border-top:1px solid var(--border,#dfe5e1)">
       <div class="panel-head"><div><h3>Headline price allowance</h3><p>Optionally build expected payment-processing cost into the normal Window Cleaning price. This is part of the service price for everyone, not a card or Stripe surcharge.</p></div></div>
       <div class="admin-form-grid"><label>Allowance percentage<input id="headlineAllowancePercent" type="number" min="0" max="15" step="0.1"></label><label>Fixed allowance (£)<input id="headlineAllowanceFixed" type="number" min="0" max="25" step="0.01"></label></div>
