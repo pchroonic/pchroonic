@@ -15,6 +15,91 @@ Read `docs/AI_START.md` first. Use `docs/PROJECT_STATUS.md` for roadmap/status.
 - Window Cleaning only live. Customer commercial Stripe OFF. Provider AI OFF. Privileged access requires CAPTCHA + AAL2/TOTP.
 - Production still has no `site_settings.reviews` row, so public Google review requests and reminders are intentionally inactive until the owner adds the real Google Business Profile review link.
 
+# Stripe live readiness — RELEASE CANDIDATE
+
+PR #100; branch `feature/stripe-live-readiness-20260917`; Admin payment asset candidate `6.4.44-stripe-live-readiness-1`.
+
+## Goal
+Harden Namdar's already-built Stripe Checkout/deposit system so test credentials can be used only for non-production validation, while production customer payments can become effective only with recognised LIVE Stripe credentials and a configured webhook.
+
+## Current Stripe account state
+The Stripe connector currently exposes one GB account, `acct_1UFAd1Cu9tojH31y`, in test mode only. Stripe reports:
+- `charges_enabled=false`;
+- `payouts_enabled=false`;
+- `details_submitted=false`;
+- `business_type=null`.
+
+Current onboarding requirements include business profile product description, support phone, business URL, and owner acceptance of Stripe Terms (`tos_acceptance.date` / IP). Do not invent missing owner/business data and do not accept Stripe Terms on the owner's behalf.
+
+## Payment readiness guard
+`lib/payment-policy.js` now exports `stripeKeyMode(secret)` and extends `providerReadiness(env)`.
+
+Secret classification:
+- `sk_live_` / `rk_live_` => `live`;
+- `sk_test_` / `rk_test_` => `test`;
+- empty => `unconfigured`;
+- other => `unknown`.
+
+Provider readiness now returns `stripeConfigured`, `webhookConfigured`, `stripeMode`, `production`, `liveReady`, `testReady`, `ready`, and a human-readable `activationBlockReason`.
+
+Rules:
+- production (`VERCEL_ENV=production`) requires recognised LIVE Stripe key + webhook for `ready=true`;
+- production test keys remain configured but are never ready/effective;
+- unknown production key types fail closed;
+- preview/test environments may use recognised TEST keys + webhook so sandbox Checkout can still be exercised;
+- `loadPaymentPolicy` continues to derive `effectiveActive=policy.active && provider.ready`, so a manually active database policy cannot override the production provider guard.
+
+## Admin payment settings
+`api/admin-payment-settings.js` exposes only non-secret readiness metadata: Stripe mode, live/test readiness, production state and activation blocker. It still requires `payments` permission to view and `settings` permission to mutate. POST activation is blocked by the precise provider readiness reason and audit metadata records mode/readiness, never key material.
+
+`admin-payment-settings.js` now displays:
+- Stripe secret configured/not connected;
+- Stripe mode `LIVE`, `TEST only`, unconfigured or unknown;
+- verified webhook configured/not configured;
+- production live-ready yes/no;
+- customer payments enabled/disabled.
+
+When the current policy is off and provider readiness is incomplete, the activation checkbox is disabled while the owner can still edit/save a disabled future policy draft. Production copy explicitly states that a recognised LIVE key and verified webhook are required.
+
+## Existing payment architecture preserved
+No Checkout/payment behavior is replaced. Existing live code still provides:
+- hosted Stripe Checkout in GBP;
+- Window Cleaning only;
+- authenticated customer boundary;
+- frozen payment-policy snapshot per booking;
+- exact locked deposit amount;
+- optional/required deposit or full-payment modes;
+- full outstanding balance after completion/due;
+- idempotent Checkout session keys;
+- verified raw-body Stripe webhook;
+- idempotent payment records and refund handling;
+- exact processor fee/net accounting from Stripe balance transactions;
+- no customer-facing processor-cost leakage;
+- no automatic consumer monetary late fee;
+- B2B statutory late-payment calculation remains preview/manual only.
+
+## Candidate verification
+Dedicated `scripts/stripe-live-readiness.test.mjs` and `.github/workflows/stripe-live-readiness-check.yml` were added. Existing `scripts/stripe-payments.test.mjs` was updated only to recognise the expanded readiness metadata and retain compatibility wording.
+
+Current candidate verification:
+- Stripe live-readiness CI passes;
+- Stripe payment and flexible payment-policy regressions pass;
+- Staff v3 compatibility passes;
+- Post-job compatibility passes;
+- Google Review compatibility passes;
+- exact-head Vercel preview builds cleanly;
+- handoff guard required these three docs to be updated in the same PR; this change satisfies that continuity requirement.
+
+## Safety / release boundary
+PR #100 does not:
+- enable customer payments;
+- add LIVE Stripe secrets to source control;
+- create a production `site_settings.payments` row;
+- accept Stripe Terms;
+- create customer, booking or payment records.
+
+After this safety layer is merged, the next Stripe stage is owner-controlled onboarding: complete Stripe business requirements/TOS, configure LIVE production key + live webhook, verify `charges_enabled/payouts_enabled`, then explicitly choose the commercial deposit/balance policy before activation.
+
 # Google Review System — LIVE
 
 Product PR #98: `Add Google review controls, tracking and dashboard`.

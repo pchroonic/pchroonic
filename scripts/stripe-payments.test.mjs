@@ -11,8 +11,10 @@ const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
 test('payment policy is safely disabled by default and needs both provider secrets',()=>{
   const policy=normalizePaymentPolicy({});
   assert.equal(policy.active,false);assert.equal(policy.mode,'optional');assert.equal(policy.depositPercent,20);assert.equal(policy.minimumDeposit,10);assert.equal(policy.headlineAllowanceActive,false);assert.equal(policy.headlineAllowancePercent,1.5);assert.equal(policy.headlineAllowanceFixed,.2);
-  assert.deepEqual(providerReadiness((name)=>name==='STRIPE_SECRET_KEY'?'sk_test_x':''),{stripeConfigured:true,webhookConfigured:false,ready:false});
-  assert.equal(providerReadiness((name)=>name==='STRIPE_SECRET_KEY'?'sk_test_x':name==='STRIPE_WEBHOOK_SECRET'?'whsec_x':'').ready,true);
+  const incomplete=providerReadiness((name)=>name==='STRIPE_SECRET_KEY'?'sk_test_x':'');
+  assert.equal(incomplete.stripeConfigured,true);assert.equal(incomplete.webhookConfigured,false);assert.equal(incomplete.ready,false);assert.equal(incomplete.stripeMode,'test');assert.equal(incomplete.testReady,false);assert.match(incomplete.activationBlockReason,/webhook/i);
+  const testReady=providerReadiness((name)=>name==='STRIPE_SECRET_KEY'?'sk_test_x':name==='STRIPE_WEBHOOK_SECRET'?'whsec_x':'');
+  assert.equal(testReady.ready,true);assert.equal(testReady.testReady,true);assert.equal(testReady.liveReady,false);assert.equal(testReady.production,false);
 });
 
 test('checkout planning supports configurable deposits, full payment and balance',()=>{

@@ -4,7 +4,7 @@ const {DEFAULT_PAYMENT_POLICY,normalizePaymentPolicy,validatePaymentPolicy,provi
 async function currentRow(){return (await db('site_settings?key=eq.payments&select=*&limit=1').catch(()=>[]))?.[0]||null}
 function view(row,provider,canEdit=false){
   const policy=normalizePaymentPolicy(row?.value||DEFAULT_PAYMENT_POLICY),validation=validatePaymentPolicy(row?.value||policy);
-  return{ok:true,canEdit,policy:{...policy,effectiveActive:policy.active&&provider.ready},validationErrors:validation.errors,stripeConfigured:provider.stripeConfigured,webhookConfigured:provider.webhookConfigured,providerReady:provider.ready};
+  return{ok:true,canEdit,policy:{...policy,effectiveActive:policy.active&&provider.ready},validationErrors:validation.errors,stripeConfigured:provider.stripeConfigured,webhookConfigured:provider.webhookConfigured,providerReady:provider.ready,stripeMode:provider.stripeMode,production:provider.production,liveReady:provider.liveReady,testReady:provider.testReady,activationBlockReason:provider.activationBlockReason};
 }
 module.exports=async function handler(req,res){
   try{
@@ -22,7 +22,7 @@ module.exports=async function handler(req,res){
       headlineAllowanceActive:body.headlineAllowanceActive,headlineAllowancePercent:body.headlineAllowancePercent,headlineAllowanceFixed:body.headlineAllowanceFixed
     });
     if(body.active===true&&!validation.ok)return json(res,400,{ok:false,error:validation.errors.join(' ')});
-    if(body.active===true&&!provider.ready)return json(res,409,{ok:false,error:'Connect Stripe and configure the verified webhook before enabling online payments.'});
+    if(body.active===true&&!provider.ready)return json(res,409,{ok:false,error:provider.activationBlockReason||'Connect Stripe and configure the verified webhook before enabling online payments.'});
     const policy={...validation.policy,revision:Math.max(1,Number(beforePolicy.revision||0)+1)},now=new Date().toISOString();
     await db('site_settings?on_conflict=key',{method:'POST',prefer:'resolution=merge-duplicates,return=representation',body:{key:'payments',value:{
       policy_revision:policy.revision,active:policy.active,mode:policy.mode,deposit_strategy:policy.depositStrategy,deposit_percent:policy.depositPercent,minimum_deposit:policy.minimumDeposit,deposit_bands:policy.depositBands,allow_full_payment:policy.allowFullPayment,balance_due_hours:policy.balanceDueHours,
@@ -30,7 +30,7 @@ module.exports=async function handler(req,res){
       headline_allowance_active:policy.headlineAllowanceActive,headline_allowance_percent:policy.headlineAllowancePercent,headline_allowance_fixed:policy.headlineAllowanceFixed
     },updated_by:staff.user.id,updated_at:now}});
     const after=await currentRow();
-    await auditLog(req,staff,{action:'payments.settings_update',entityType:'site_settings',entityId:'payments',summary:policy.active?`Updated online payment policy revision ${policy.revision} (${policy.mode})`:`Saved payment policy revision ${policy.revision}; online payments remain disabled`,before,after,metadata:{providerReady:provider.ready,revision:policy.revision,depositStrategy:policy.depositStrategy,depositBands:policy.depositBands.length,balanceDueHours:policy.balanceDueHours,bookingHoldAfterDays:policy.overdue.bookingHoldAfterDays,finalReviewAfterDays:policy.overdue.finalReviewAfterDays,consumerMonetaryLateFees:false,headlineAllowanceActive:policy.headlineAllowanceActive,headlineAllowancePercent:policy.headlineAllowancePercent,headlineAllowanceFixed:policy.headlineAllowanceFixed}});
+    await auditLog(req,staff,{action:'payments.settings_update',entityType:'site_settings',entityId:'payments',summary:policy.active?`Updated online payment policy revision ${policy.revision} (${policy.mode})`:`Saved payment policy revision ${policy.revision}; online payments remain disabled`,before,after,metadata:{providerReady:provider.ready,stripeMode:provider.stripeMode,production:provider.production,revision:policy.revision,depositStrategy:policy.depositStrategy,depositBands:policy.depositBands.length,balanceDueHours:policy.balanceDueHours,bookingHoldAfterDays:policy.overdue.bookingHoldAfterDays,finalReviewAfterDays:policy.overdue.finalReviewAfterDays,consumerMonetaryLateFees:false,headlineAllowanceActive:policy.headlineAllowanceActive,headlineAllowancePercent:policy.headlineAllowancePercent,headlineAllowanceFixed:policy.headlineAllowanceFixed}});
     return json(res,200,view(after,provider,true));
   }catch(error){return safeError(res,error)}
 };
