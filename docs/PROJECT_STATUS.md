@@ -16,12 +16,12 @@ Last updated: 2026-09-17 UTC
 - No production Google Business review URL is configured yet.
 
 ## Google Review System — RELEASE CANDIDATE
-Branch `feature/google-review-system-20260917`, candidate Admin token `6.4.43-google-reviews-1`.
+PR #98; branch `feature/google-review-system-20260917`; candidate Admin token `6.4.43-google-reviews-1`.
 
 Implemented:
 - owner-controlled Google review enable/pause switch;
 - Google-host-only URL validation at both settings-save and runtime boundaries;
-- optional single automatic review reminder with owner-selectable delay;
+- optional single automatic Google review reminder with owner-selectable delay;
 - reminder suppression after either private-feedback submission or Google-review click;
 - tracked email review link that records the click before a server-controlled redirect to Google;
 - request timestamp recorded only after the first post-job email actually sends;
