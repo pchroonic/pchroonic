@@ -6,95 +6,89 @@ Read `docs/AI_START.md` first. Use `docs/PROJECT_STATUS.md` for roadmap/status.
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current `main` is `74e9d6740cd06d7a348a995185e1f623b3461ff8` (docs PR #95 on top of PR #94).
-- Current live product merge `784b7c766ed88fe8f53057dd1a657555d57da69d` from PR #94.
+- Current live product merge `e3d6c2ac840e0fe0ac8a757100ade3fb418eeca5` from PR #96.
+- Customer base loader remains `6.4.35-payment-policy-engine-1`; Post-job Customer Experience extension is `6.4.42-post-job-experience-1`; Staff ETA extension remains `6.4.41-staff-operations-v3-1`.
 - Staff operations v3 token `6.4.41-staff-operations-v3-1`; Staff v2 token `6.4.40-staff-experience-v2-1`; Staff auth/security base `6.4.31-staff-auth-recovery-1`.
 - Admin base `6.4.37-admin-website-crash-fix-1`; modal layout `6.4.38-admin-wide-modal-fix-1`; access roles `6.4.39-access-roles-1`.
-- Customer base loader `6.4.35-payment-policy-engine-1` with a separate v3 ETA extension.
 - Supabase production: `qjigldxjcpnrlyxgmlqq`.
 - Vercel project `prj_4fILo0pCaLGUSUIMWrBIVGzeWVDC`; team `team_8Az8WtWcnfwtYRdhR8vGqC3L`.
-- Production deployment `dpl_BvETZL2tzcUvfx9Nivaid1RATUrJ` is READY on `namdar.co.uk`.
+- Production deployment `dpl_2Cusp5Hv9gJkxu6QPi2c2MRgHJLX` is READY and aliased to `namdar.co.uk`.
+- Health HTTP 200 / `ok:true` at `2026-09-17T18:12:16.395Z`.
 - Window Cleaning only live. Customer Stripe OFF. Provider AI OFF. Privileged access requires CAPTCHA + AAL2/TOTP.
 
-# Post-job Customer Experience — RELEASE CANDIDATE
+# Post-job Customer Experience — LIVE
 
-Branch: `feature/post-job-customer-experience-20260917`.
-Candidate token: `6.4.42-post-job-experience-1`.
+Product PR #96: `Add post-job customer experience and repeat quoting`.
+Exact tested head: `e652b25a7dc36c0172b0642971cbe403d955a9c2`.
+Full repository/handoff CI `35257058653`: SUCCESS.
+Dedicated Post-job CI `35257058714`: SUCCESS.
+Staff v3 compatibility CI `35257058663`: SUCCESS.
+Exact-head Vercel preview `dpl_J3863nqQnAt7EqxMPNKKKow6iP8M`: READY with clean errors-only build logs.
+Merge/main: `e3d6c2ac840e0fe0ac8a757100ade3fb418eeca5`.
+Production deployment `dpl_2Cusp5Hv9gJkxu6QPi2c2MRgHJLX`: READY, clean build, `namdar.co.uk` alias active.
 
 ## Goal
-Close the customer lifecycle after Staff marks a Window Cleaning job complete: completed-job clarity, private feedback, honest Google reviews, simple repeat quoting and recurring-clean guidance. This extends existing live systems rather than creating a parallel booking/review stack.
+Close the customer lifecycle after Staff marks a Window Cleaning job complete: completed-job clarity, private feedback, honest Google reviews, simple repeat quoting and recurring-clean guidance, while keeping the existing quote/booking/payment boundaries authoritative.
 
 ## Existing foundations reused
-- `lib/post-job-followup.js` already emails every completed customer and offers private feedback plus an honest Google review when configured.
-- `api/feedback.js` already routes low/private feedback to support and records public-review clicks without rewarding or gating reviews behind positivity.
-- `booking_feedback` already stores one feedback/review state per booking.
-- `site_settings.reviews.public_review_url` is the existing source for the public Google-review URL.
-- `api/customer-jobs.js` / `account-original.js` already show completed job photos, timeline, price and billing status.
-- `/api/quote` remains the only repeat-quote creation path used by this feature, so current coverage/pricing/payment-policy rules are recalculated.
+- `lib/post-job-followup.js` continues to email every completed customer and offers private feedback plus an honest Google review when configured.
+- `api/feedback.js` remains the public feedback form boundary and does not gate public review access behind a positive rating.
+- `booking_feedback` remains the one feedback/review state per booking.
+- `site_settings.reviews.public_review_url` remains the source for the Google Business review URL.
+- `api/customer-jobs.js` / `account-original.js` continue to provide completed-job photos, timeline, price and billing status.
+- `/api/quote` remains the quote-creation boundary for repeat work, so current coverage/pricing/payment-policy logic is recalculated.
 
-## New authenticated post-job API
+## Authenticated post-job API
 `api/customer-post-job.js`:
 - requires `requireCustomer(req)` for every request;
-- scopes every booking action to `bookings.customer_id = signed-in user`;
-- refuses post-job mutations unless the booking is completed;
-- GET returns only review availability and existing feedback status for the signed-in customer's completed bookings;
-- POST `feedback_link` calls the existing `ensureBookingFeedbackInvite` helper and returns the private `/feedback?token=...` path;
-- POST `public_review_click` loads the existing configured review URL, ensures the booking feedback row exists, records `public_review_clicked_at`, and returns the URL;
-- review availability is not conditional on a high rating.
+- scopes booking actions to the signed-in customer's own booking;
+- refuses post-job actions unless the booking is completed;
+- GET returns review availability and feedback status for the signed-in customer's completed bookings without returning feedback tokens;
+- POST `feedback_link` uses `ensureBookingFeedbackInvite` and returns the existing private feedback path;
+- POST `public_review_click` loads the configured public review URL, ensures a booking-feedback row exists, records `public_review_clicked_at`, and returns the URL;
+- public-review availability is not conditional on a high rating.
 
-No new public endpoint exposes feedback tokens without customer authentication.
+Production unauthenticated GET `/api/customer-post-job` returned HTTP 401 `Please sign in to your Namdar account.` as expected. This security verification did not create data.
 
-## Safe repeat-quote template
-`api/customer-jobs.js` now selects quote `inputs` server-side but exposes only a sanitised repeat template for completed Window Cleaning jobs:
-- units;
-- detail factor;
-- extra-work factor;
-- floors;
-- access;
-- property type;
-- recurring frequency.
+## Safe repeat quoting
+`api/customer-jobs.js` exposes a sanitised repeat template only for completed Window Cleaning jobs. Allowed repeat fields are bounded/revalidated units, detail factor, extra-work factor, floors, access, property type and recurring frequency.
 
 Safeguards:
-- no old free-text notes are returned in the repeat template;
-- urgency is reset to `standard`;
-- bounds/enums are revalidated before returning the template;
-- old quote/final price is not reused as the new price;
-- only completed Window Cleaning jobs receive a repeat template because Window Cleaning is the only live service.
+- old free-text notes are not copied;
+- urgency resets to `standard`;
+- the old quote/final price is not used as the new price;
+- only completed Window Cleaning jobs receive a repeat template;
+- `Book again` asks for confirmation and POSTs to the normal `/api/quote` endpoint;
+- current coverage, pricing and payment-policy allowance are recalculated;
+- the action creates a new quote request only, never a booking or Stripe checkout.
 
-The same response derives `recurringWeeks` for `4_weekly`, `8_weekly`, `12_weekly`, and legacy `monthly`/`quarterly` values.
+The same customer-jobs response derives recurring intervals for 4/8/12-week and legacy monthly/quarterly frequency values.
 
-## My Namdar UI extension
-`account-post-job.js` wraps the existing `renderBookings` renderer after `account-original.js` instead of replacing it. For every completed job it adds:
+## My Namdar UI
+`account-post-job.js` wraps the existing booking renderer instead of replacing it. Completed booking cards now gain:
 - `Job complete ✓` customer summary;
 - private feedback action;
 - Google-review action only when the configured public-review URL exists;
-- `Book again` only when a safe repeat template exists;
-- approximate next-clean guide date for recurring jobs with explicit wording that nothing is automatically booked.
+- `Book again` when a safe repeat template exists;
+- an approximate next-clean guide for recurring jobs, explicitly saying nothing is booked automatically.
 
-The repeat action asks for confirmation, then POSTs the sanitised prior physical job inputs to `/api/quote` with the signed-in customer's current profile/contact context. The normal quote endpoint rechecks current postcode coverage, pricing, promotions/rewards rules, payment-policy allowance and staff notification/email workflow. A repeat click therefore creates a **new quote request only**, never a booking or checkout.
+`account-post-job.css` gives the extension responsive mobile actions. `account.js` keeps the base customer token unchanged and separately loads JS/CSS with token `6.4.42-post-job-experience-1`.
 
-`account-post-job.css` styles the panel and collapses actions to full-width mobile controls at narrow widths.
+## Production verification
+- `/api/health`: HTTP 200 / `ok:true`.
+- `/account.js`: HTTP 200 and loads `account-post-job.css` + `account-post-job.js` at `6.4.42-post-job-experience-1`.
+- `/account-post-job.js`: HTTP 200/current.
+- `/api/customer-post-job`: unauthenticated GET returns 401 as required.
+- Production 5xx scan for `dpl_2Cusp5Hv9gJkxu6QPi2c2MRgHJLX`: no 5xx logs found.
+- Errors-only deployment build log was clean.
+- No migration was required.
+- No fake production customer, quote, booking, feedback, review or payment record was created during verification.
+- Customer commercial Stripe remains OFF.
 
-`account.js` keeps the base customer token unchanged and loads this feature separately with `6.4.42-post-job-experience-1`.
-
-## Tests / CI
-`scripts/post-job-customer-experience.test.mjs` verifies:
-- authenticated completed-booking ownership boundary;
-- reuse of existing private-feedback/public-review infrastructure;
-- no positive-rating gate on public review availability;
-- repeat quote uses `/api/quote` and does not call booking/checkout endpoints;
-- safe repeat fields and next-clean guidance;
-- account loader pins the new module/style token.
-
-Dedicated CI: `.github/workflows/post-job-customer-experience-check.yml` syntax-checks the new customer JS/API and runs the regression suite. The normal repository handoff CI also runs and requires all three continuity files to move with product code.
-
-## Database / commercial impact
-No migration is required. Existing `booking_feedback`, `site_settings.reviews`, quotes/bookings and customer job data are reused.
-
-Release verification must not create fake production customers, quotes, bookings, feedback, reviews or payments. Use CI, preview/build checks and unauthenticated endpoint behavior only; authenticated real-customer testing should happen naturally with a real completed job. Commercial Stripe remains OFF.
+The next functional smoke should occur with a genuine completed customer job so the private-feedback/review/repeat-quote experience can be exercised without manufacturing production data.
 
 # Staff operations v3 — LIVE
-PR #94 remains the live field-operations release. It adds the six-step Window Cleaning quality checklist, server-side completion gate, incident reporting/evidence, Admin incident review, On My Way ETA, customer ETA display and private RLS-protected field tables without replacing the existing Staff lifecycle.
+PR #94 remains the field-operations layer underneath this release. It includes the six-step Window Cleaning quality checklist, server-side completion gate, incident reporting/evidence, Admin incident review, On My Way ETA, customer ETA display and private RLS-protected field tables.
 
 Release evidence:
 - exact tested head `370a75d47f6d757179b02ce5db79d7ea6b87c877`;
@@ -102,8 +96,7 @@ Release evidence:
 - Staff v3 CI `35080584357` SUCCESS;
 - Staff v2 compatibility CI `35080584294` SUCCESS;
 - exact-head preview `dpl_5ybJj7duWzrrYqZZbW7CBAVp9UXH` READY / clean;
-- merge `784b7c766ed88fe8f53057dd1a657555d57da69d`;
-- production `dpl_BvETZL2tzcUvfx9Nivaid1RATUrJ` READY / clean / aliased to `namdar.co.uk`.
+- merge `784b7c766ed88fe8f53057dd1a657555d57da69d`.
 
 ## Manual Staff follow-up
 Authenticated phone smoke test using a real assigned job: checklist save/gate, incident report/evidence, On My Way ETA, customer ETA display and Admin incident resolution. Do not create fake production customer/job/payment data just for this check.
