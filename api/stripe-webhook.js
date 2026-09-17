@@ -1,5 +1,6 @@
 const {json,db,env,syncInvoicePaymentState,createStaffNotification,sendEmail,escapeHtml,cancelPendingBusinessNotifications,safeError}=require('../lib/server');
 const {verifyStripeSignature,readRawBody,retrievePaymentIntent,retrievePaymentProcessorDetails,retrieveRefundProcessorDetails}=require('../lib/stripe-payments');
+const {receiptNumber}=require('../lib/payment-receipts');
 
 async function contextFromMetadata(meta={}){
   const bookingId=String(meta.booking_id||''),invoiceId=String(meta.invoice_id||''),customerId=String(meta.customer_id||'');
@@ -24,9 +25,10 @@ async function attachProcessorDetails(providerReference,paymentIntentId,loader){
   await db(`payment_records?provider_reference=eq.${encodeURIComponent(providerReference)}`,{method:'PATCH',prefer:'return=minimal',body:providerFields(paymentIntentId,details)});
   return details;
 }
-async function notifyPayment(ctx,amount,kind,providerReference){
-  await createStaffNotification({type:'payment_received',title:'Stripe payment received',body:`${ctx.quote.customer_name||ctx.quote.email||'Customer'} · £${amount.toFixed(2)}`,targetPath:'/admin?tab=payments',permissionKey:'payments',entityType:'invoice',entityId:ctx.invoice.id,priority:ctx.booking.status==='cancelled'?'high':'normal',dedupeKey:`stripe-payment:${providerReference}`});
-  if(ctx.quote.email)await sendEmail({to:ctx.quote.email,subject:'Namdar payment received',html:`<p>Hi ${escapeHtml(ctx.quote.customer_name||'there')},</p><p>We received your secure Stripe payment of <strong>£${amount.toFixed(2)}</strong>.</p><p>Your updated invoice and receipt are available in <a href="https://namdar.co.uk/account?tab=billing">My Namdar</a>.</p>`,archiveForCustomer:true,customerId:ctx.quote.customer_id||ctx.invoice.customer_id||null,messageCategory:'billing',targetPath:'/account?tab=billing',messageKey:`stripe-receipt:${providerReference}`});
+async function notifyPayment(ctx,payment,state){
+  const amount=Number(payment?.amount||0),receiptNo=receiptNumber(payment),kind=String(payment?.payment_kind||'payment').replaceAll('_',' '),providerReference=String(payment?.provider_reference||'');
+  await createStaffNotification({type:'payment_received',title:'Stripe payment received',body:`${ctx.quote.customer_name||ctx.quote.email||'Customer'} · £${amount.toFixed(2)} · ${receiptNo}`,targetPath:'/admin?tab=payments',permissionKey:'payments',entityType:'invoice',entityId:ctx.invoice.id,priority:ctx.booking.status==='cancelled'?'high':'normal',dedupeKey:`stripe-payment:${providerReference}`});
+  if(ctx.quote.email)await sendEmail({to:ctx.quote.email,subject:`Namdar payment receipt ${receiptNo}`,html:`<p>Hi ${escapeHtml(ctx.quote.customer_name||'there')},</p><p>Thank you. We received your secure Stripe payment.</p><p><strong>Receipt number:</strong> ${escapeHtml(receiptNo)}<br><strong>Invoice:</strong> ${escapeHtml(ctx.invoice.invoice_number||'')}<br><strong>Amount:</strong> £${amount.toFixed(2)}<br><strong>Payment type:</strong> ${escapeHtml(kind)}<br><strong>Payment method:</strong> Stripe<br><strong>Date:</strong> ${escapeHtml(new Date(payment.paid_at||Date.now()).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}))}</p><p><strong>Total paid on invoice:</strong> £${Number(state?.net||0).toFixed(2)}<br><strong>Outstanding:</strong> £${Number(state?.outstanding||0).toFixed(2)}</p><p>Your receipt PDF and full payment history are available in <a href="https://namdar.co.uk/account?tab=billing">My Namdar</a>. Please quote <strong>${escapeHtml(receiptNo)}</strong> if you contact us about this payment.</p>`,archiveForCustomer:true,customerId:ctx.quote.customer_id||ctx.invoice.customer_id||null,messageCategory:'billing',targetPath:'/account?tab=billing',messageKey:`stripe-receipt:${providerReference}`});
 }
 async function processCheckoutSession(session){
   if(!session||session.payment_status!=='paid')return{handled:true,recorded:false,reason:'not_paid'};
@@ -39,9 +41,9 @@ async function processCheckoutSession(session){
   const rows=await insertStripeRecord({booking_id:ctx.booking.id,invoice_id:ctx.invoice.id,customer_id:ctx.booking.customer_id||null,direction:'payment',payment_kind:kind,method:'stripe',amount:Number(amount.toFixed(2)),reference:paymentIntentId?`Stripe ${paymentIntentId.slice(0,80)}`:'Stripe Checkout',provider_reference:providerReference,provider_livemode:session.livemode===true,...providerFields(paymentIntentId),paid_at:session.created?new Date(Number(session.created)*1000).toISOString():new Date().toISOString()});
   const state=await syncInvoicePaymentState(ctx.invoice.id);
   if(state.outstanding<.005)await cancelPendingBusinessNotifications('invoice',ctx.invoice.id,'invoice_overdue').catch(()=>null);
-  if(rows.length)await notifyPayment(ctx,amount,kind,providerReference);
+  if(rows.length)await notifyPayment(ctx,rows[0],state);
   const processor=await attachProcessorDetails(providerReference,paymentIntentId,()=>retrievePaymentProcessorDetails(env('STRIPE_SECRET_KEY'),paymentIntentId));
-  return{handled:true,recorded:rows.length>0,invoiceId:ctx.invoice.id,paymentStatus:state.invoice.status,processingCostCaptured:processor.providerFee!=null};
+  return{handled:true,recorded:rows.length>0,invoiceId:ctx.invoice.id,paymentStatus:state.invoice.status,receiptNumber:rows.length?receiptNumber(rows[0]):null,processingCostCaptured:processor.providerFee!=null};
 }
 async function processRefund(refund,paymentIntentId=''){
   if(!refund||String(refund.status||'')!=='succeeded')return{handled:true,recorded:false,reason:'refund_not_succeeded'};
@@ -52,11 +54,12 @@ async function processRefund(refund,paymentIntentId=''){
   const rows=await insertStripeRecord({booking_id:ctx.booking.id,invoice_id:ctx.invoice.id,customer_id:ctx.booking.customer_id||null,direction:'refund',payment_kind:'refund',method:'stripe',amount:Number(amount.toFixed(2)),reference:`Stripe refund ${String(refund.id).slice(0,80)}`,provider_reference:providerReference,provider_livemode:pi.livemode===true,...providerFields(piId),paid_at:refund.created?new Date(Number(refund.created)*1000).toISOString():new Date().toISOString()});
   const state=await syncInvoicePaymentState(ctx.invoice.id);
   if(rows.length){
-    await createStaffNotification({type:'payment_received',title:'Stripe refund recorded',body:`${ctx.quote.customer_name||ctx.quote.email||'Customer'} · £${amount.toFixed(2)} refund`,targetPath:'/admin?tab=payments',permissionKey:'payments',entityType:'invoice',entityId:ctx.invoice.id,priority:'normal',dedupeKey:`stripe-refund:${refund.id}`});
-    if(ctx.quote.email)await sendEmail({to:ctx.quote.email,subject:'Namdar Stripe refund confirmed',html:`<p>Hi ${escapeHtml(ctx.quote.customer_name||'there')},</p><p>A Stripe refund of <strong>£${amount.toFixed(2)}</strong> has been recorded against your Namdar invoice.</p><p>Your updated payment history is available in <a href="https://namdar.co.uk/account?tab=billing">My Namdar</a>.</p>`,archiveForCustomer:true,customerId:ctx.quote.customer_id||ctx.invoice.customer_id||null,messageCategory:'billing',targetPath:'/account?tab=billing',messageKey:`stripe-refund:${refund.id}`});
+    const payment=rows[0],receiptNo=receiptNumber(payment);
+    await createStaffNotification({type:'payment_received',title:'Stripe refund recorded',body:`${ctx.quote.customer_name||ctx.quote.email||'Customer'} · £${amount.toFixed(2)} refund · ${receiptNo}`,targetPath:'/admin?tab=payments',permissionKey:'payments',entityType:'invoice',entityId:ctx.invoice.id,priority:'normal',dedupeKey:`stripe-refund:${refund.id}`});
+    if(ctx.quote.email)await sendEmail({to:ctx.quote.email,subject:`Namdar refund receipt ${receiptNo}`,html:`<p>Hi ${escapeHtml(ctx.quote.customer_name||'there')},</p><p>A Stripe refund of <strong>£${amount.toFixed(2)}</strong> has been recorded against invoice <strong>${escapeHtml(ctx.invoice.invoice_number||'')}</strong>.</p><p><strong>Receipt number:</strong> ${escapeHtml(receiptNo)}<br><strong>Date:</strong> ${escapeHtml(new Date(payment.paid_at||Date.now()).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}))}<br><strong>Net paid after refund:</strong> £${Number(state.net||0).toFixed(2)}<br><strong>Outstanding:</strong> £${Number(state.outstanding||0).toFixed(2)}</p><p>Your updated payment history and receipt PDF are available in <a href="https://namdar.co.uk/account?tab=billing">My Namdar</a>. Please quote <strong>${escapeHtml(receiptNo)}</strong> if you contact us about this refund.</p>`,archiveForCustomer:true,customerId:ctx.quote.customer_id||ctx.invoice.customer_id||null,messageCategory:'billing',targetPath:'/account?tab=billing',messageKey:`stripe-refund:${refund.id}`});
   }
   const processor=await attachProcessorDetails(providerReference,piId,()=>retrieveRefundProcessorDetails(env('STRIPE_SECRET_KEY'),refund));
-  return{handled:true,recorded:rows.length>0,invoiceId:ctx.invoice.id,paymentStatus:state.invoice.status,processingCostCaptured:processor.providerFee!=null};
+  return{handled:true,recorded:rows.length>0,invoiceId:ctx.invoice.id,paymentStatus:state.invoice.status,receiptNumber:rows.length?receiptNumber(rows[0]):null,processingCostCaptured:processor.providerFee!=null};
 }
 
 module.exports=async function handler(req,res){
