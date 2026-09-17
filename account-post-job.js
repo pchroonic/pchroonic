@@ -40,7 +40,7 @@
   }
 
   async function openPublicReview(job,button){
-    const tab=window.open('about:blank','_blank');
+    const tab=window.open('about:blank','_blank');if(tab)tab.opener=null;
     setBusy(button,true,'Opening…');
     try{
       const result=await api('/api/customer-post-job',{method:'POST',body:JSON.stringify({action:'public_review_click',bookingId:job.id})});
