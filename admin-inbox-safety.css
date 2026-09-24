@@ -18,3 +18,20 @@
 .inbox-spam-reason{font-size:13px;color:#6f4818}
 .inbox-spam-compose-note{display:grid;gap:4px;margin-top:12px}
 @media(max-width:760px){.inbox-safety-panel>summary,.inbox-block-row,.inbox-safety-actions{align-items:flex-start;flex-direction:column}.inbox-safety-action-buttons{margin-left:0;width:100%}.inbox-safety-action-buttons button{flex:1 1 auto}}
+
+.inbox-bulk-panel{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin:10px 0 14px;padding:12px 14px;border:1px solid #cfdcd5;border-radius:14px;background:#f4f8f6}
+.inbox-bulk-panel.hidden{display:none}
+.inbox-bulk-panel>div:first-child{display:grid;gap:2px}
+.inbox-bulk-panel>div:first-child span{font-size:12px;color:#66716d}
+.inbox-bulk-actions{display:flex;gap:8px;flex-wrap:wrap}
+#inboxBulkToggle.active{box-shadow:0 0 0 2px rgba(34,99,76,.14)}
+.support-inbox-row.bulk-select-mode{position:relative;padding-left:46px}
+.support-inbox-row.bulk-select-mode::before{content:'';position:absolute;left:16px;top:18px;width:18px;height:18px;border:2px solid #9aaba3;border-radius:5px;background:#fff;box-sizing:border-box}
+.support-inbox-row.bulk-select-mode.bulk-selected{background:#eef7f2;box-shadow:inset 0 0 0 2px #7fab98}
+.support-inbox-row.bulk-select-mode.bulk-selected::before{content:'✓';display:grid;place-items:center;border-color:#2f6d55;background:#2f6d55;color:#fff;font-size:12px;font-weight:800}
+.inbox-customer-context{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin:0 0 12px;padding:12px 14px;border:1px solid #dce7e1;border-radius:14px;background:#f7faf8}
+.inbox-customer-context>div:first-child{display:grid;gap:3px;min-width:0}
+.inbox-customer-context strong,.inbox-customer-context small{overflow-wrap:anywhere}
+.inbox-customer-context small{color:#64706c}
+.inbox-customer-context-actions{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
+@media(max-width:760px){.inbox-bulk-panel,.inbox-customer-context{align-items:stretch;flex-direction:column}.inbox-bulk-actions,.inbox-customer-context-actions{width:100%;margin-left:0}.inbox-bulk-actions button,.inbox-customer-context-actions .ghost-btn{flex:1 1 auto;text-align:center}}
