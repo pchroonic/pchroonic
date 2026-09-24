@@ -110,6 +110,13 @@ Production booking operations: manual confirmation, Monday–Saturday, three dai
 - registered-customer context with customer-since/activity counts and Open customer shortcut; unlinked senders are labelled External sender.
 - NodeList iteration hotfix uses `document.querySelectorAll(...).forEach(...)` for bulk-row loops instead of the single-element `$()` helper.
 
+# Professional Page Analytics — CANDIDATE
+Asset `6.4.49-page-analytics-1` adds `admin-page-analytics.js/css` plus `api/admin-page-analytics.js`.
+
+The analytics endpoint requires Staff/Admin `analytics` permission and aggregates existing `page_views(path, referrer_host, created_at)` together with quote/booking creation timestamps. The Admin Reporting period selector controls both business and website analytics. Surfaces include page-view trend, same-length previous-period comparison, average views/day, search/direct shares, views-to-quotes/bookings business ratios, landing pages and referrers.
+
+Privacy invariant: these are page-load counts, not unique-user analytics. Do not label them as unique visitors or sessions unless the data model is explicitly extended later with an approved privacy design.
+
 # Other live layers
 Google Review System PR #98 remains live but the official Google Business review URL is still unconfigured/off. Post-job Customer Experience PR #96 and Staff operations v3 PR #94 remain live.
 
