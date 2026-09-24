@@ -1,6 +1,6 @@
 # Namdar AI handoff
 
-Last verified: 2026-09-17 UTC
+Last verified: 2026-09-24 UTC
 
 Read `docs/AI_START.md` first. Use `docs/PROJECT_STATUS.md` for roadmap/status.
 
@@ -11,15 +11,16 @@ Read `docs/AI_START.md` first. Use `docs/PROJECT_STATUS.md` for roadmap/status.
 - Admin base `6.4.37-admin-website-crash-fix-1`; Google Reviews `6.4.43-google-reviews-1`; Stripe readiness `6.4.44-stripe-live-readiness-1`; payment receipts `6.4.45-payment-receipts-1`.
 - Supabase production `qjigldxjcpnrlyxgmlqq`.
 - Vercel project `prj_4fILo0pCaLGUSUIMWrBIVGzeWVDC`; team `team_8Az8WtWcnfwtYRdhR8vGqC3L`.
-- Production deployment `dpl_HmwxY6oHCiCX8s14xrtHCK6CVpHz` READY on `namdar.co.uk`.
-- Health HTTP 200 / `ok:true` at `2026-09-17T19:23:15.221Z`.
+- Vercel team is on Pro. Production deployment `dpl_AZJPSx4HfaAXcb8GuJNjYqKwr82Y` is READY on `namdar.co.uk`.
+- Health HTTP 200 / `ok:true` at `2026-09-24T22:49:08.728Z`.
+- Hourly booking-notification cron (`7 * * * *`) is restored.
 - Window Cleaning only live. Provider AI OFF. Privileged access requires CAPTCHA + AAL2/TOTP.
 - Customer commercial Stripe remains OFF: zero production `site_settings.payments` rows and zero active payment-policy rows.
 
 # Stripe live readiness — LIVE
 PR #100 remains the production credential guard. Production requires a recognised LIVE Stripe secret plus a configured webhook before payment policy can become effective. TEST credentials remain preview/sandbox-only. Existing hosted Checkout, frozen booking payment-policy snapshots, deposits/balances, signed webhook authority, refunds and processor-cost reconciliation remain in place.
 
-Current Stripe account `acct_1UFAd1Cu9tojH31y` is test-only/incomplete: `charges_enabled=false`, `payouts_enabled=false`, `details_submitted=false`. Owner must complete business onboarding and accept Stripe Terms. Never accept those terms or invent missing business details on the owner's behalf.
+Stripe account `acct_1UFAd1Cu9tojH31y` is live and fully onboarded: `charges_enabled=true`, `payouts_enabled=true`, `details_submitted=true`, verification complete, card payments and transfers active. Live production webhook `https://namdar.co.uk/api/stripe-webhook` is enabled for checkout completion/async success and refund events. Production `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` were updated by the owner and are present in the verified production runtime.
 
 # Payment Receipt Tracking — LIVE
 
@@ -95,14 +96,12 @@ Production verification after merge:
 - Stripe provider references/payment IDs remain internal reconciliation evidence;
 - customer billing/PDF surfaces do not expose processor fee/net/balance-transaction/provider-payment fields;
 - do not manufacture production customers/payments for smoke testing;
-- customer Stripe stays OFF until owner onboarding/TOS is complete, LIVE credentials and verified live webhook are configured, Stripe can charge/payout, and owner chooses the exact deposit/balance policy.
+- customer Stripe remains OFF until the owner chooses the exact production deposit/balance policy and explicitly activates it.
 
 # Other live layers
 Google Review System PR #98 remains live but the official Google Business review URL is still unconfigured/off. Post-job Customer Experience PR #96 and Staff operations v3 PR #94 remain live.
 
 ## Next steps
-1. owner completes Stripe business onboarding/TOS;
-2. configure and verify LIVE Stripe production secret + live webhook and confirm charges/payouts enabled;
-3. owner chooses the exact production deposit/balance policy;
-4. only then activate customer Stripe payments;
-5. use the first genuine payment for authenticated end-to-end receipt/email/My Namdar verification rather than manufacturing production transactions.
+1. owner chooses the exact production deposit/balance policy;
+2. only then activate customer Stripe payments;
+3. use the first genuine payment for authenticated end-to-end receipt/email/My Namdar verification rather than manufacturing production transactions.
