@@ -67,6 +67,12 @@ Release evidence:
 - Bulk Close deliberately skips Closed/Spam rows.
 - NodeList iteration hotfix corrects the bulk-row selector so selection mode does not throw during initialization.
 
+## Professional Page Analytics — CANDIDATE
+- Asset `6.4.49-page-analytics-1`.
+- Adds professional Website Analytics inside Reporting: page views, period change, average/day, search/direct traffic shares, views→quotes, views→bookings, traffic trend, landing pages and referrers.
+- Uses existing first-party page-view data only; no visitor fingerprinting, device ID or third-party tracker added.
+- UI explains that page views are not unique visitors and business ratios are based on page loads rather than person-level attribution.
+
 ## Google Review System — LIVE
 PR #98 / `6.4.43-google-reviews-1` remains live. Owner-controlled fair review requests, one-time reminders, tracked clicks and 30/90/365-day reporting are available, but the official Google Business review URL remains intentionally unconfigured/off.
 
