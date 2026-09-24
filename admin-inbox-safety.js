@@ -155,8 +155,11 @@
   }
 
   async function runInboxBulkAction(action){
-    const ids=[...inboxBulkSelected];if(!ids.length)return;
+    const selected=[...inboxBulkSelected];if(!selected.length)return;
+    const ids=action==='close'?selected.filter(id=>{const t=(supportInboxCache||[]).find(x=>x.id===id);return t&&!['closed','spam'].includes(t.status)}):selected;
+    if(!ids.length){updateSupportInboxUpdated(action==='close'?'Selected conversations are already Closed or Spam.':'Nothing selected.');return}
     if(action==='close'&&!confirm(`Close ${ids.length} selected conversation${ids.length===1?'':'s'}? They will remain available in Closed.`))return;
+    const openWasSelected=action==='close'&&ids.includes(supportInboxOpenId);
     const button=action==='close'?document.querySelector('[data-inbox-bulk-close]'):action==='assign'?document.querySelector('[data-inbox-bulk-assign]'):document.querySelector(`[data-inbox-bulk-${action}]`);
     if(button)setBusy(button,true,'Working…');
     try{
@@ -168,6 +171,7 @@
       inboxBulkSelected.clear();
       await supportInboxTools({silent:true});
       renderSupportInboxList();
+      if(openWasSelected)closeSupportInboxThread();
       if(failed.length)updateSupportInboxUpdated(`${ids.length-failed.length} updated · ${failed.length} failed`);
       else updateSupportInboxUpdated(`${ids.length} conversation${ids.length===1?'':'s'} updated`);
     }catch(e){alert(e.message)}finally{if(button)setBusy(button,false)}
