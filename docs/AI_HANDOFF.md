@@ -131,7 +131,7 @@ Architecture:
 - `admin-page-analytics.js/css`: Analytics v2 dashboard in Reporting.
 - `scripts/analytics-v2.test.mjs`: privacy, production-host, funnel, attribution and migration regression checks.
 
-Privacy invariant: no device fingerprint, user-agent fingerprint or persistent analytics visitor ID. Campaign/advertising attribution is only captured after Allow marketing. Essential only disables v2 collection and deletes the current v2 session. Before production release, update the published Cookie Policy to accurately describe this model.
+Privacy invariant: no device fingerprint, user-agent fingerprint or persistent analytics visitor ID. Campaign/advertising attribution is only captured after Allow marketing. Essential only disables v2 collection and deletes the current v2 session. Published Cookie Policy v3 now accurately describes this model, including the Essential-only objection and marketing-only campaign attribution.
 
 # Other live layers
 Google Review System PR #98 remains live but the official Google Business review URL is still unconfigured/off. Post-job Customer Experience PR #96 and Staff operations v3 PR #94 remain live.
