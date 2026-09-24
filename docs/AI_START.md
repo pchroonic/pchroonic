@@ -87,7 +87,7 @@ Google Review System PR #98 remains live, but its official Google review URL is 
 - Admin Reporting v2 surfaces sessions, views/session, traffic trend, full conversion funnel, acquisition sources, UTM campaigns, engagement, landing pages, raw referrers and source-attributed revenue.
 - Vercel preview/non-production hosts are ignored by tracking endpoints.
 - Privacy design: session ID is stored in `sessionStorage`, not a persistent analytics cookie/device identifier; Essential only is a free objection that deletes the current session's raw page views/events/quote link and disables future v2 tracking; UTM campaign/advertising fields are stored only after Allow marketing.
-- Public Cookie Policy must be updated at release to describe the statistical-purpose analytics objection and marketing-only campaign measurement.
+- Published Cookie Policy v3 now describes the statistical-purpose analytics session, Essential-only objection/deletion, and marketing-only campaign measurement.
 
 ## Open items
 - Use the first genuine payment for authenticated receipt/email/My Namdar verification; do not manufacture a production payment.
