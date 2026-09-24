@@ -4,11 +4,11 @@ Last updated: 2026-09-25 UTC
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current production main merge `a5b7c7ebd6222ea56015ef7e730a3d7ed50f8188` (PR #106 inbox bulk-selection hotfix). PR #102 Payment Receipt Tracking remains live.
+- Current production main merge `b851660b8285c2ad74c01f00fe240e5be0dd86d5` (PR #107 Professional Page View Analytics). PR #102 Payment Receipt Tracking remains live.
 - Customer base loader `6.4.35-payment-policy-engine-1`; post-job extension `6.4.42-post-job-experience-1`; Staff operations/ETA `6.4.41-staff-operations-v3-1`.
 - Admin base `6.4.37-admin-website-crash-fix-1`; Google Review System `6.4.43-google-reviews-1`; Stripe readiness `6.4.44-stripe-live-readiness-1`; Payment Receipt Tracking `6.4.45-payment-receipts-1`.
 - Supabase production `qjigldxjcpnrlyxgmlqq`.
-- Vercel team is on Pro. Production deployment `dpl_DTEE2rpAstJ59btQ1UQEVmw5kQnR` is READY and aliased to `namdar.co.uk`; health HTTP 200 / `ok:true` at `2026-09-24T23:16:26.327Z`.
+- Vercel team is on Pro. Production deployment `dpl_BcXGivSXztjCAEg4WZyiZr1Zb1XH` is READY and aliased to `namdar.co.uk`; health HTTP 200 / `ok:true` at `2026-09-24T23:27:30.265Z`.
 - Hourly booking-notification cron (`7 * * * *`) is restored.
 - Window Cleaning only live.
 - Privileged Staff/Admin requires CAPTCHA + AAL2/TOTP MFA.
@@ -67,7 +67,8 @@ Release evidence:
 - Bulk Close deliberately skips Closed/Spam rows.
 - NodeList iteration hotfix corrects the bulk-row selector so selection mode does not throw during initialization.
 
-## Professional Page Analytics — CANDIDATE
+## Professional Page Analytics — LIVE
+PR #107 / `6.4.49-page-analytics-1`.
 - Asset `6.4.49-page-analytics-1`.
 - Adds professional Website Analytics inside Reporting: page views, period change, average/day, search/direct traffic shares, views→quotes, views→bookings, traffic trend, landing pages and referrers.
 - Uses existing first-party page-view data only; no visitor fingerprinting, device ID or third-party tracker added.
