@@ -61,10 +61,11 @@ Release evidence:
 - Maximum 3 jobs/day, 24-hour notice, 21-day horizon, postcode-area route density enabled.
 - New bookings require 20% deposit; customers may pay 100% upfront; balance due at completion.
 
-## Admin inbox workflow — CANDIDATE
+## Admin inbox workflow — HOTFIX CANDIDATE
 - Existing PR #104 preserves the current folder on Close/Reopen.
-- Candidate `6.4.47-inbox-workflow-polish-1` adds next-conversation flow, bulk selection/actions, and customer context/profile shortcuts.
+- Candidate `6.4.48-inbox-workflow-polish-fix-1` adds next-conversation flow, bulk selection/actions, and customer context/profile shortcuts.
 - Bulk Close deliberately skips Closed/Spam rows.
+- NodeList iteration hotfix corrects the bulk-row selector so selection mode does not throw during initialization.
 
 ## Google Review System — LIVE
 PR #98 / `6.4.43-google-reviews-1` remains live. Owner-controlled fair review requests, one-time reminders, tracked clicks and 30/90/365-day reporting are available, but the official Google Business review URL remains intentionally unconfigured/off.
