@@ -12,11 +12,17 @@ test('performance schema is server-only and RLS protected',async()=>{
   assert.match(sql,/revoke all on table public\.booking_job_costs from anon, authenticated/i);
 });
 
-test('public funnel endpoint records only postcode checks with privacy-safe area',async()=>{
+test('public funnel endpoint keeps the expanded Analytics v2 event stream privacy-safe',async()=>{
   const src=await read('api/funnel-event.js');
-  assert.match(src,/eventType!==['"]postcode_checked['"]/);
+  assert.match(src,/EVENTS=new Set/);
+  for(const event of ['quote_started','postcode_checked','quote_submitted','quote_accepted','booking_submitted','checkout_started','payment_confirmed']){
+    assert.match(src,new RegExp(`['"]${event}['"]`));
+  }
+  assert.match(src,/EVENTS\.has\(eventType\)/);
+  assert.match(src,/non_production_host/);
+  assert.match(src,/visitorId\(b\.sessionId\|\|b\.visitorId\)/);
   assert.match(src,/match\(\/\^\[A-Z\]\{1,2\}/);
-  assert.match(src,/30\*60\*1000/);
+  assert.match(src,/eventType===['"]postcode_checked['"]\?30:10/);
   assert.doesNotMatch(src,/body:\{[^}]*postcode:/s,'full postcode must not be written to conversion_events');
 });
 
