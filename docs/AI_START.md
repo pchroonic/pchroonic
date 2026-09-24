@@ -1,6 +1,6 @@
 # Namdar AI fast resume
 
-Last verified: 2026-09-22 UTC
+Last verified: 2026-09-24 UTC
 
 Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PROJECT_STATUS.md` for roadmap/status.
 
@@ -32,9 +32,11 @@ Verified 2026-09-22:
 - live production webhook endpoint `https://namdar.co.uk/api/stripe-webhook` exists and is enabled;
 - webhook listens to exactly: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `refund.created`, `refund.updated`, `charge.refunded`;
 - owner updated the Vercel Production `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` values on 2026-09-22;
-- production redeployment / live-mode runtime verification is the next step before enabling customer payments.
+- Vercel team is now on Pro; production deployment `dpl_AZJPSx4HfaAXcb8GuJNjYqKwr82Y` is READY and aliased to `namdar.co.uk`;
+- production `/api/health` returned HTTP 200 / `ok:true` at `2026-09-24T22:49:08.728Z` with database, Stripe secret/webhook, email, reminders and followups all present;
+- hourly booking-notification cron (`7 * * * *`) is restored on Vercel Pro.
 
-Do not enable production payments until the fresh deployment verifies the LIVE provider configuration and the owner explicitly chooses the production deposit/balance policy.
+Live provider deployment is now verified. Customer payments must remain OFF until the owner explicitly chooses the production deposit/balance policy.
 
 ## Payment Receipt Tracking — LIVE
 Product PR #102: `Add traceable payment receipt references`.
@@ -57,7 +59,6 @@ Live behavior:
 Google Review System PR #98 remains live, but its official Google review URL is intentionally unconfigured/off. Post-job Customer Experience PR #96 remains live. Staff operations v3 PR #94 remains live.
 
 ## Open items
-- Complete fresh production redeployment after the 2026-09-22 live Stripe secret/webhook-secret update and verify live provider mode end-to-end.
 - Owner chooses exact production deposit/balance policy, then activate customer Stripe payments.
 - Use the first genuine payment for authenticated receipt/email/My Namdar verification; do not manufacture a production payment.
 - Configure the real Google Business Profile review-request URL later.
