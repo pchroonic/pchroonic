@@ -1,6 +1,6 @@
 # Namdar project status
 
-Last updated: 2026-09-17 UTC
+Last updated: 2026-09-24 UTC
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
@@ -8,7 +8,8 @@ Last updated: 2026-09-17 UTC
 - Customer base loader `6.4.35-payment-policy-engine-1`; post-job extension `6.4.42-post-job-experience-1`; Staff operations/ETA `6.4.41-staff-operations-v3-1`.
 - Admin base `6.4.37-admin-website-crash-fix-1`; Google Review System `6.4.43-google-reviews-1`; Stripe readiness `6.4.44-stripe-live-readiness-1`; Payment Receipt Tracking `6.4.45-payment-receipts-1`.
 - Supabase production `qjigldxjcpnrlyxgmlqq`.
-- Production deployment `dpl_HmwxY6oHCiCX8s14xrtHCK6CVpHz` is READY and aliased to `namdar.co.uk`; health HTTP 200 / `ok:true` at `2026-09-17T19:23:15.221Z`.
+- Vercel team is on Pro. Production deployment `dpl_AZJPSx4HfaAXcb8GuJNjYqKwr82Y` is READY and aliased to `namdar.co.uk`; health HTTP 200 / `ok:true` at `2026-09-24T22:49:08.728Z`.
+- Hourly booking-notification cron (`7 * * * *`) is restored.
 - Window Cleaning only live.
 - Privileged Staff/Admin requires CAPTCHA + AAL2/TOTP MFA.
 - Customer Stripe remains OFF; production has zero `site_settings.payments` rows and zero active payment-policy rows.
@@ -18,7 +19,7 @@ Last updated: 2026-09-17 UTC
 ## Stripe live readiness — LIVE
 PR #100 / Admin extension `6.4.44-stripe-live-readiness-1` remains live. Production provider readiness requires recognised LIVE Stripe credentials plus configured webhook; TEST credentials remain preview/sandbox-only and cannot activate production payments.
 
-Current connected Stripe account `acct_1UFAd1Cu9tojH31y` is still test-only/incomplete: `charges_enabled=false`, `payouts_enabled=false`, `details_submitted=false`. Owner action is required to complete business details and accept Stripe Terms. Live customer payments must remain off until live credentials/webhook are configured, Stripe is ready for charges/payouts, and the owner chooses the exact deposit/balance policy.
+Stripe account `acct_1UFAd1Cu9tojH31y` is live and fully onboarded: charges/payouts enabled, details submitted, verification complete, card payments and transfers active. Live production webhook `https://namdar.co.uk/api/stripe-webhook` is enabled and production runtime has the live Stripe secret plus webhook secret. Live customer payments remain OFF only pending the owner's exact deposit/balance policy choice and explicit activation.
 
 ## Payment Receipt Tracking — LIVE
 PR #102 / customer+Admin asset `6.4.45-payment-receipts-1`.
@@ -75,8 +76,6 @@ Protected Owner/Administrator system roles and reusable custom Staff roles remai
 - Newsletter Centre and guided Ask Namdar.
 
 ## Open roadmap
-- Owner completes Stripe business onboarding/TOS.
-- Configure and verify LIVE Stripe production secret + live webhook; confirm charges/payouts are enabled.
 - Owner chooses exact production deposit/balance policy, then activate customer Stripe payments.
 - First genuine payment should be used for authenticated end-to-end receipt/email/My Namdar confirmation; do not manufacture a production transaction just to test.
 - Configure the real Google Business Profile review-request URL later.
