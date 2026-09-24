@@ -119,6 +119,20 @@ Privacy invariant: these are page-load counts, not unique-user analytics. Do not
 
 Release evidence: PR #107 merged at `b851660b8285c2ad74c01f00fe240e5be0dd86d5`; production `dpl_BcXGivSXztjCAEg4WZyiZr1Zb1XH` READY; live loader pins `6.4.49-page-analytics-1`; unauthenticated analytics endpoint check returns HTTP 401; `/api/health` remains HTTP 200 / `ok:true`.
 
+# Analytics v2 — CANDIDATE / PRODUCTION SCHEMA READY
+Target asset `6.4.50-analytics-v2-1`. Production migration `20260924234226_analytics_v2_session_funnel` is already applied and committed.
+
+Architecture:
+- `analytics-v2.js`: temporary first-party session ID in sessionStorage, first-party page/event tracking, contact/quote/booking/checkout interactions and privacy-choice hooks.
+- `api/track-view.js`: records only production `namdar.co.uk` page views; accepts optional session + marketing-consented UTM fields.
+- `api/funnel-event.js`: validated Window Cleaning event vocabulary, production-host guard and short duplicate suppression.
+- `api/analytics-opt-out.js`: Essential-only objection deletes the current session from `page_views`, `conversion_events` and `quote_funnel_links`.
+- `api/admin-page-analytics.js`: joins sessions → quote links → bookings → invoices/payment records for source/campaign conversion and net-revenue attribution.
+- `admin-page-analytics.js/css`: Analytics v2 dashboard in Reporting.
+- `scripts/analytics-v2.test.mjs`: privacy, production-host, funnel, attribution and migration regression checks.
+
+Privacy invariant: no device fingerprint, user-agent fingerprint or persistent analytics visitor ID. Campaign/advertising attribution is only captured after Allow marketing. Essential only disables v2 collection and deletes the current v2 session. Before production release, update the published Cookie Policy to accurately describe this model.
+
 # Other live layers
 Google Review System PR #98 remains live but the official Google Business review URL is still unconfigured/off. Post-job Customer Experience PR #96 and Staff operations v3 PR #94 remain live.
 
