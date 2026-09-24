@@ -6,7 +6,7 @@ Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PR
 
 ## Production source of truth
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current production main merge: `a5b7c7ebd6222ea56015ef7e730a3d7ed50f8188` (PR #106 inbox bulk-selection hotfix). Payment Receipt Tracking PR #102 remains live beneath it.
+- Current production main merge: `b851660b8285c2ad74c01f00fe240e5be0dd86d5` (PR #107 Professional Page View Analytics). Payment Receipt Tracking PR #102 remains live beneath it.
 - Customer base loader remains `6.4.35-payment-policy-engine-1`; post-job extension `6.4.42-post-job-experience-1`; Staff operations/ETA `6.4.41-staff-operations-v3-1`.
 - Admin base remains `6.4.37-admin-website-crash-fix-1`; Google Review System `6.4.43-google-reviews-1`; Stripe readiness `6.4.44-stripe-live-readiness-1`; payment receipts `6.4.45-payment-receipts-1`.
 - Supabase production project: `qjigldxjcpnrlyxgmlqq`.
@@ -71,11 +71,12 @@ Google Review System PR #98 remains live, but its official Google review URL is 
 - Bulk Close excludes conversations already Closed or Spam so quarantine state is not changed accidentally.
 - NodeList iteration hotfix replaces the incorrect single-element selector used by bulk-row enhancement so selection mode can initialize safely.
 
-## Professional Page Analytics — CANDIDATE
+## Professional Page Analytics — LIVE
 - Admin analytics asset: `6.4.49-page-analytics-1`.
 - New privileged endpoint `/api/admin-page-analytics` uses existing privacy-friendly `page_views` data only: path, referrer host and timestamp.
 - Reporting now adds selected-period page views, previous-period comparison, average/day, Google/Bing share, direct/unknown share, views-to-quotes, views-to-bookings, traffic trend, landing pages and top referrers.
 - No persistent visitor/device identifier, fingerprint or third-party analytics tracker is added; the UI explicitly states that views are page loads, not unique people.
+- Production deployment `dpl_BcXGivSXztjCAEg4WZyiZr1Zb1XH` is READY on `namdar.co.uk`; the analytics endpoint rejects unauthenticated access with HTTP 401.
 
 ## Open items
 - Use the first genuine payment for authenticated receipt/email/My Namdar verification; do not manufacture a production payment.
