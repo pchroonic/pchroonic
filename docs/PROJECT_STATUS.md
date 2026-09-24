@@ -4,11 +4,11 @@ Last updated: 2026-09-25 UTC
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current production main merge `0bdb4d54daa8342bc354f1edd707f5f7d113f5c6` (PR #104 Admin inbox close-navigation fix). PR #102 Payment Receipt Tracking remains live.
+- Current production main merge `a5b7c7ebd6222ea56015ef7e730a3d7ed50f8188` (PR #106 inbox bulk-selection hotfix). PR #102 Payment Receipt Tracking remains live.
 - Customer base loader `6.4.35-payment-policy-engine-1`; post-job extension `6.4.42-post-job-experience-1`; Staff operations/ETA `6.4.41-staff-operations-v3-1`.
 - Admin base `6.4.37-admin-website-crash-fix-1`; Google Review System `6.4.43-google-reviews-1`; Stripe readiness `6.4.44-stripe-live-readiness-1`; Payment Receipt Tracking `6.4.45-payment-receipts-1`.
 - Supabase production `qjigldxjcpnrlyxgmlqq`.
-- Vercel team is on Pro. Production deployment `dpl_GrJJxMfqwb8dLcqqsLoNztXzpCPD` is READY and aliased to `namdar.co.uk`; health HTTP 200 / `ok:true` at `2026-09-24T23:05:56.923Z`.
+- Vercel team is on Pro. Production deployment `dpl_DTEE2rpAstJ59btQ1UQEVmw5kQnR` is READY and aliased to `namdar.co.uk`; health HTTP 200 / `ok:true` at `2026-09-24T23:16:26.327Z`.
 - Hourly booking-notification cron (`7 * * * *`) is restored.
 - Window Cleaning only live.
 - Privileged Staff/Admin requires CAPTCHA + AAL2/TOTP MFA.
@@ -61,9 +61,9 @@ Release evidence:
 - Maximum 3 jobs/day, 24-hour notice, 21-day horizon, postcode-area route density enabled.
 - New bookings require 20% deposit; customers may pay 100% upfront; balance due at completion.
 
-## Admin inbox workflow — HOTFIX CANDIDATE
+## Admin inbox workflow — LIVE
 - Existing PR #104 preserves the current folder on Close/Reopen.
-- Candidate `6.4.48-inbox-workflow-polish-fix-1` adds next-conversation flow, bulk selection/actions, and customer context/profile shortcuts.
+- Live `6.4.48-inbox-workflow-polish-fix-1` adds next-conversation flow, bulk selection/actions, and customer context/profile shortcuts.
 - Bulk Close deliberately skips Closed/Spam rows.
 - NodeList iteration hotfix corrects the bulk-row selector so selection mode does not throw during initialization.
 
