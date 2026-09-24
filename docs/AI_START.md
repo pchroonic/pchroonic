@@ -71,6 +71,12 @@ Google Review System PR #98 remains live, but its official Google review URL is 
 - Bulk Close excludes conversations already Closed or Spam so quarantine state is not changed accidentally.
 - NodeList iteration hotfix replaces the incorrect single-element selector used by bulk-row enhancement so selection mode can initialize safely.
 
+## Professional Page Analytics — CANDIDATE
+- Admin analytics asset: `6.4.49-page-analytics-1`.
+- New privileged endpoint `/api/admin-page-analytics` uses existing privacy-friendly `page_views` data only: path, referrer host and timestamp.
+- Reporting now adds selected-period page views, previous-period comparison, average/day, Google/Bing share, direct/unknown share, views-to-quotes, views-to-bookings, traffic trend, landing pages and top referrers.
+- No persistent visitor/device identifier, fingerprint or third-party analytics tracker is added; the UI explicitly states that views are page loads, not unique people.
+
 ## Open items
 - Use the first genuine payment for authenticated receipt/email/My Namdar verification; do not manufacture a production payment.
 - Configure the real Google Business Profile review-request URL later.
