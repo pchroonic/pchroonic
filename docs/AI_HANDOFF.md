@@ -6,13 +6,13 @@ Read `docs/AI_START.md` first. Use `docs/PROJECT_STATUS.md` for roadmap/status.
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current production main merge `0bdb4d54daa8342bc354f1edd707f5f7d113f5c6` from PR #104. PR #102 Payment Receipt Tracking remains live below it.
+- Current production main merge `a5b7c7ebd6222ea56015ef7e730a3d7ed50f8188` from PR #106. PR #102 Payment Receipt Tracking remains live below it.
 - Customer base loader `6.4.35-payment-policy-engine-1`; Post-job Customer Experience `6.4.42-post-job-experience-1`; Staff operations/ETA `6.4.41-staff-operations-v3-1`.
 - Admin base `6.4.37-admin-website-crash-fix-1`; Google Reviews `6.4.43-google-reviews-1`; Stripe readiness `6.4.44-stripe-live-readiness-1`; payment receipts `6.4.45-payment-receipts-1`.
 - Supabase production `qjigldxjcpnrlyxgmlqq`.
 - Vercel project `prj_4fILo0pCaLGUSUIMWrBIVGzeWVDC`; team `team_8Az8WtWcnfwtYRdhR8vGqC3L`.
-- Vercel team is on Pro. Production deployment `dpl_GrJJxMfqwb8dLcqqsLoNztXzpCPD` is READY on `namdar.co.uk`.
-- Health HTTP 200 / `ok:true` at `2026-09-24T23:05:56.923Z`.
+- Vercel team is on Pro. Production deployment `dpl_DTEE2rpAstJ59btQ1UQEVmw5kQnR` is READY on `namdar.co.uk`.
+- Health HTTP 200 / `ok:true` at `2026-09-24T23:16:26.327Z`.
 - Hourly booking-notification cron (`7 * * * *`) is restored.
 - Window Cleaning only live. Provider AI OFF. Privileged access requires CAPTCHA + AAL2/TOTP.
 - Customer Stripe is ACTIVE for new Window Cleaning bookings. Production `site_settings.payments` revision 1 is `deposit_required`: flat 20%, minimum £0.50, full payment allowed, balance due at completion.
@@ -102,8 +102,8 @@ Production verification after merge:
 # Booking/payment launch policy — LIVE
 Production booking operations: manual confirmation, Monday–Saturday, three daily windows (08–11 / 11–14 / 14–17), 3 jobs/day, 24-hour minimum notice and 21-day horizon. Route density remains grouped by postcode area.
 
-# Admin inbox workflow — HOTFIX CANDIDATE
-`admin-inbox-safety.js` candidate asset `6.4.48-inbox-workflow-polish-fix-1` builds on PR #104 and adds:
+# Admin inbox workflow — LIVE
+`admin-inbox-safety.js` live asset `6.4.48-inbox-workflow-polish-fix-1` builds on PR #104 and adds:
 - open the next visible conversation after Close/Reopen when one exists;
 - selection mode with Select visible, Mark read, Mark unread, Assign to me and Close selected;
 - bulk Close excludes Closed/Spam conversations;
