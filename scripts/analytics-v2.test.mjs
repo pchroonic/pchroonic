@@ -71,3 +71,18 @@ test('database migration preserves RLS tables while extending the session and fu
   assert.match(source,/booking_id uuid references public\.bookings/);
   assert.doesNotMatch(source,/disable row level security/i);
 });
+
+
+test('analytics opt-out deletes the current first-party session data',()=>{
+  const source=read('api/analytics-opt-out.js');
+  assert.match(source,/page_views\?session_id=eq/);
+  assert.match(source,/conversion_events\?visitor_id=eq/);
+  assert.match(source,/quote_funnel_links\?visitor_id=eq/);
+  assert.match(source,/non_production_host/);
+});
+
+test('privacy banner explains the analytics objection and marketing measurement split',()=>{
+  const source=read('index.html');
+  assert.match(source,/Choose Essential only to opt out of analytics and marketing/);
+  assert.match(source,/campaign and advertising measurement/);
+});
