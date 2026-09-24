@@ -60,6 +60,10 @@ test('admin analytics reports sessions funnel acquisition campaigns and attribut
   assert.match(ui,/Acquisition performance/);
   assert.match(ui,/Sessions → bookings/);
   assert.match(ui,/Attributed revenue/);
+  assert.match(api,/totalRevenue/);
+  assert.match(api,/attributedRevenue/);
+  assert.match(api,/unattributedRevenue/);
+  assert.match(ui,/not linked to a v2 session/);
 });
 
 test('database migration preserves RLS tables while extending the session and funnel schema',()=>{
