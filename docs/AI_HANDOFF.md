@@ -102,12 +102,13 @@ Production verification after merge:
 # Booking/payment launch policy — LIVE
 Production booking operations: manual confirmation, Monday–Saturday, three daily windows (08–11 / 11–14 / 14–17), 3 jobs/day, 24-hour minimum notice and 21-day horizon. Route density remains grouped by postcode area.
 
-# Admin inbox workflow — CANDIDATE
-`admin-inbox-safety.js` candidate asset `6.4.47-inbox-workflow-polish-1` builds on PR #104 and adds:
+# Admin inbox workflow — HOTFIX CANDIDATE
+`admin-inbox-safety.js` candidate asset `6.4.48-inbox-workflow-polish-fix-1` builds on PR #104 and adds:
 - open the next visible conversation after Close/Reopen when one exists;
 - selection mode with Select visible, Mark read, Mark unread, Assign to me and Close selected;
 - bulk Close excludes Closed/Spam conversations;
 - registered-customer context with customer-since/activity counts and Open customer shortcut; unlinked senders are labelled External sender.
+- NodeList iteration hotfix uses `document.querySelectorAll(...).forEach(...)` for bulk-row loops instead of the single-element `$()` helper.
 
 # Other live layers
 Google Review System PR #98 remains live but the official Google Business review URL is still unconfigured/off. Post-job Customer Experience PR #96 and Staff operations v3 PR #94 remain live.

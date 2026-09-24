@@ -65,10 +65,11 @@ Live behavior:
 ## Existing live layers
 Google Review System PR #98 remains live, but its official Google review URL is intentionally unconfigured/off. Post-job Customer Experience PR #96 remains live. Staff operations v3 PR #94 remains live.
 
-## Admin inbox workflow — CANDIDATE
+## Admin inbox workflow — HOTFIX CANDIDATE
 - Existing PR #104 behavior remains: Close/Reopen preserves the current folder.
-- Candidate asset `6.4.47-inbox-workflow-polish-1` adds automatic next-conversation opening after Close/Reopen, bulk selection/actions, and registered-customer context with account shortcut.
+- Candidate asset `6.4.48-inbox-workflow-polish-fix-1` adds automatic next-conversation opening after Close/Reopen, bulk selection/actions, and registered-customer context with account shortcut.
 - Bulk Close excludes conversations already Closed or Spam so quarantine state is not changed accidentally.
+- NodeList iteration hotfix replaces the incorrect single-element selector used by bulk-row enhancement so selection mode can initialize safely.
 
 ## Open items
 - Use the first genuine payment for authenticated receipt/email/My Namdar verification; do not manufacture a production payment.

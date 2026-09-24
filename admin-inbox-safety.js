@@ -114,7 +114,7 @@
     if(panel)panel.classList.toggle('hidden',!inboxBulkMode);
     if(count)count.textContent=String(inboxBulkSelected.size);
     if(toggle){toggle.textContent=inboxBulkMode?'Exit selection':'Select emails';toggle.classList.toggle('active',inboxBulkMode)}
-    $('[data-inbox-thread]').forEach(row=>{
+    document.querySelectorAll('[data-inbox-thread]').forEach(row=>{
       const selected=inboxBulkSelected.has(row.dataset.inboxThread);
       row.classList.toggle('bulk-selected',selected);
       row.classList.toggle('bulk-select-mode',inboxBulkMode);
@@ -147,7 +147,7 @@
 
   function enhanceInboxRowsForBulk(){
     if(!inboxBulkMode)return updateInboxBulkUi();
-    $('[data-inbox-thread]').forEach(row=>{
+    document.querySelectorAll('[data-inbox-thread]').forEach(row=>{
       const id=row.dataset.inboxThread;
       row.onclick=e=>{e.preventDefault();e.stopPropagation();if(inboxBulkSelected.has(id))inboxBulkSelected.delete(id);else inboxBulkSelected.add(id);updateInboxBulkUi()};
     });
