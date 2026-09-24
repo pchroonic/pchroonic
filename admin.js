@@ -6,7 +6,7 @@
   const reviewV='6.4.43-google-reviews-1';
   const paymentV='6.4.44-stripe-live-readiness-1';
   const receiptV='6.4.45-payment-receipts-1';
-  const inboxV='6.4.47-inbox-workflow-polish-1';
+  const inboxV='6.4.48-inbox-workflow-polish-fix-1';
   document.write(`<link rel="stylesheet" href="/admin-inbox-safety.css?v=${v}">`);
   document.write(`<link rel="stylesheet" href="/admin-modal-layout.css?v=${modalLayoutV}">`);
   document.write(`<link rel="stylesheet" href="/admin-field-incidents.css?v=${fieldOpsV}">`);
