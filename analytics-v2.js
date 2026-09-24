@@ -9,6 +9,9 @@
     'payment_confirmed','phone_clicked','email_clicked','support_clicked'
   ]);
   const isProduction=()=>['namdar.co.uk','www.namdar.co.uk'].includes(location.hostname.toLowerCase());
+  const privacyChoice=()=>{try{return localStorage.getItem('namdar_cookie_choice')||''}catch{return''}};
+  const analyticsAllowed=()=>privacyChoice()!=='essential';
+  const marketingAllowed=()=>privacyChoice()==='marketing';
   const safe=(v,max=160)=>String(v||'').trim().slice(0,max);
 
   function randomId(){
@@ -19,6 +22,7 @@
     return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;
   }
   function sessionId(){
+    if(!analyticsAllowed())return'';
     try{
       let id=sessionStorage.getItem(SESSION_KEY);
       if(!id){id=randomId();sessionStorage.setItem(SESSION_KEY,id)}
@@ -26,6 +30,7 @@
     }catch{return randomId()}
   }
   function captureCampaign(){
+    if(!marketingAllowed())return {source:'',medium:'',campaign:''};
     try{
       const existing=JSON.parse(sessionStorage.getItem(CAMPAIGN_KEY)||'null');
       if(existing&&typeof existing==='object')return existing;
@@ -42,13 +47,14 @@
     try{return document.referrer?new URL(document.referrer).hostname.toLowerCase():''}catch{return''}
   }
   function send(url,payload){
-    if(!isProduction())return Promise.resolve({ok:true,recorded:false});
+    if(!isProduction()||!analyticsAllowed())return Promise.resolve({ok:true,recorded:false});
     try{
       return fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),keepalive:true})
         .then(r=>r.json().catch(()=>({ok:r.ok}))).catch(()=>({ok:false}));
     }catch{return Promise.resolve({ok:false})}
   }
   function trackView(){
+    if(!analyticsAllowed())return Promise.resolve();
     if(window.__NAMDAR_ANALYTICS_V2_VIEW__)return Promise.resolve();
     window.__NAMDAR_ANALYTICS_V2_VIEW__=true;
     return send('/api/track-view',{
@@ -59,7 +65,7 @@
     });
   }
   function track(eventType,extra={}){
-    if(!EVENT_TYPES.has(eventType))return Promise.resolve({ok:false});
+    if(!analyticsAllowed()||!EVENT_TYPES.has(eventType))return Promise.resolve({ok:false});
     return send('/api/funnel-event',{
       eventType,
       visitorId:sessionId(),
@@ -101,14 +107,30 @@
     },true);
   }
 
+  async function optOutCurrentSession(){
+    let id='';try{id=sessionStorage.getItem(SESSION_KEY)||''}catch{}
+    if(id&&isProduction()){
+      try{await fetch('/api/analytics-opt-out',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:id}),keepalive:true})}catch{}
+    }
+    try{sessionStorage.removeItem(SESSION_KEY);sessionStorage.removeItem(CAMPAIGN_KEY);Object.keys(sessionStorage).filter(k=>k.startsWith('namdar_analytics_once_')).forEach(k=>sessionStorage.removeItem(k))}catch{}
+    window.__NAMDAR_ANALYTICS_V2_VIEW__=false;
+  }
+  function installPrivacyChoiceHooks(){
+    const essential=document.querySelector('#essentialOnly');
+    if(essential&&!essential.dataset.analyticsV2){essential.dataset.analyticsV2='1';essential.addEventListener('click',()=>{optOutCurrentSession().catch(()=>{})},{capture:true})}
+    const marketing=document.querySelector('#allowMarketing');
+    if(marketing&&!marketing.dataset.analyticsV2){marketing.dataset.analyticsV2='1';marketing.addEventListener('click',()=>{setTimeout(()=>{captureCampaign();trackView()},0)},{capture:true})}
+  }
+
   window.NamdarAnalytics={
     version:'6.4.50-analytics-v2-1',
     sessionId:sessionId(),
     campaign:captureCampaign(),
     trackView,
-    track
+    track,
+    optOutCurrentSession
   };
 
-  const init=()=>{trackView();installInteractions()};
+  const init=()=>{trackView();installInteractions();installPrivacyChoiceHooks()};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
