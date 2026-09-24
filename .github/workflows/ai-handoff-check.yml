@@ -20,7 +20,8 @@ jobs:
 
       - name: Check critical JavaScript syntax
         run: |
-          node --check app.js\n          node --check analytics-v2.js
+          node --check app.js
+          node --check analytics-v2.js
           node --check booking-journey.js
           node --check privacy-controls.js
           node --check legal-page.js
@@ -39,7 +40,8 @@ jobs:
           node --check account-payments.js
           node --check privileged-login-captcha.js
           node --test scripts/privileged-login-captcha.test.mjs
-          node --check admin.js\n          node --check admin-page-analytics.js
+          node --check admin.js
+          node --check admin-page-analytics.js
           node --check admin-original.js
           node --check admin-brand-assets.js
           node --check admin-inbox-safety.js
@@ -62,7 +64,9 @@ jobs:
           node --check chat-experience.js
           node --check api/address-harvest-cron.js
           node --check api/account-purge.js
-          node --check api/admin-address-harvest.js\n          node --check api/admin-page-analytics.js\n          node --check api/analytics-opt-out.js
+          node --check api/admin-address-harvest.js
+          node --check api/admin-page-analytics.js
+          node --check api/analytics-opt-out.js
           node --check api/admin-address-harvest-export.js
           node --check api/admin-services.js
           node --check api/admin-booking-operations.js
@@ -93,7 +97,8 @@ jobs:
           node --check api/customer-jobs.js
           node --check api/feedback.js
           node --check api/booking-notifications.js
-          node --check api/funnel-event.js\n          node --check api/track-view.js
+          node --check api/funnel-event.js
+          node --check api/track-view.js
           node --check api/address-data-v1.js
           node --check api/quote.js
           node --check api/quote-core.js
@@ -144,7 +149,8 @@ jobs:
           node --test scripts/address-commercial-foundation.test.mjs
           node --test scripts/os-open-data-foundation.test.mjs
           node --test scripts/service-catalog.test.mjs
-          node --test scripts/window-stage1.test.mjs\n          node --test scripts/analytics-v2.test.mjs
+          node --test scripts/window-stage1.test.mjs
+          node --test scripts/analytics-v2.test.mjs
           node --test scripts/booking-operations.test.mjs
           node --test scripts/window-performance.test.mjs
           node --test scripts/post-job-followup.test.mjs
