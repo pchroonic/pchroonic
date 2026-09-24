@@ -4,22 +4,22 @@ Last updated: 2026-09-25 UTC
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current main/product merge `95cda91adb2fe7276f49a73d8626f97d87c2521e` (PR #102 Payment Receipt Tracking).
+- Current production main merge `0bdb4d54daa8342bc354f1edd707f5f7d113f5c6` (PR #104 Admin inbox close-navigation fix). PR #102 Payment Receipt Tracking remains live.
 - Customer base loader `6.4.35-payment-policy-engine-1`; post-job extension `6.4.42-post-job-experience-1`; Staff operations/ETA `6.4.41-staff-operations-v3-1`.
 - Admin base `6.4.37-admin-website-crash-fix-1`; Google Review System `6.4.43-google-reviews-1`; Stripe readiness `6.4.44-stripe-live-readiness-1`; Payment Receipt Tracking `6.4.45-payment-receipts-1`.
 - Supabase production `qjigldxjcpnrlyxgmlqq`.
-- Vercel team is on Pro. Production deployment `dpl_AZJPSx4HfaAXcb8GuJNjYqKwr82Y` is READY and aliased to `namdar.co.uk`; health HTTP 200 / `ok:true` at `2026-09-24T22:49:08.728Z`.
+- Vercel team is on Pro. Production deployment `dpl_GrJJxMfqwb8dLcqqsLoNztXzpCPD` is READY and aliased to `namdar.co.uk`; health HTTP 200 / `ok:true` at `2026-09-24T23:05:56.923Z`.
 - Hourly booking-notification cron (`7 * * * *`) is restored.
 - Window Cleaning only live.
 - Privileged Staff/Admin requires CAPTCHA + AAL2/TOTP MFA.
-- Customer Stripe remains OFF; production has zero `site_settings.payments` rows and zero active payment-policy rows.
+- Customer Stripe is ACTIVE for new Window Cleaning bookings: revision 1, required 20% deposit, full upfront payment allowed, remaining balance due at completion.
 - Ask Namdar provider AI remains disabled.
 - Google Business review URL remains unconfigured/off.
 
 ## Stripe live readiness — LIVE
 PR #100 / Admin extension `6.4.44-stripe-live-readiness-1` remains live. Production provider readiness requires recognised LIVE Stripe credentials plus configured webhook; TEST credentials remain preview/sandbox-only and cannot activate production payments.
 
-Stripe account `acct_1UFAd1Cu9tojH31y` is live and fully onboarded: charges/payouts enabled, details submitted, verification complete, card payments and transfers active. Live production webhook `https://namdar.co.uk/api/stripe-webhook` is enabled and production runtime has the live Stripe secret plus webhook secret. Live customer payments remain OFF only pending the owner's exact deposit/balance policy choice and explicit activation.
+Stripe account `acct_1UFAd1Cu9tojH31y` is live and fully onboarded: charges/payouts enabled, details submitted, verification complete, card payments and transfers active. Live production webhook `https://namdar.co.uk/api/stripe-webhook` is enabled and production runtime has the live Stripe secret plus webhook secret. Customer payments are active under payment-policy revision 1; the first genuine live payment remains the end-to-end checkout/webhook/receipt validation.
 
 ## Payment Receipt Tracking — LIVE
 PR #102 / customer+Admin asset `6.4.45-payment-receipts-1`.
@@ -54,10 +54,17 @@ Release evidence:
 - Supabase readback after release: 4 payment records, zero payment settings rows and zero active payment policies;
 - the payment-record count remained 4 before and after deployment, so release verification created no synthetic transactions.
 
-## Admin inbox navigation — FIX CANDIDATE
-- Close conversation: status becomes Closed, but the inbox remains on the current folder/filter and the detail pane returns to the conversation list.
-- Reopen conversation: preserves the Closed/current folder rather than forcing Open.
-- Asset: `6.4.46-inbox-close-stay-folder-1`.
+## Booking/payment launch policy — LIVE
+- Manual booking confirmation.
+- Monday–Saturday; Sunday closed.
+- 08:00–11:00, 11:00–14:00, 14:00–17:00.
+- Maximum 3 jobs/day, 24-hour notice, 21-day horizon, postcode-area route density enabled.
+- New bookings require 20% deposit; customers may pay 100% upfront; balance due at completion.
+
+## Admin inbox workflow — CANDIDATE
+- Existing PR #104 preserves the current folder on Close/Reopen.
+- Candidate `6.4.47-inbox-workflow-polish-1` adds next-conversation flow, bulk selection/actions, and customer context/profile shortcuts.
+- Bulk Close deliberately skips Closed/Spam rows.
 
 ## Google Review System — LIVE
 PR #98 / `6.4.43-google-reviews-1` remains live. Owner-controlled fair review requests, one-time reminders, tracked clicks and 30/90/365-day reporting are available, but the official Google Business review URL remains intentionally unconfigured/off.
@@ -74,14 +81,13 @@ Protected Owner/Administrator system roles and reusable custom Staff roles remai
 ## Other live systems
 - Responsive Admin booking editor.
 - Secure Admin logo upload and Website/Legal crash fix.
-- Flexible payment/deposit policy engine with commercial Stripe still OFF pending owner onboarding/live credentials/policy choice.
+- Flexible payment/deposit policy engine with live Stripe active under the current 20% deposit launch policy.
 - Fair cancellation terms and Privacy Centre.
 - Security Hardening and Staff auth recovery.
 - Business Finance and Smart Receipts.
 - Newsletter Centre and guided Ask Namdar.
 
 ## Open roadmap
-- Owner chooses exact production deposit/balance policy, then activate customer Stripe payments.
 - First genuine payment should be used for authenticated end-to-end receipt/email/My Namdar confirmation; do not manufacture a production transaction just to test.
 - Configure the real Google Business Profile review-request URL later.
 - Real-world Google review/post-job smoke with a genuine completed job.
