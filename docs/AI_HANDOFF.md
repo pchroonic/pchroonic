@@ -6,16 +6,16 @@ Read `docs/AI_START.md` first. Use `docs/PROJECT_STATUS.md` for roadmap/status.
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current main/product merge `95cda91adb2fe7276f49a73d8626f97d87c2521e` from PR #102.
+- Current production main merge `0bdb4d54daa8342bc354f1edd707f5f7d113f5c6` from PR #104. PR #102 Payment Receipt Tracking remains live below it.
 - Customer base loader `6.4.35-payment-policy-engine-1`; Post-job Customer Experience `6.4.42-post-job-experience-1`; Staff operations/ETA `6.4.41-staff-operations-v3-1`.
 - Admin base `6.4.37-admin-website-crash-fix-1`; Google Reviews `6.4.43-google-reviews-1`; Stripe readiness `6.4.44-stripe-live-readiness-1`; payment receipts `6.4.45-payment-receipts-1`.
 - Supabase production `qjigldxjcpnrlyxgmlqq`.
 - Vercel project `prj_4fILo0pCaLGUSUIMWrBIVGzeWVDC`; team `team_8Az8WtWcnfwtYRdhR8vGqC3L`.
-- Vercel team is on Pro. Production deployment `dpl_AZJPSx4HfaAXcb8GuJNjYqKwr82Y` is READY on `namdar.co.uk`.
-- Health HTTP 200 / `ok:true` at `2026-09-24T22:49:08.728Z`.
+- Vercel team is on Pro. Production deployment `dpl_GrJJxMfqwb8dLcqqsLoNztXzpCPD` is READY on `namdar.co.uk`.
+- Health HTTP 200 / `ok:true` at `2026-09-24T23:05:56.923Z`.
 - Hourly booking-notification cron (`7 * * * *`) is restored.
 - Window Cleaning only live. Provider AI OFF. Privileged access requires CAPTCHA + AAL2/TOTP.
-- Customer commercial Stripe remains OFF: zero production `site_settings.payments` rows and zero active payment-policy rows.
+- Customer Stripe is ACTIVE for new Window Cleaning bookings. Production `site_settings.payments` revision 1 is `deposit_required`: flat 20%, minimum £0.50, full payment allowed, balance due at completion.
 
 # Stripe live readiness — LIVE
 PR #100 remains the production credential guard. Production requires a recognised LIVE Stripe secret plus a configured webhook before payment policy can become effective. TEST credentials remain preview/sandbox-only. Existing hosted Checkout, frozen booking payment-policy snapshots, deposits/balances, signed webhook authority, refunds and processor-cost reconciliation remain in place.
@@ -96,15 +96,23 @@ Production verification after merge:
 - Stripe provider references/payment IDs remain internal reconciliation evidence;
 - customer billing/PDF surfaces do not expose processor fee/net/balance-transaction/provider-payment fields;
 - do not manufacture production customers/payments for smoke testing;
-- customer Stripe remains OFF until the owner chooses the exact production deposit/balance policy and explicitly activates it.
+- new bookings snapshot payment-policy revision 1 so later policy edits cannot rewrite accepted terms;
+- the first genuine live Stripe payment is still the required end-to-end checkout/webhook/receipt validation.
 
-# Admin inbox navigation — FIX CANDIDATE
-`admin-inbox-safety.js` now preserves the staff member's current inbox status/mailbox filters when a conversation is closed or reopened. After the status change, the detail pane closes and the user remains in the working folder instead of being redirected to Closed/Open. Asset token: `6.4.46-inbox-close-stay-folder-1`.
+# Booking/payment launch policy — LIVE
+Production booking operations: manual confirmation, Monday–Saturday, three daily windows (08–11 / 11–14 / 14–17), 3 jobs/day, 24-hour minimum notice and 21-day horizon. Route density remains grouped by postcode area.
+
+# Admin inbox workflow — CANDIDATE
+`admin-inbox-safety.js` candidate asset `6.4.47-inbox-workflow-polish-1` builds on PR #104 and adds:
+- open the next visible conversation after Close/Reopen when one exists;
+- selection mode with Select visible, Mark read, Mark unread, Assign to me and Close selected;
+- bulk Close excludes Closed/Spam conversations;
+- registered-customer context with customer-since/activity counts and Open customer shortcut; unlinked senders are labelled External sender.
 
 # Other live layers
 Google Review System PR #98 remains live but the official Google Business review URL is still unconfigured/off. Post-job Customer Experience PR #96 and Staff operations v3 PR #94 remain live.
 
 ## Next steps
-1. owner chooses the exact production deposit/balance policy;
-2. only then activate customer Stripe payments;
-3. use the first genuine payment for authenticated end-to-end receipt/email/My Namdar verification rather than manufacturing production transactions.
+1. use the first genuine payment for authenticated end-to-end checkout/webhook/receipt/email/My Namdar verification rather than manufacturing production transactions;
+2. configure the real Google Business Profile review URL later;
+3. complete authenticated real-world Staff/Post-job smokes when genuine jobs occur.
