@@ -6,6 +6,7 @@
   const reviewV='6.4.43-google-reviews-1';
   const paymentV='6.4.44-stripe-live-readiness-1';
   const receiptV='6.4.45-payment-receipts-1';
+  const inboxV='6.4.46-inbox-close-stay-folder-1';
   document.write(`<link rel="stylesheet" href="/admin-inbox-safety.css?v=${v}">`);
   document.write(`<link rel="stylesheet" href="/admin-modal-layout.css?v=${modalLayoutV}">`);
   document.write(`<link rel="stylesheet" href="/admin-field-incidents.css?v=${fieldOpsV}">`);
@@ -16,7 +17,7 @@
   document.write(`<script src="/admin-mfa-guard.js?v=${v}"><\/script>`);
   document.write(`<script src="/admin-security-hardening.js?v=${v}"><\/script>`);
   document.write(`<script src="/admin-role-management.js?v=${roleV}"><\/script>`);
-  document.write(`<script src="/admin-inbox-safety.js?v=${v}"><\/script>`);
+  document.write(`<script src="/admin-inbox-safety.js?v=${inboxV}"><\/script>`);
   document.write(`<script src="/admin-address-harvest.js?v=${v}"><\/script>`);
   document.write(`<script src="/admin-services.js?v=${v}"><\/script>`);
   document.write(`<script src="/admin-booking-operations.js?v=${v}"><\/script>`);
