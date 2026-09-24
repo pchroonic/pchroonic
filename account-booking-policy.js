@@ -66,6 +66,7 @@
     try{
       const d=await api('/api/booking',{method:'POST',body:JSON.stringify({quoteId:activeQuoteScheduleId,address,startsAt:slot.startsAt,endsAt:slot.endsAt,bookingPolicyAccepted:true,bookingPolicyVersion:POLICY_VERSION,earlyServiceRequested:true,paymentPolicyRevision:presentedPaymentRevision})});
       status.textContent='Booking request sent. Namdar will confirm the appointment.';
+      window.NamdarAnalytics?.track?.('booking_submitted',{quoteId:activeQuoteScheduleId,bookingId:d.booking?.id||undefined});
       const session=(await sb.auth.getSession()).data.session;if(session)await loadPortal(session);
       if(d.booking?.id){history.replaceState({},'',`/account?tab=bookings&booking=${encodeURIComponent(d.booking.id)}`);applyAccountDestination()}
       setTimeout(()=>$('#quoteScheduleDialog')?.close(),500);
