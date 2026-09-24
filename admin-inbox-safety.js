@@ -3,10 +3,13 @@
   window.__NAMDAR_INBOX_SAFETY__=true;
 
   let inboxBlockRules=[];
+  let inboxBulkMode=false;
+  const inboxBulkSelected=new Set();
   const baseStatusLabel=supportInboxStatusLabel;
   const baseTools=supportInboxTools;
   const baseOpen=openSupportInboxThread;
   const basePatch=patchSupportInboxThread;
+  const baseRenderList=renderSupportInboxList;
   const baseAttachmentLabel=attachmentLabel;
   const SHARED_PROVIDER_DOMAINS=new Set(['gmail.com','googlemail.com','outlook.com','hotmail.com','live.com','yahoo.com','icloud.com','me.com','proton.me','protonmail.com','aol.com','namdar.co.uk']);
 
@@ -106,6 +109,70 @@
     $('#supportInboxClearFilters')?.classList.toggle('hidden',!custom);
   };
 
+  function updateInboxBulkUi(){
+    const panel=$('#inboxBulkPanel'),count=$('#inboxBulkCount'),toggle=$('#inboxBulkToggle');
+    if(panel)panel.classList.toggle('hidden',!inboxBulkMode);
+    if(count)count.textContent=String(inboxBulkSelected.size);
+    if(toggle){toggle.textContent=inboxBulkMode?'Exit selection':'Select emails';toggle.classList.toggle('active',inboxBulkMode)}
+    $('[data-inbox-thread]').forEach(row=>{
+      const selected=inboxBulkSelected.has(row.dataset.inboxThread);
+      row.classList.toggle('bulk-selected',selected);
+      row.classList.toggle('bulk-select-mode',inboxBulkMode);
+      row.setAttribute('aria-pressed',inboxBulkMode?String(selected):'false');
+    });
+  }
+
+  function ensureInboxBulkUi(){
+    const actions=document.querySelector('#inbox .support-inbox-toolbar-actions');
+    if(actions&&!$('#inboxBulkToggle')){
+      const btn=document.createElement('button');
+      btn.id='inboxBulkToggle';btn.type='button';btn.className='ghost-btn small';btn.textContent='Select emails';
+      btn.onclick=()=>{inboxBulkMode=!inboxBulkMode;if(!inboxBulkMode)inboxBulkSelected.clear();renderSupportInboxList()};
+      actions.insertBefore(btn,$('#supportInboxRefresh')||null);
+    }
+    const refreshLine=document.querySelector('#inbox .support-inbox-refresh-line');
+    if(refreshLine&&!$('#inboxBulkPanel')){
+      const panel=document.createElement('div');
+      panel.id='inboxBulkPanel';panel.className='inbox-bulk-panel hidden';
+      panel.innerHTML='<div><strong><span id="inboxBulkCount">0</span> selected</strong><span>Choose conversations in the current filtered list.</span></div><div class="inbox-bulk-actions"><button type="button" class="ghost-btn small" data-inbox-bulk-select-visible>Select visible</button><button type="button" class="ghost-btn small" data-inbox-bulk-read>Mark read</button><button type="button" class="ghost-btn small" data-inbox-bulk-unread>Mark unread</button><button type="button" class="ghost-btn small" data-inbox-bulk-assign>Assign to me</button><button type="button" class="danger-btn small" data-inbox-bulk-close>Close selected</button></div>';
+      refreshLine.insertAdjacentElement('afterend',panel);
+      panel.querySelector('[data-inbox-bulk-select-visible]').onclick=()=>{supportInboxVisibleThreads().forEach(t=>inboxBulkSelected.add(t.id));renderSupportInboxList()};
+      panel.querySelector('[data-inbox-bulk-read]').onclick=()=>runInboxBulkAction('read');
+      panel.querySelector('[data-inbox-bulk-unread]').onclick=()=>runInboxBulkAction('unread');
+      panel.querySelector('[data-inbox-bulk-assign]').onclick=()=>runInboxBulkAction('assign');
+      panel.querySelector('[data-inbox-bulk-close]').onclick=()=>runInboxBulkAction('close');
+    }
+    updateInboxBulkUi();
+  }
+
+  function enhanceInboxRowsForBulk(){
+    if(!inboxBulkMode)return updateInboxBulkUi();
+    $('[data-inbox-thread]').forEach(row=>{
+      const id=row.dataset.inboxThread;
+      row.onclick=e=>{e.preventDefault();e.stopPropagation();if(inboxBulkSelected.has(id))inboxBulkSelected.delete(id);else inboxBulkSelected.add(id);updateInboxBulkUi()};
+    });
+    updateInboxBulkUi();
+  }
+
+  async function runInboxBulkAction(action){
+    const ids=[...inboxBulkSelected];if(!ids.length)return;
+    if(action==='close'&&!confirm(`Close ${ids.length} selected conversation${ids.length===1?'':'s'}? They will remain available in Closed.`))return;
+    const button=action==='close'?document.querySelector('[data-inbox-bulk-close]'):action==='assign'?document.querySelector('[data-inbox-bulk-assign]'):document.querySelector(`[data-inbox-bulk-${action}]`);
+    if(button)setBusy(button,true,'Working…');
+    try{
+      const requests=ids.map(threadId=>{
+        const body=action==='close'?{threadId,action:'status',status:'closed'}:action==='assign'?{threadId,action:'assign',userId:currentSession.user.id}:{threadId,action};
+        return api('/api/support-inbox',{method:'PATCH',body:JSON.stringify(body)});
+      });
+      const results=await Promise.allSettled(requests),failed=results.filter(x=>x.status==='rejected');
+      inboxBulkSelected.clear();
+      await supportInboxTools({silent:true});
+      renderSupportInboxList();
+      if(failed.length)updateSupportInboxUpdated(`${ids.length-failed.length} updated · ${failed.length} failed`);
+      else updateSupportInboxUpdated(`${ids.length} conversation${ids.length===1?'':'s'} updated`);
+    }catch(e){alert(e.message)}finally{if(button)setBusy(button,false)}
+  }
+
   async function loadInboxBlockRules(){
     ensureInboxSafetyUi();
     const root=$('#inboxBlockedRules');
@@ -148,7 +215,24 @@
     if(statusSelect&&t.status==='spam')statusSelect.value='spam';
 
     const head=root.querySelector('.support-inbox-detail-head');
-    if(head&&!root.querySelector('.inbox-safety-actions')){
+    if(head&&!root.querySelector('.inbox-customer-context')){
+      const profile=t.customer_id?(customerCache||[]).find(x=>x.id===t.customer_id):null;
+      const quotes=t.customer_id?(customerActivityCache?.quotes||[]).filter(x=>x.customer_id===t.customer_id).length:0;
+      const bookings=t.customer_id?(customerActivityCache?.bookings||[]).filter(x=>x.customer_id===t.customer_id).length:0;
+      const projects=t.customer_id?(customerActivityCache?.projects||[]).filter(x=>x.customer_id===t.customer_id).length:0;
+      const card=document.createElement('div');card.className='inbox-customer-context';
+      if(t.customer_id){
+        const since=profile?.created_at?new Date(profile.created_at).toLocaleDateString('en-GB',{year:'numeric',month:'short'}):'';
+        card.innerHTML=`<div><span class="crm-chip success">Registered customer</span><strong>${esc(profile?.full_name||t.customer_name||t.customer_email)}</strong><small>${since?`Customer since ${esc(since)} · `:''}${quotes} quote${quotes===1?'':'s'} · ${bookings} booking${bookings===1?'':'s'} · ${projects} project${projects===1?'':'s'}</small></div><div class="inbox-customer-context-actions"><button type="button" class="ghost-btn small" data-inbox-open-customer>Open customer</button>${profile?.phone?`<a class="ghost-btn small" href="tel:${esc(profile.phone)}">Call</a>`:''}</div>`;
+        card.querySelector('[data-inbox-open-customer]')?.addEventListener('click',async()=>{if(!(customerCache||[]).some(x=>x.id===t.customer_id))await customerTools();openCustomerDetail(t.customer_id)});
+      }else{
+        card.innerHTML=`<div><span class="crm-chip">External sender</span><strong>${esc(t.customer_name||t.customer_email)}</strong><small>No Namdar customer account is linked to this email conversation.</small></div>`;
+      }
+      head.insertAdjacentElement('afterend',card);
+    }
+
+    const headAfterContext=root.querySelector('.support-inbox-detail-head');
+    if(headAfterContext&&!root.querySelector('.inbox-safety-actions')){
       const domain=senderDomain(t.customer_email),canBlockDomain=domain&&!SHARED_PROVIDER_DOMAINS.has(domain);
       const box=document.createElement('div');
       box.className='inbox-safety-actions';
@@ -158,7 +242,8 @@
         ?'<button type="button" class="primary-btn small" data-inbox-not-spam>Not spam / restore</button>'
         :'<button type="button" class="ghost-btn small" data-inbox-mark-spam>Mark as spam</button><button type="button" class="danger-btn small" data-inbox-phishing>Report phishing</button>'}
         ${currentProfile?.role==='admin'?`<button type="button" class="danger-btn small" data-inbox-block-sender>Block sender</button>${canBlockDomain?'<button type="button" class="danger-btn small" data-inbox-block-domain>Block domain</button>':''}`:''}</div>`;
-      head.insertAdjacentElement('afterend',box);
+      const customerContext=root.querySelector('.inbox-customer-context');
+      (customerContext||headAfterContext).insertAdjacentElement('afterend',box);
       box.querySelector('[data-inbox-mark-spam]')?.addEventListener('click',()=>runInboxSafetyAction(id,'spam'));
       box.querySelector('[data-inbox-phishing]')?.addEventListener('click',()=>runInboxSafetyAction(id,'phishing'));
       box.querySelector('[data-inbox-not-spam]')?.addEventListener('click',()=>runInboxSafetyAction(id,'not_spam'));
@@ -202,10 +287,19 @@
 
   supportInboxTools=async function(options={}){
     ensureInboxSafetyUi();
+    ensureInboxBulkUi();
     const result=await baseTools(options);
     ensureInboxSafetyUi();
+    ensureInboxBulkUi();
+    enhanceInboxRowsForBulk();
     if($('#inboxSafetyPanel')?.open&&currentProfile?.role==='admin')loadInboxBlockRules().catch(()=>null);
     return result;
+  };
+
+  renderSupportInboxList=function(){
+    baseRenderList();
+    ensureInboxBulkUi();
+    enhanceInboxRowsForBulk();
   };
 
   openSupportInboxThread=async function(id,options={}){
@@ -224,12 +318,16 @@
 
     const statusSelect=$('#supportInboxStatus'),mailboxSelect=$('#supportInboxMailbox');
     const previousStatus=statusSelect?.value||'open',previousMailbox=mailboxSelect?.value||'all';
+    const before=supportInboxVisibleThreads(),index=before.findIndex(t=>t.id===id),nextCandidate=before[index+1]?.id||before[index-1]?.id||null;
     await basePatch(id,action,extra);
     if(statusSelect)statusSelect.value=previousStatus;
     if(mailboxSelect)mailboxSelect.value=previousMailbox;
     saveSupportInboxView();
-    closeSupportInboxThread();
-    updateSupportInboxUpdated(extra.status==='closed'?'Conversation closed · staying in current folder':'Conversation reopened · staying in current folder');
+    renderSupportInboxList();
+    const nextVisible=nextCandidate&&supportInboxVisibleThreads().some(t=>t.id===nextCandidate)?nextCandidate:null;
+    if(nextVisible)await openSupportInboxThread(nextVisible);
+    else closeSupportInboxThread();
+    updateSupportInboxUpdated(extra.status==='closed'?(nextVisible?'Conversation closed · opened next email':'Conversation closed · staying in current folder'):(nextVisible?'Conversation reopened · opened next closed email':'Conversation reopened · staying in current folder'));
   };
 
   const observer=new MutationObserver(()=>{
@@ -240,6 +338,7 @@
   if(inbox)observer.observe(inbox,{childList:true,subtree:true});
 
   ensureInboxSafetyUi();
+  ensureInboxBulkUi();
   restoreSupportInboxView();
   renderSupportInboxList();
 })();
