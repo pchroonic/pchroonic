@@ -74,6 +74,13 @@ PR #107 / `6.4.49-page-analytics-1`.
 - Uses existing first-party page-view data only; no visitor fingerprinting, device ID or third-party tracker added.
 - UI explains that page views are not unique visitors and business ratios are based on page loads rather than person-level attribution.
 
+## Analytics v2 — CANDIDATE / PRODUCTION SCHEMA READY
+- Target `6.4.50-analytics-v2-1`; migration `20260924234226_analytics_v2_session_funnel` is applied in production and committed.
+- Adds browser sessions, quote/booking/payment funnel, acquisition sources, UTM campaigns, source-attributed revenue and contact engagement to Reporting.
+- Preview hosts are ignored.
+- No fingerprinting/persistent analytics ID: sessionStorage only. Essential only deletes/disables the current v2 analytics session; UTM campaign/advertising measurement requires Allow marketing.
+- Published Cookie Policy must be updated as part of release so the statistical analytics objection and marketing-only campaign attribution are described accurately.
+
 ## Google Review System — LIVE
 PR #98 / `6.4.43-google-reviews-1` remains live. Owner-controlled fair review requests, one-time reminders, tracked clicks and 30/90/365-day reporting are available, but the official Google Business review URL remains intentionally unconfigured/off.
 
