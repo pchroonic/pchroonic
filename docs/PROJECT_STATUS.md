@@ -79,7 +79,7 @@ PR #107 / `6.4.49-page-analytics-1`.
 - Adds browser sessions, quote/booking/payment funnel, acquisition sources, UTM campaigns, source-attributed revenue and contact engagement to Reporting.
 - Preview hosts are ignored.
 - No fingerprinting/persistent analytics ID: sessionStorage only. Essential only deletes/disables the current v2 analytics session; UTM campaign/advertising measurement requires Allow marketing.
-- Published Cookie Policy must be updated as part of release so the statistical analytics objection and marketing-only campaign attribution are described accurately.
+- Published Cookie Policy v3 now describes the statistical analytics objection/deletion and marketing-only campaign attribution.
 
 ## Google Review System — LIVE
 PR #98 / `6.4.43-google-reviews-1` remains live. Owner-controlled fair review requests, one-time reminders, tracked clicks and 30/90/365-day reporting are available, but the official Google Business review URL remains intentionally unconfigured/off.
