@@ -17,7 +17,8 @@ const londonMonth=value=>{
 };
 function rangeInfo(key){
   const now=new Date(),end=new Date(now.getTime()+1000);let start=null,label='All time',granularity='month';
-  if(key==='30d'){start=new Date(now.getTime()-30*864e5);label='Last 30 days';granularity='day'}
+  if(key==='7d'){start=new Date(now.getTime()-7*864e5);label='Last 7 days';granularity='day'}
+  else if(key==='30d'){start=new Date(now.getTime()-30*864e5);label='Last 30 days';granularity='day'}
   else if(key==='90d'){start=new Date(now.getTime()-90*864e5);label='Last 90 days';granularity='week'}
   else if(key==='ytd'){start=new Date(Date.UTC(now.getUTCFullYear(),0,1));label='Year to date';granularity='month'}
   else key='all';
