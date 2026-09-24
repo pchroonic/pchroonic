@@ -219,7 +219,17 @@
       await runInboxSafetyAction(id,'spam');
       return;
     }
-    return basePatch(id,action,extra);
+    const movingFolder=action==='status'&&(extra.status==='closed'||extra.reopen===true);
+    if(!movingFolder)return basePatch(id,action,extra);
+
+    const statusSelect=$('#supportInboxStatus'),mailboxSelect=$('#supportInboxMailbox');
+    const previousStatus=statusSelect?.value||'open',previousMailbox=mailboxSelect?.value||'all';
+    await basePatch(id,action,extra);
+    if(statusSelect)statusSelect.value=previousStatus;
+    if(mailboxSelect)mailboxSelect.value=previousMailbox;
+    saveSupportInboxView();
+    closeSupportInboxThread();
+    updateSupportInboxUpdated(extra.status==='closed'?'Conversation closed · staying in current folder':'Conversation reopened · staying in current folder');
   };
 
   const observer=new MutationObserver(()=>{

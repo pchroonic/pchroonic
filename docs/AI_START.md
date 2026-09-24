@@ -1,6 +1,6 @@
 # Namdar AI fast resume
 
-Last verified: 2026-09-24 UTC
+Last verified: 2026-09-25 UTC
 
 Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PROJECT_STATUS.md` for roadmap/status.
 
@@ -57,6 +57,11 @@ Live behavior:
 
 ## Existing live layers
 Google Review System PR #98 remains live, but its official Google review URL is intentionally unconfigured/off. Post-job Customer Experience PR #96 remains live. Staff operations v3 PR #94 remains live.
+
+## Admin inbox navigation — FIX CANDIDATE
+- Closing an email conversation now keeps the current inbox folder/filter instead of forcing the whole view into Closed.
+- Reopening a conversation from Closed likewise keeps the current folder and removes the reopened item from that list.
+- Admin inbox safety asset version: `6.4.46-inbox-close-stay-folder-1`.
 
 ## Open items
 - Owner chooses exact production deposit/balance policy, then activate customer Stripe payments.

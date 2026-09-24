@@ -1,6 +1,6 @@
 # Namdar AI handoff
 
-Last verified: 2026-09-24 UTC
+Last verified: 2026-09-25 UTC
 
 Read `docs/AI_START.md` first. Use `docs/PROJECT_STATUS.md` for roadmap/status.
 
@@ -97,6 +97,9 @@ Production verification after merge:
 - customer billing/PDF surfaces do not expose processor fee/net/balance-transaction/provider-payment fields;
 - do not manufacture production customers/payments for smoke testing;
 - customer Stripe remains OFF until the owner chooses the exact production deposit/balance policy and explicitly activates it.
+
+# Admin inbox navigation — FIX CANDIDATE
+`admin-inbox-safety.js` now preserves the staff member's current inbox status/mailbox filters when a conversation is closed or reopened. After the status change, the detail pane closes and the user remains in the working folder instead of being redirected to Closed/Open. Asset token: `6.4.46-inbox-close-stay-folder-1`.
 
 # Other live layers
 Google Review System PR #98 remains live but the official Google Business review URL is still unconfigured/off. Post-job Customer Experience PR #96 and Staff operations v3 PR #94 remain live.

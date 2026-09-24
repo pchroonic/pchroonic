@@ -1,6 +1,6 @@
 # Namdar project status
 
-Last updated: 2026-09-24 UTC
+Last updated: 2026-09-25 UTC
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
@@ -53,6 +53,11 @@ Release evidence:
 - production 5xx scan found no 5xx logs;
 - Supabase readback after release: 4 payment records, zero payment settings rows and zero active payment policies;
 - the payment-record count remained 4 before and after deployment, so release verification created no synthetic transactions.
+
+## Admin inbox navigation — FIX CANDIDATE
+- Close conversation: status becomes Closed, but the inbox remains on the current folder/filter and the detail pane returns to the conversation list.
+- Reopen conversation: preserves the Closed/current folder rather than forcing Open.
+- Asset: `6.4.46-inbox-close-stay-folder-1`.
 
 ## Google Review System — LIVE
 PR #98 / `6.4.43-google-reviews-1` remains live. Owner-controlled fair review requests, one-time reminders, tracked clicks and 30/90/365-day reporting are available, but the official Google Business review URL remains intentionally unconfigured/off.
