@@ -1,5 +1,12 @@
 # Namdar project status
 
+## Fresh sign-in state cleanup — CANDIDATE
+- Clears the stale “We could not restore your secure session” message when the customer edits login fields or starts a new sign-in.
+- Prevents old recovery UI from being mistaken for the result of the current password attempt.
+- No authentication protocol, database, or environment change.
+- Regression: `scripts/auth-stale-recovery-message.test.mjs`.
+
+
 ## Auth client readiness guard — CANDIDATE
 - Prevents cached-session recovery from calling renderState before the Supabase auth client exists.
 - Fixes the resulting `Cannot read properties of null (reading 'from')` startup failure.
