@@ -271,3 +271,17 @@
 .notification-popover-footer:hover{background:rgba(23,60,50,.045)}
 @media(max-width:760px){.notification-bell-icon{width:44px;height:44px}.notification-popover{top:72px;left:12px;right:12px;width:auto;max-height:78vh}.notification-popover-list{max-height:56vh}}
 [data-theme="dark"] .notification-bell-icon,[data-theme="dark"] .notification-popover-footer{background:#15201d;border-color:#30423c}[data-theme="dark"] .notification-popover-filters button{background:#22302c;color:#d7e0dc}[data-theme="dark"] .notification-popover-filters button.active{background:#d9eee6;color:#15362c}
+
+/* Explicit profile contact/location validation */
+.phone-input-row{display:grid;grid-template-columns:minmax(118px,.34fr) minmax(0,1fr);gap:.55rem;align-items:center}
+.phone-input-row select,.phone-input-row input{margin:0}
+.phone-verify-row{display:flex;align-items:center;gap:.65rem;flex-wrap:wrap;margin-top:.55rem}
+.phone-code-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.55rem;align-items:center;margin-top:.55rem}
+.phone-code-row input{margin:0}
+.verification-pill{display:inline-flex;align-items:center;min-height:30px;padding:.3rem .65rem;border-radius:999px;font-size:.75rem;font-weight:850}
+.verification-pill.pending{background:#fff4d6;color:#765615;border:1px solid #efd697}
+.verification-pill.verified{background:#e8f5ee;color:#17533f;border:1px solid #b9decf}
+.field-help{display:block;margin-top:.4rem;color:#6b7973;line-height:1.4}
+.location-box label>input.hidden,.field-row label>input.hidden{display:none!important}
+.location-box label>input:not(.hidden),.field-row label>input:not(.hidden){margin-top:.45rem}
+@media(max-width:760px){.phone-input-row{grid-template-columns:1fr}.phone-code-row{grid-template-columns:1fr}.phone-code-row .primary-btn{width:100%}}
