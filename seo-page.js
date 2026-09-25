@@ -39,6 +39,7 @@ initConversionProof();
       if(service?.status==='paused'){const span=a.querySelector('span');if(span)span.textContent='Temporarily paused →'}
     });
   }
+  function setPublishedWorkAvailability(jobs){document.querySelectorAll('[data-real-work-link]').forEach(a=>a.hidden=!(Array.isArray(jobs)&&jobs.length));}
   function apply(services){
     const service=current(services),live=service.status==='live';
     robots(!live);
@@ -60,5 +61,6 @@ initConversionProof();
     document.documentElement.dataset.serviceStatus=service.status;
   }
   apply(safeDefault);
-  fetch('/api/public-data',{headers:{Accept:'application/json'}}).then(r=>r.ok?r.json():Promise.reject(new Error('service status unavailable'))).then(d=>apply(d.services||safeDefault)).catch(()=>apply(safeDefault));
+  setPublishedWorkAvailability([]);
+  fetch('/api/public-data',{headers:{Accept:'application/json'}}).then(r=>r.ok?r.json():Promise.reject(new Error('service status unavailable'))).then(d=>{apply(d.services||safeDefault);setPublishedWorkAvailability(d.jobs||[])}).catch(()=>{apply(safeDefault);setPublishedWorkAvailability([])});
 })();
