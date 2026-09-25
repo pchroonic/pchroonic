@@ -152,6 +152,18 @@ Receipt intelligence improvements:
 
 The existing production Vercel receipt row is status `error` and has no `expense_id`, so release does not mutate accounting data automatically.
 
+# Smart receipt flattened-PDF fix — CANDIDATE
+Target asset `6.4.53-receipt-pdf-layout-1`.
+
+After PR #112 removed the PostgreSQL/NUL crash, the real Vercel retry exposed a second issue: PDF.js flattened the page into one long line, so line-oriented receipt heuristics returned blank supplier, a subscription-range-derived date and zero VAT.
+
+Fixes:
+- browser PDF extraction preserves `TextItem.hasEOL` line breaks;
+- supplier fallback can recover a legal entity such as Vercel Inc. from flattened text;
+- labelled invoice dates such as “Date of issue” outrank generic date-range matches;
+- explicit Amount due / Standard Rate VAT parsing works even when the page is one line;
+- regression test covers the exact flattened Vercel invoice shape.
+
 # Other live layers
 Google Review System PR #98 remains live but the official Google Business review URL is still unconfigured/off. Post-job Customer Experience PR #96 and Staff operations v3 PR #94 remain live.
 
