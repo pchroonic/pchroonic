@@ -156,6 +156,8 @@ PR #107 / `6.4.49-page-analytics-1`.
 - PR #127 is live on production deployment dpl_C3gf98ZruxSBfckd9uSiuEmz1xMJ; health HTTP 200 / ok:true at 2026-09-25T14:50:21.502Z.
 - Window Cleaning sitemap lastmod is pinned to 2026-09-25 to reflect the actual public SEO page update.
 
+- PR #130 is LIVE on production deployment `dpl_CEjJJTQVDgkfCw53YvwHBdaeeYYV`; production health HTTP 200 / `ok:true` at `2026-09-25T17:55:13.522Z`.
+- Search Console integration is authorised, but Google currently has no `namdar.co.uk` property for the connected account; first-property add/verification remains the only blocker to URL Inspection and query/indexing reporting.
 - Real service-area SEO: homepage/service/London/South London copy and `areaServed` schema now reflect the production borough set Lewisham, Southwark, Lambeth, Wandsworth and Greenwich; exact property coverage is still determined by the live postcode checker.
 - Rendered-home SEO invariant keeps initial and JavaScript-rendered title/description/hero aligned to South London/Lewisham Window Cleaning, while future-service cards/radios/3D content start hidden until catalog status permits them.
 
