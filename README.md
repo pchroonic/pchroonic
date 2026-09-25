@@ -1,3 +1,7 @@
+# Namdar v6.4.76 — Non-blocking My Namdar auth bootstrap
+
+My Namdar no longer blocks the entire page on an initial `await sb.auth.getSession()`. Startup now resolves the first browser session from Supabase's `INITIAL_SESSION` auth event, and later auth changes are rendered on the next tick instead of doing database/portal work directly inside `onAuthStateChange`. This avoids the cross-tab/session-lock deadlock pattern that could leave signed-in customers stuck on “Restoring your secure session.” The initial wait is bounded at 5 seconds and regression tests require both non-blocking startup and deferred auth rendering. No database or environment change.
+
 # Namdar v6.4.75 — Native My Namdar session flow
 
 My Namdar now uses Supabase's native persisted-session lifecycle instead of the custom `account-auth-hotfix.js` wrapper that had accumulated timeout/recovery logic and was causing signed-in customers to hang on “Restoring your secure session.” The account loader now loads one pinned Supabase browser build (2.117.1) and then the normal account bootstrap, which already uses `persistSession`, `autoRefreshToken`, `detectSessionInUrl`, native `getSession()`, and `onAuthStateChange`. The custom hotfix file remains in the repository for historical tests/reference but is no longer loaded by My Namdar. Regression coverage now fails if the wrapper is reintroduced into the account loader. No database or environment change.
