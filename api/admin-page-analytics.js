@@ -130,6 +130,9 @@ module.exports=async function handler(req,res){try{
   for(const p of selectedPayments){const visitor=visitorForPayment(p);if(visitor)rowFor(visitor).revenue+=p.direction==='refund'?-n(p.amount):n(p.amount)}
   const acquisition=[...sourceRows.values()].map(r=>({key:r.key,label:r.label,campaign:r.campaign,kind:r.kind,sessions:r.sessions.size,quotes:r.quotes.size,bookings:r.bookings.size,revenue:round(r.revenue),bookingRate:pct(r.bookings.size,r.sessions.size),share:pct(r.sessions.size,selectedSessionIds.size)})).sort((a,b)=>b.sessions-a.sessions||b.revenue-a.revenue);
   const campaigns=acquisition.filter(x=>x.kind==='campaign');
+  const totalRevenue=round(selectedPayments.reduce((a,p)=>a+(p.direction==='refund'?-n(p.amount):n(p.amount)),0));
+  const attributedRevenue=round(selectedPayments.reduce((a,p)=>visitorForPayment(p)?a+(p.direction==='refund'?-n(p.amount):n(p.amount)):a,0));
+  const unattributedRevenue=round(totalRevenue-attributedRevenue);
 
   const pageMap=new Map(),referrerMap=new Map();
   for(const v of selectedViews){
@@ -178,7 +181,9 @@ module.exports=async function handler(req,res){try{
       sessionToQuoteRate:pct(linkedQuoteVisitors.size,selectedSessionIds.size),
       sessionToBookingRate:pct(bookedVisitors.size,selectedSessionIds.size),
       sessionToPaidRate:pct(paidVisitors.size,selectedSessionIds.size),
-      revenue:round(selectedPayments.reduce((a,p)=>a+(p.direction==='refund'?-n(p.amount):n(p.amount)),0))
+      totalRevenue,
+      attributedRevenue,
+      unattributedRevenue
     },
     trend:viewTrend(selectedViews,range),
     funnel,

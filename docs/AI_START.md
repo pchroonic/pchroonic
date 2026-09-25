@@ -78,7 +78,7 @@ Google Review System PR #98 remains live, but its official Google review URL is 
 - No persistent visitor/device identifier, fingerprint or third-party analytics tracker is added; the UI explicitly states that views are page loads, not unique people.
 - Production deployment `dpl_BcXGivSXztjCAEg4WZyiZr1Zb1XH` is READY on `namdar.co.uk`; the analytics endpoint rejects unauthenticated access with HTTP 401.
 
-## Analytics v2 — CANDIDATE / PRODUCTION SCHEMA READY
+## Analytics v2 — LIVE / REVENUE DISPLAY HOTFIX CANDIDATE
 - Asset target: `6.4.50-analytics-v2-1`.
 - Production migration `20260924234226_analytics_v2_session_funnel` is applied and mirrored in the repo.
 - Existing first-party `page_views` now supports temporary session ID plus UTM source/medium/campaign; existing rows remain valid with null v2 fields.
@@ -88,6 +88,7 @@ Google Review System PR #98 remains live, but its official Google review URL is 
 - Vercel preview/non-production hosts are ignored by tracking endpoints.
 - Privacy design: session ID is stored in `sessionStorage`, not a persistent analytics cookie/device identifier; Essential only is a free objection that deletes the current session's raw page views/events/quote link and disables future v2 tracking; UTM campaign/advertising fields are stored only after Allow marketing.
 - Published Cookie Policy v3 now describes the statistical-purpose analytics session, Essential-only objection/deletion, and marketing-only campaign measurement.
+- PR #109 is merged and production deployment `dpl_99WrPUXN36wpBoRJ3Wgn8EhHv1o6` is READY. Follow-up hotfix separates total payment revenue from revenue actually linked to a v2 session so the attributed revenue headline cannot overstate attribution.
 
 ## Open items
 - Use the first genuine payment for authenticated receipt/email/My Namdar verification; do not manufacture a production payment.

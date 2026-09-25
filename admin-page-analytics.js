@@ -130,7 +130,7 @@
       metric('Sessions → quotes',`${Number(s.sessionToQuoteRate||0).toFixed(1)}%`,`${nf.format(s.quotes||0)} submitted quote session${Number(s.quotes||0)===1?'':'s'}`),
       metric('Sessions → bookings',`${Number(s.sessionToBookingRate||0).toFixed(1)}%`,`${nf.format(s.bookings||0)} booking session${Number(s.bookings||0)===1?'':'s'}`),
       metric('Sessions → paid',`${Number(s.sessionToPaidRate||0).toFixed(1)}%`,`${nf.format(s.payingCustomers||0)} paying session${Number(s.payingCustomers||0)===1?'':'s'}`),
-      metric('Attributed revenue',money(s.revenue||0),'Net recorded payments in selected period')
+      metric('Attributed revenue',money(s.attributedRevenue||0),`${money(s.totalRevenue||0)} total · ${money(s.unattributedRevenue||0)} not linked to a v2 session`)
     ].join('');
     $('#websiteAnalyticsTrend').innerHTML=trend(d.trend||[]);
     $('#websiteAnalyticsFunnel').innerHTML=funnel(d.funnel||[]);
