@@ -109,6 +109,11 @@ Google Review System PR #98 remains live, but its official Google review URL is 
 - Exact flattened Vercel regression resolves to Vercel Inc., 2026-09-24, USD 24.00 total and USD 4.00 VAT.
 - Production deployment `dpl_CQFiX2Dft2nc2KYYt9d6wysfdMXc` is READY and aliased to `namdar.co.uk`; live health remains HTTP 200 / `ok:true`.
 
+## Smart receipt draft re-read — CANDIDATE
+- Target asset: `6.4.54-receipt-reread-draft-1`.
+- Unattached receipt rows in either `error` or `review` state can be safely re-read with the same file, reusing the existing private storage object instead of being blocked as a duplicate.
+- Attached receipts remain immutable through this path.
+
 ## Open items
 - Use the first genuine payment for authenticated receipt/email/My Namdar verification; do not manufacture a production payment.
 - Configure the real Google Business Profile review-request URL later.
