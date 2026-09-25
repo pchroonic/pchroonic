@@ -3,7 +3,7 @@
     const postJobV='6.4.42-post-job-experience-1';
   const fieldOpsV='6.4.41-staff-operations-v3-1';
   const receiptV='6.4.45-payment-receipts-1';
-  const analyticsV='6.4.67-profile-validation-1';
+  const analyticsV='6.4.76-initial-session-event-1';
   const supabaseVersion='2.117.1';
   document.write(`<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@${supabaseVersion}"><\/script>`);
   document.write(`<script src="/account-original.js?v=${analyticsV}"><\/script>`);
