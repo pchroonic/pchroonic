@@ -1,5 +1,13 @@
 # Namdar project status
 
+## Auth client readiness guard — CANDIDATE
+- Prevents cached-session recovery from calling renderState before the Supabase auth client exists.
+- Fixes the resulting `Cannot read properties of null (reading 'from')` startup failure.
+- MFA guard now scopes “Two-step verification could not be completed” only to the MFA challenge step, not downstream portal rendering.
+- Regression tests cover both conditions.
+- No database migration or environment-variable change.
+
+
 ## Account loader cache-chain fix — CANDIDATE
 - `account.html` now versions the top-level `account.js` loader so auth fixes actually reach existing browsers after deployment.
 - Removed the duplicate unpinned Supabase script from account.html; account.js remains the single source for the pinned auth library.
