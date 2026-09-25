@@ -49,7 +49,7 @@
       set('expenseFxRate',d.rate);set('expenseFxRateDate',d.rateDate);set('expenseFxProvider',d.provider);set('expenseFxReferenceGbp',d.convertedAmount);
       if(amount&&!amount.dataset.fxManual){fxSetting=true;amount.value=Number(d.convertedAmount).toFixed(2);fxSetting=false}
       if(vat&&sourceVat>=0&&!vat.dataset.fxManual){fxSetting=true;vat.value=Number(sourceVat*d.rate).toFixed(2);fxSetting=false}
-      status.textContent=`${currency} ${source.toFixed(2)} × ${Number(d.rate).toFixed(6)} = ${gbp(d.convertedAmount)} · ${d.provider} · rate date ${d.rateDate}. Edit Amount paid £ if your bank/card charged a different sterling amount.`;
+      const freshness=Number(d.fallbackDays||0)>0?` · previous ECB working-day rate (${d.rateDate})`:` · ECB rate date ${d.rateDate}`;status.textContent=`${currency} ${source.toFixed(2)} × ${Number(d.rate).toFixed(6)} = ${gbp(d.convertedAmount)} · ${d.provider}${freshness}. Edit Amount paid £ if your bank/card charged a different sterling amount.`;
       updateFxOverrideNote();
     }catch(e){clearFxMeta();status.textContent=`${e.message} You can still enter the actual GBP amount manually.`}
   }
