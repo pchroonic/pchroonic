@@ -121,6 +121,13 @@ Google Review System PR #98 remains live, but its official Google review URL is 
 - This prevents a successfully analysed receipt from visually reverting to today's date/default category/blank supplier before save.
 - Production deployment `dpl_57PNhT8E2ZVtfwwuNKx7eDfnkvtU` is READY on `namdar.co.uk`; the current Vercel draft was corrected in-place while still unattached.
 
+## Smart receipt manual-edit persistence — CANDIDATE
+- Target asset: `6.4.56-receipt-manual-edits-1`.
+- Root cause: receipt suggestion re-application correctly restored extracted fields after a Finance rerender, but for non-GBP receipts it also re-cleared the GBP amount field. Manual reviewer edits were not stored separately.
+- Active receipt drafts now capture reviewer input/change values for date, category, description, supplier, GBP amount, business-use %, tax treatment, payment method, reference, GBP VAT and notes.
+- After any Finance form rerender, extracted receipt values are restored first, then the reviewer’s manual overrides are reapplied.
+- This keeps the deliberate “do not auto-convert USD to GBP” safeguard while ensuring an entered GBP amount is not wiped.
+
 ## Open items
 - Use the first genuine payment for authenticated receipt/email/My Namdar verification; do not manufacture a production payment.
 - Configure the real Google Business Profile review-request URL later.
