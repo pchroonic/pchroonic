@@ -192,13 +192,14 @@ Google Review System PR #98 remains live, but its official Google review URL is 
 
 - Rendered-home SEO invariant: conversion.js must preserve the same South London/Lewisham title, meta description and hero copy as the initial HTML. Future-service cards, quote radios, the 3D nav item and the 3D section start hidden and are only unhidden by the live service-catalog state.
 
-## Portfolio SEO fail-closed — CANDIDATE
+## Portfolio SEO fail-closed — LIVE
 - Public portfolio search visibility now follows genuine published work, not page existence.
 - `/work` is routed through `api/public-work-page.js`. With no published jobs belonging to a currently live service it returns HTTP 404 plus `X-Robots-Tag: noindex, follow`; with genuine published live-service work it becomes a server-rendered, indexable Window Cleaning case-study page.
 - `/api/sitemap` includes `/work` and individual `/work/:id` URLs only when published jobs belong to a live service. The current production state has zero published jobs, so `/work` should disappear from the sitemap after release.
 - Homepage and indexable Window Cleaning/location pages keep “Our work” links hidden in raw HTML and only unhide them after `/api/public-data` returns real public jobs.
 - The legacy static `work.html` file is removed so Vercel clean-URL filesystem routing cannot shadow the canonical dynamic `/work` handler.
 - Regression coverage lives in `scripts/seo-foundation.test.mjs`.
+- Production verified on deployment `dpl_9X7fXDm4cYfvR9BKgkk74QV1ihr8` (main `5e824312a5768cfa41ce992da6f0c148df6055f8`): `/work` HTTP 404 with HTML robots + `X-Robots-Tag: noindex, follow`; sitemap excludes `/work`; homepage/live service raw HTML keeps portfolio links hidden; `/api/health` HTTP 200 / `ok:true` at `2026-09-25T20:29:18.283Z`.
 
 ## Open items
 - Use the first genuine payment for authenticated receipt/email/My Namdar verification; do not manufacture a production payment.
