@@ -164,6 +164,9 @@ Fixes:
 - explicit Amount due / Standard Rate VAT parsing works even when the page is one line;
 - regression test covers the exact flattened Vercel invoice shape.
 
+# Smart receipt draft re-read — CANDIDATE
+Target `6.4.54-receipt-reread-draft-1`. Receipt prepare now allows same-file retry for unattached `error` or `review` drafts. This is required so a previously mis-parsed draft can be re-analysed after parser improvements. Receipts with an `expense_id` remain duplicate-protected and cannot be re-read through this path.
+
 # Other live layers
 Google Review System PR #98 remains live but the official Google Business review URL is still unconfigured/off. Post-job Customer Experience PR #96 and Staff operations v3 PR #94 remain live.
 
