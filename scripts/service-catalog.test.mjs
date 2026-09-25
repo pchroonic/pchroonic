@@ -53,7 +53,7 @@ test('public data hides dormant pricing and normalises service-area service keys
 test('sitemap includes only live service slugs',()=>{
   const source=fs.readFileSync(new URL('../api/sitemap.js',import.meta.url),'utf8');
   assert.match(source,/services\.filter\(s=>s\.status==='live'\)/);
-  assert.match(source,/live\.map\(s=>`\/services\/\$\{s\.slug\}`\)/);
+  assert.match(source,/path:`\/services\/\$\{s\.slug\}`/);
   assert.equal(source.includes('/services/gutter-cleaning'),false,'future service must not be hard-coded into sitemap');
 });
 
