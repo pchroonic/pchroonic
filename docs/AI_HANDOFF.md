@@ -1,5 +1,13 @@
 # Namdar AI handoff
 
+## Login auth-client readiness — CANDIDATE
+- Prevents password sign-in from calling `sb.auth` before the Supabase client exists.
+- Prevents the session watchdog from exposing the sign-in form while the auth client is still null.
+- Fixes the visible `Cannot read properties of null (reading 'auth')` failure.
+- Regression tests cover both paths.
+- No database migration or environment-variable change.
+
+
 ## Fresh sign-in state cleanup — CANDIDATE
 - Clears the stale “We could not restore your secure session” message when the customer edits login fields or starts a new sign-in.
 - Prevents old recovery UI from being mistaken for the result of the current password attempt.
