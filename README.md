@@ -1,3 +1,7 @@
+# Namdar v6.4.69 — Auth spinner recovery
+
+Fixes a remaining My Namdar session-recovery regression where the account could stay indefinitely on “Opening My Namdar… Restoring your secure session.” If the watchdog finds a valid cached Supabase session while the normal bootstrap is stalled, it now actively resumes the account renderer. If the renderer is unavailable, it performs at most one guarded reload before falling back to sign-in. The auth regression suite now reproduces and blocks this exact stuck-spinner failure. No database or environment change.
+
 # Namdar v6.4.68 — Auth session recovery guard
 
 My Namdar no longer treats a slow Supabase session restore as an immediate logout. The legacy session guard now waits 12 seconds, recovers a still-valid cached Supabase session when the normal restore is blocked/slow (for example with multiple Namdar tabs), and only shows sign-in when no recoverable session exists. The watchdog no longer overwrites a valid cached customer session with the login screen. The existing account-auth regression suite now requires this recovery behaviour, so future PRs that reintroduce the false-logout condition fail CI. No database or environment change.
