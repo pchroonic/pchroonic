@@ -6,13 +6,13 @@ Read `docs/AI_START.md` first. Use `docs/PROJECT_STATUS.md` for roadmap/status.
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current production main merge `44d4d06add1666234560ccbddc3b30be7cbd99a0` from PR #113. PR #102 Payment Receipt Tracking remains live below it.
+- Current production main merge `e6974adff26b8d48297871a4253bbbd3c7d3a89c` from PR #116. PR #102 Payment Receipt Tracking remains live below it.
 - Customer base loader `6.4.35-payment-policy-engine-1`; Post-job Customer Experience `6.4.42-post-job-experience-1`; Staff operations/ETA `6.4.41-staff-operations-v3-1`.
 - Admin base `6.4.37-admin-website-crash-fix-1`; Google Reviews `6.4.43-google-reviews-1`; Stripe readiness `6.4.44-stripe-live-readiness-1`; payment receipts `6.4.45-payment-receipts-1`.
 - Supabase production `qjigldxjcpnrlyxgmlqq`.
 - Vercel project `prj_4fILo0pCaLGUSUIMWrBIVGzeWVDC`; team `team_8Az8WtWcnfwtYRdhR8vGqC3L`.
-- Vercel team is on Pro. Production deployment `dpl_CQFiX2Dft2nc2KYYt9d6wysfdMXc` is READY on `namdar.co.uk`.
-- Health HTTP 200 / `ok:true` at `2026-09-25T11:34:31.279Z`.
+- Vercel team is on Pro. Production deployment `dpl_57PNhT8E2ZVtfwwuNKx7eDfnkvtU` is READY on `namdar.co.uk`.
+- Health HTTP 200 / `ok:true` at `2026-09-25T11:46:59.630Z`.
 - Hourly booking-notification cron (`7 * * * *`) is restored.
 - Window Cleaning only live. Provider AI OFF. Privileged access requires CAPTCHA + AAL2/TOTP.
 - Customer Stripe is ACTIVE for new Window Cleaning bookings. Production `site_settings.payments` revision 1 is `deposit_required`: flat 20%, minimum £0.50, full payment allowed, balance due at completion.
@@ -167,8 +167,10 @@ Fixes:
 # Smart receipt draft re-read — CANDIDATE
 Target `6.4.54-receipt-reread-draft-1`. Receipt prepare now allows same-file retry for unattached `error` or `review` drafts. This is required so a previously mis-parsed draft can be re-analysed after parser improvements. Receipts with an `expense_id` remain duplicate-protected and cannot be re-read through this path.
 
-# Smart receipt form persistence — CANDIDATE
-Target `6.4.55-receipt-form-persistence-1`. The Smart Receipt UI now stores the active extracted suggestion and uses a MutationObserver on the Business Finance expense-form host to re-apply the draft after finance-panel re-renders. This fixes the observed state where Supabase held the correct Vercel extraction but the visible form reset to default values. The invoice-reference parser also normalizes a spaced PDF.js value like `YYVCYYP4 0004` to `YYVCYYP4-0004`.
+# Smart receipt form persistence — LIVE
+Live `6.4.55-receipt-form-persistence-1`. The Smart Receipt UI now stores the active extracted suggestion and uses a MutationObserver on the Business Finance expense-form host to re-apply the draft after finance-panel re-renders. This fixes the observed state where Supabase held the correct Vercel extraction but the visible form reset to default values. The invoice-reference parser also normalizes a spaced PDF.js value like `YYVCYYP4 0004` to `YYVCYYP4-0004`.
+
+Current Vercel draft remains unattached and was corrected in-place to supplier Vercel Inc., date 2026-09-24, category software, USD 24 original total, USD 4 original VAT, reference YYVCYYP4-0004.
 
 # Other live layers
 Google Review System PR #98 remains live but the official Google Business review URL is still unconfigured/off. Post-job Customer Experience PR #96 and Staff operations v3 PR #94 remain live.
