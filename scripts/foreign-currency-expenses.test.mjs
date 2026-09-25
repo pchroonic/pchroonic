@@ -44,7 +44,7 @@ test('Smart Receipt feeds detected foreign currency into the FX workflow',()=>{
 });
 
 test('foreign currency migration is additive and keeps an audit trail',()=>{
-  const migration=read('supabase/migrations/20260925133000_foreign_currency_expense_audit.sql');
+  const migration=read('supabase/migrations/20260925125132_foreign_currency_expense_audit.sql');
   for(const col of ['original_currency','original_amount','original_vat_amount','fx_rate','fx_rate_date','fx_provider','fx_reference_gbp','fx_method']){
     assert.match(migration,new RegExp(col));
   }
