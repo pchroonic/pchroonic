@@ -1,3 +1,7 @@
+# Namdar v6.4.72 — Fresh sign-in state cleanup
+
+When My Namdar falls back to the sign-in form after an unrecoverable old browser session, the recovery warning no longer remains underneath a new login attempt. Editing the email/password or submitting Sign in clears the stale recovery message first, so customers only see feedback from the current authentication attempt. No auth protocol, database, or environment change.
+
 # Namdar v6.4.71 — Auth client readiness guard
 
 Fixes a My Namdar startup failure where cached-session recovery could call the portal renderer before the Supabase client existed, causing `Cannot read properties of null (reading 'from')`. Recovery now renders only after the auth client is ready; otherwise it uses the existing one-time guarded reload. The MFA wrapper was also corrected so only MFA challenge failures are labelled as two-step verification errors—ordinary portal render failures now propagate normally. Regression coverage blocks both failures. No database or environment change.
