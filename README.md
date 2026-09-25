@@ -1,3 +1,7 @@
+# Namdar v6.4.71 — Auth client readiness guard
+
+Fixes a My Namdar startup failure where cached-session recovery could call the portal renderer before the Supabase client existed, causing `Cannot read properties of null (reading 'from')`. Recovery now renders only after the auth client is ready; otherwise it uses the existing one-time guarded reload. The MFA wrapper was also corrected so only MFA challenge failures are labelled as two-step verification errors—ordinary portal render failures now propagate normally. Regression coverage blocks both failures. No database or environment change.
+
 # Namdar v6.4.70 — Account loader cache-chain fix
 
 My Namdar now cache-busts the top-level `account.js` loader from `account.html`, preventing browsers/CDNs from continuing to execute stale auth-recovery code after a deployment. The duplicate unpinned Supabase preload was also removed so the account startup path uses only the pinned Supabase version loaded by `account.js`. The auth regression suite now requires the loader version and verifies that account.html does not preload a second Supabase build. No database or environment change.
