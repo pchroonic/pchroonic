@@ -145,6 +145,15 @@ PR #107 / `6.4.49-page-analytics-1`.
 - Existing reporting calculations and live panels are reused, not duplicated.
 - Shared period/refresh/export controls are shown only where relevant.
 
+## Window Cleaning SEO foundation — CANDIDATE
+- SEO is now aligned to the live service catalog: Window Cleaning only.
+- Homepage, live service page and London/South London/Lewisham landing pages target Window Cleaning search intent with unique metadata and structured data.
+- Planned services are statically noindex,follow until launch and stay out of the live-service sitemap.
+- Local landing pages no longer tell crawlers that future services are currently available.
+- Sitemap includes lastmod signals for the SEO pages changed on 2026-09-25.
+- Regression test: scripts/seo-foundation.test.mjs.
+- Next measurement layer: connect Google Search Console and inspect indexing, queries, impressions, CTR and positions; configure the genuine Google Business Profile separately.
+
 ## Google Review System — LIVE
 PR #98 / `6.4.43-google-reviews-1` remains live. Owner-controlled fair review requests, one-time reminders, tracked clicks and 30/90/365-day reporting are available, but the official Google Business review URL remains intentionally unconfigured/off.
 
