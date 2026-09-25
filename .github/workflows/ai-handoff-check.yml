@@ -80,6 +80,7 @@ jobs:
           node --check api/admin-business-finance.js
           node --check api/admin-finance-settings.js
           node --check api/admin-finance-expenses.js
+          node --check api/admin-fx-rate.js
           node --check api/admin-finance-receipts.js
           node --check api/admin-system-health.js
           node --check api/admin-newsletter.js
@@ -139,6 +140,7 @@ jobs:
           node --check lib/uk-tax.js
           node --check lib/receipt-intelligence.js
           node --check lib/db-safe-text.js
+          node --check lib/fx-rates.js
           node --check lib/system-health.js
           node --check lib/newsletter.js
           node --check lib/chat-assistant.js
@@ -163,6 +165,7 @@ jobs:
           node --test scripts/business-finance.test.mjs
           node --test scripts/receipt-intelligence.test.mjs
           node --test scripts/business-finance-receipts.test.mjs
+          node --test scripts/foreign-currency-expenses.test.mjs
           node --test scripts/system-health.test.mjs
           node --test scripts/newsletter-center.test.mjs
           node --test scripts/chat-assistant.test.mjs
