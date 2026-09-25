@@ -1,5 +1,5 @@
 (()=>{
-  const v='6.4.35-payment-policy-engine-1';
+  const v='6.4.68-auth-recovery-1';
   const postJobV='6.4.42-post-job-experience-1';
   const fieldOpsV='6.4.41-staff-operations-v3-1';
   const receiptV='6.4.45-payment-receipts-1';
