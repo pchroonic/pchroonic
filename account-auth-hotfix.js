@@ -113,7 +113,23 @@
     if(!loading||loading.classList.contains('hidden'))return;
     if(tryStripeReturnReload())return;
     const recovered=cachedSession();
-    if(recovered)return;
+    if(recovered){
+      try{
+        if(typeof window.renderState==='function'){
+          Promise.resolve(window.renderState(recovered)).catch(error=>console.error('Namdar cached session render recovery failed',error));
+          return;
+        }
+      }catch(error){
+        console.warn('Namdar cached session render recovery unavailable',error);
+      }
+      const key='namdar.auth.cached-recovery-reload';
+      try{
+        if(sessionStorage.getItem(key)!=='1'){
+          sessionStorage.setItem(key,'1');
+          if(typeof location.reload==='function'){location.reload();return}
+        }
+      }catch{}
+    }
     loading.classList.add('hidden');
     document.querySelector('#portalSection')?.classList.add('hidden');
     document.querySelector('#authSection')?.classList.remove('hidden');
