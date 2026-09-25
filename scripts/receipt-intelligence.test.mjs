@@ -84,3 +84,16 @@ test('database-safe text repairs NUL separators and lone surrogate characters',(
   assert.match(cleaned,/ABC-123\s+text/);
   assert.ok(cleaned.includes('�'));
 });
+
+
+test('reads Vercel invoice correctly when PDF.js flattens the page into one line',()=>{
+  const flat='Page 1 of 1 Invoice Invoice number YYVCYYP4-0004 Date of issue September 24, 2026 Date due September 24, 2026 Vercel Inc. @vercel $24.00 USD due September 24, 2026 Vercel VAT ID 519803086 VAT Code: GBSL200D Pro Sep 24-Oct 23, 2026 1 $20.00 20% $20.00 Subtotal $20.00 Standard Rate - UNITED KINGDOM (20% on $20.00) $4.00 Total $24.00 Amount due $24.00 USD';
+  const x=extractReceipt(flat);
+  assert.equal(x.supplier,'Vercel Inc.');
+  assert.equal(x.expenseDate,'2026-09-24');
+  assert.equal(x.reference,'YYVCYYP4-0004');
+  assert.equal(x.currency,'USD');
+  assert.equal(x.originalAmount,24);
+  assert.equal(x.originalVatAmount,4);
+  assert.equal(x.category,'software');
+});
