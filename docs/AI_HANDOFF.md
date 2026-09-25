@@ -167,6 +167,9 @@ Fixes:
 # Smart receipt draft re-read — CANDIDATE
 Target `6.4.54-receipt-reread-draft-1`. Receipt prepare now allows same-file retry for unattached `error` or `review` drafts. This is required so a previously mis-parsed draft can be re-analysed after parser improvements. Receipts with an `expense_id` remain duplicate-protected and cannot be re-read through this path.
 
+# Smart receipt form persistence — CANDIDATE
+Target `6.4.55-receipt-form-persistence-1`. The Smart Receipt UI now stores the active extracted suggestion and uses a MutationObserver on the Business Finance expense-form host to re-apply the draft after finance-panel re-renders. This fixes the observed state where Supabase held the correct Vercel extraction but the visible form reset to default values. The invoice-reference parser also normalizes a spaced PDF.js value like `YYVCYYP4 0004` to `YYVCYYP4-0004`.
+
 # Other live layers
 Google Review System PR #98 remains live but the official Google Business review URL is still unconfigured/off. Post-job Customer Experience PR #96 and Staff operations v3 PR #94 remain live.
 
