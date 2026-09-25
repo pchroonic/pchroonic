@@ -94,6 +94,10 @@ PR #107 / `6.4.49-page-analytics-1`.
 - Preserves PDF line endings and hardens supplier/date/total/VAT parsing when PDF.js flattens a page.
 - Exact Vercel flat-text regression passes with supplier Vercel Inc., date 2026-09-24, USD 24.00 total and USD 4.00 VAT.
 
+## Smart receipt draft re-read — CANDIDATE
+- Target `6.4.54-receipt-reread-draft-1`.
+- Same-file re-read is allowed for unattached error/review drafts; attached receipts remain protected.
+
 ## Google Review System — LIVE
 PR #98 / `6.4.43-google-reviews-1` remains live. Owner-controlled fair review requests, one-time reminders, tracked clicks and 30/90/365-day reporting are available, but the official Google Business review URL remains intentionally unconfigured/off.
 
