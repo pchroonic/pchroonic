@@ -161,6 +161,15 @@ Google Review System PR #98 remains live, but its official Google review URL is 
 - Paid invoices without an explicit payment date now warn staff to confirm Date paid against the actual bank/card transaction.
 - Unattached review drafts now expose **Re-read**, which re-runs the current parser against the already-saved receipt text without requiring another upload. Attached accounting records are deliberately excluded from automatic re-reading.
 
+## Reporting hub + focused report pages — CANDIDATE
+- Target Admin asset: `6.4.60-report-hub-1`.
+- Reporting is no longer designed as one long stacked page. `/admin?tab=reports` is the report-centre home with nine focused report cards.
+- Routed report URLs: `overview`, `revenue`, `quotes`, `services`, `staff`, `feedback`, `website`, `window`, and `finance` via `?tab=reports&report=<id>`.
+- Existing report DOM/data is preserved and reorganised rather than duplicated: Overview KPIs; Revenue + payment methods; Quotes funnel; Service performance; Staff workload; Feedback; Analytics v2; Window Cleaning performance; Business Finance.
+- Browser Back works between the report hub and individual report pages. Clicking Reporting in the sidebar returns to the hub.
+- Period/Refresh/Export controls are contextual: Finance hides the period/export controls; Website and Window reports use the selected period without showing the generic CSV export.
+- Dynamic Analytics/Window/Finance panels are adopted into dedicated report workspaces, and opening those routes dispatches `namdar:report-view` so the relevant module refreshes.
+
 ## Open items
 - Use the first genuine payment for authenticated receipt/email/My Namdar verification; do not manufacture a production payment.
 - Configure the real Google Business Profile review-request URL later.
