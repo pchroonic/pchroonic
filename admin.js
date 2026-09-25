@@ -7,7 +7,7 @@
   const paymentV='6.4.44-stripe-live-readiness-1';
   const receiptV='6.4.45-payment-receipts-1';
   const inboxV='6.4.48-inbox-workflow-polish-fix-1';
-  const analyticsV='6.4.51-analytics-v2-revenue-fix-1';
+  const analyticsV='6.4.57-analytics-load-lifecycle-1';
   const financeReceiptV='6.4.56-receipt-manual-edits-1';
   document.write(`<link rel="stylesheet" href="/admin-inbox-safety.css?v=${v}">`);
   document.write(`<link rel="stylesheet" href="/admin-page-analytics.css?v=${analyticsV}">`);
