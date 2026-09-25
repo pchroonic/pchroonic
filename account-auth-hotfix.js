@@ -1,5 +1,6 @@
 (()=>{
   const SESSION_TIMEOUT_MS=12000;
+  const EARLY_LOGIN_MS=2200;
   const PATCHED=Symbol.for('namdar.auth.session-hotfix');
   const FACTORY_PATCHED=Symbol.for('namdar.auth.factory-hotfix');
   const TIMEOUT=Symbol('namdar.auth.session-timeout');
@@ -102,7 +103,7 @@
     return true;
   }
 
-  window.NamdarAuthHotfix={patchClient,patchFactory,sessionTimeoutMs:SESSION_TIMEOUT_MS};
+  window.NamdarAuthHotfix={patchClient,patchFactory,sessionTimeoutMs:SESSION_TIMEOUT_MS,earlyLoginMs:EARLY_LOGIN_MS};
 
   if(!patchFactory()){
     let attempts=0;
@@ -111,6 +112,18 @@
       if(patchFactory()||attempts>=100)clearInterval(poll);
     },50);
   }
+
+  setTimeout(()=>{
+    const loading=document.querySelector('#accountSessionLoading');
+    if(!loading||loading.classList.contains('hidden'))return;
+    if(!authClientReady())return;
+    if(cachedSession())return;
+    loading.classList.add('hidden');
+    document.querySelector('#portalSection')?.classList.add('hidden');
+    document.querySelector('#authSection')?.classList.remove('hidden');
+    const status=document.querySelector('#authStatus');
+    if(status&&status.textContent?.startsWith('We could not restore your secure session'))status.textContent='';
+  },EARLY_LOGIN_MS);
 
   setTimeout(()=>{
     const loading=document.querySelector('#accountSessionLoading');

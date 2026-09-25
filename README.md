@@ -1,3 +1,7 @@
+# Namdar v6.4.74 — Faster account startup
+
+Signed-out customers no longer wait through the full secure-session restore timeout before seeing the login form. Once the Supabase auth client is ready, if no valid cached session exists, My Namdar reveals sign-in after about 2.2 seconds. Customers with a valid cached session still stay on the protected restore path. The full 12-second recovery timeout remains available for genuine session restoration, so this improves perceived speed without weakening session handling. Regression tests cover both signed-out and cached-session startup paths. No database or environment change.
+
 # Namdar v6.4.73 — Login auth-client readiness
 
 Fixes a My Namdar login crash where the visible sign-in form could be used before the Supabase client had finished initialising, causing `Cannot read properties of null (reading 'auth')`. The password sign-in handler now fails safely if the auth client is not ready, and the session watchdog no longer exposes the sign-in form while `sb` is still null. Regression tests cover both conditions. No database or environment change.
