@@ -6,7 +6,7 @@ Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PR
 
 ## Production source of truth
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current production main merge: `44d4d06add1666234560ccbddc3b30be7cbd99a0` (PR #113 flattened PDF receipt parsing fix). Payment Receipt Tracking PR #102 remains live beneath it.
+- Current production main merge: `e6974adff26b8d48297871a4253bbbd3c7d3a89c` (PR #116 receipt form persistence fix). Payment Receipt Tracking PR #102 remains live beneath it.
 - Customer base loader remains `6.4.35-payment-policy-engine-1`; post-job extension `6.4.42-post-job-experience-1`; Staff operations/ETA `6.4.41-staff-operations-v3-1`.
 - Admin base remains `6.4.37-admin-website-crash-fix-1`; Google Review System `6.4.43-google-reviews-1`; Stripe readiness `6.4.44-stripe-live-readiness-1`; payment receipts `6.4.45-payment-receipts-1`.
 - Supabase production project: `qjigldxjcpnrlyxgmlqq`.
@@ -114,11 +114,12 @@ Google Review System PR #98 remains live, but its official Google review URL is 
 - Unattached receipt rows in either `error` or `review` state can be safely re-read with the same file, reusing the existing private storage object instead of being blocked as a duplicate.
 - Attached receipts remain immutable through this path.
 
-## Smart receipt form persistence — CANDIDATE
-- Target asset: `6.4.55-receipt-form-persistence-1`.
+## Smart receipt form persistence — LIVE
+- Live asset: `6.4.55-receipt-form-persistence-1`.
 - Active receipt suggestion is now kept in memory and automatically re-applied if the Business Finance expense form re-renders after authentication/report refresh activity.
 - Spaced PDF invoice references such as `YYVCYYP4 0004` normalize to `YYVCYYP4-0004` without greedily capturing following labels.
 - This prevents a successfully analysed receipt from visually reverting to today's date/default category/blank supplier before save.
+- Production deployment `dpl_57PNhT8E2ZVtfwwuNKx7eDfnkvtU` is READY on `namdar.co.uk`; the current Vercel draft was corrected in-place while still unattached.
 
 ## Open items
 - Use the first genuine payment for authenticated receipt/email/My Namdar verification; do not manufacture a production payment.
