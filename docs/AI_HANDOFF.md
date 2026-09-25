@@ -1,5 +1,13 @@
 # Namdar AI handoff
 
+## Faster account startup — CANDIDATE
+- Signed-out customers see the login form after ~2.2s once the auth client is ready instead of waiting through the full restore timeout.
+- Customers with a valid cached session remain on the protected restore path.
+- Full 12s session recovery remains intact for genuine restores.
+- Regression tests cover both paths.
+- No database migration or environment-variable change.
+
+
 ## Login auth-client readiness — CANDIDATE
 - Prevents password sign-in from calling `sb.auth` before the Supabase client exists.
 - Prevents the session watchdog from exposing the sign-in form while the auth client is still null.
