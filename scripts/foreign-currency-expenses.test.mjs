@@ -6,8 +6,10 @@ const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
 test('FX service uses historical reference rates and a staff-protected endpoint',()=>{
   const lib=read('lib/fx-rates.js'),api=read('api/admin-fx-rate.js');
   assert.match(lib,/api\.frankfurter\.dev\/v2/);
-  assert.match(lib,/providers=/);
-  assert.match(lib,/ECB via Frankfurter/);
+  assert.match(lib,/\/providers\/ecb\/rate\//);
+  assert.match(lib,/European Central Bank \(ECB\) via Frankfurter/);
+  assert.match(lib,/cache:'no-store'/);
+  assert.doesNotMatch(lib,/Frankfurter reference blend/);
   assert.match(lib,/for\(let back=0;back<=7;back\+\+\)/);
   assert.match(api,/requireStaff\(req,'settings'\)/);
   assert.match(api,/convertedAmount/);
@@ -20,6 +22,9 @@ test('expense ledger stores original foreign values and FX audit metadata',()=>{
   }
   assert.match(api,/actual_override/);
   assert.match(api,/auto_reference/);
+  assert.match(api,/verifyAuthoritativeFx/);
+  assert.match(api,/referenceRate\(\{from:row\.original_currency,to:'GBP',date:row\.expense_date\}\)/);
+  assert.match(api,/Could not verify the ECB exchange rate before saving/);
 });
 
 test('business finance form supports automatic foreign amount conversion',()=>{
@@ -54,5 +59,5 @@ test('foreign currency migration is additive and keeps an audit trail',()=>{
 
 test('Admin loader pins the FX release assets',()=>{
   const loader=read('admin.js');
-  assert.match(loader,/6\.4\.59-finance-receipt-stability-1/);
+  assert.match(loader,/6\.4\.61-ecb-fx-hardening-1/);
 });
