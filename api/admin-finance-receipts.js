@@ -34,7 +34,7 @@ module.exports=async function handler(req,res){
       if(fileSize<=0||fileSize>10*1024*1024)throw bad('Receipt files must be between 1 byte and 10 MB.');
       if(!hex64(sha256))throw bad('Receipt fingerprint is invalid.');
       const existing=(await db(`business_expense_receipts?sha256=eq.${encodeURIComponent(sha256)}&status=neq.rejected&select=id,expense_id,storage_path,original_name,mime_type,status,created_at&order=created_at.desc&limit=1`).catch(()=>[]))?.[0]||null;
-      if(existing?.status==='error'&&!existing.expense_id){
+      if(existing&&!existing.expense_id&&['error','review'].includes(existing.status)){
         await db(`business_expense_receipts?id=eq.${encodeURIComponent(existing.id)}`,{method:'PATCH',prefer:'return=minimal',body:{status:'uploading',updated_by:staff.user.id,updated_at:new Date().toISOString()}});
         return json(res,200,{ok:true,duplicate:false,retry:true,receipt:{id:existing.id,storagePath:existing.storage_path,originalName:existing.original_name,mimeType:existing.mime_type}});
       }
