@@ -2,6 +2,7 @@ const crypto=require('crypto');
 const {json,parseBody,db,requireStaff,auditLog,queryParam,safeError}=require('../lib/server');
 const {extractReceipt,merchantKey}=require('../lib/receipt-intelligence');
 const {dbSafeText,dbSafeValue}=require('../lib/db-safe-text');
+const {referenceRate,convert}=require('../lib/fx-rates');
 
 const TYPES=new Map([
   ['image/jpeg','jpg'],['image/png','png'],['image/webp','webp'],['application/pdf','pdf']
@@ -12,6 +13,28 @@ const hex64=v=>/^[a-f0-9]{64}$/i.test(String(v||''));
 const canEdit=staff=>staff?.profile?.role==='admin'||staff?.permissions?.all===true||staff?.permissions?.settings===true;
 async function receipt(id){return (await db(`business_expense_receipts?id=eq.${encodeURIComponent(id)}&select=*&limit=1`).catch(()=>[]))?.[0]||null}
 async function learnedRule(key){if(!key)return null;return (await db(`business_expense_merchant_rules?merchant_key=eq.${encodeURIComponent(key)}&select=*&limit=1`).catch(()=>[]))?.[0]||null}
+async function enrichForeignFx(suggestion){
+  if(!suggestion||suggestion.currency==='GBP'||!suggestion.currency||!suggestion.expenseDate||!Number.isFinite(Number(suggestion.originalAmount))||Number(suggestion.originalAmount)<=0)return suggestion;
+  try{
+    const fx=await referenceRate({from:suggestion.currency,to:'GBP',date:suggestion.expenseDate});
+    const amount=convert(suggestion.originalAmount,fx.rate);
+    const vat=convert(suggestion.originalVatAmount||0,fx.rate);
+    suggestion.fxRate=fx.rate;
+    suggestion.fxRateDate=fx.rateDate;
+    suggestion.fxProvider=fx.provider;
+    suggestion.fxProviderKey=fx.providerKey;
+    suggestion.fxRequestedDate=fx.requestedDate;
+    suggestion.fxReferenceGbp=amount;
+    suggestion.amount=amount;
+    suggestion.vatAmount=vat;
+    suggestion.warnings=(suggestion.warnings||[]).filter(x=>!/Foreign-currency receipt/i.test(String(x)));
+    suggestion.warnings.unshift(`Automatic FX reference: ${suggestion.currency} converted to GBP using ${fx.provider} for ${fx.rateDate}. Check the actual GBP card/bank charge and edit it if different.`);
+  }catch(e){
+    suggestion.warnings=(suggestion.warnings||[]).filter(x=>!/Foreign-currency receipt/i.test(String(x)));
+    suggestion.warnings.unshift('Automatic FX conversion is temporarily unavailable. Enter the actual GBP amount from your bank/card statement.');
+  }
+  return suggestion;
+}
 async function duplicateExpenses(suggestion){
   if(!suggestion?.expenseDate||!Number.isFinite(Number(suggestion.amount)))return[];
   const rows=await db(`business_expenses?expense_date=eq.${encodeURIComponent(suggestion.expenseDate)}&amount=eq.${encodeURIComponent(Number(suggestion.amount).toFixed(2))}&select=id,expense_date,supplier,description,amount,receipt_reference,source&limit=20`).catch(()=>[]);
@@ -53,6 +76,7 @@ module.exports=async function handler(req,res){
       if(ocrText.trim().length<8)throw bad('Not enough receipt text could be read. Try a clearer image or enter the expense manually.');
       let suggestion=dbSafeValue(extractReceipt(ocrText,null)),rule=await learnedRule(suggestion.merchantKey);
       if(rule)suggestion=dbSafeValue(extractReceipt(ocrText,rule));
+      suggestion=await enrichForeignFx(suggestion);
       const duplicates=await duplicateExpenses(suggestion),confidence=Number(suggestion.overallConfidence||0);
       const patch={ocr_text:ocrText,extracted_data:suggestion,extraction_confidence:confidence,extraction_method:clean(body.extractionMethod,80)||'browser_ocr_v1',status:'review',updated_by:staff.user.id,updated_at:new Date().toISOString()};
       await db(`business_expense_receipts?id=eq.${encodeURIComponent(id)}`,{method:'PATCH',prefer:'return=minimal',body:patch});
