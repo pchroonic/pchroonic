@@ -8,7 +8,7 @@
   const receiptV='6.4.45-payment-receipts-1';
   const inboxV='6.4.48-inbox-workflow-polish-fix-1';
   const analyticsV='6.4.51-analytics-v2-revenue-fix-1';
-  const financeReceiptV='6.4.53-receipt-pdf-layout-1';
+  const financeReceiptV='6.4.54-receipt-reread-draft-1';
   document.write(`<link rel="stylesheet" href="/admin-inbox-safety.css?v=${v}">`);
   document.write(`<link rel="stylesheet" href="/admin-page-analytics.css?v=${analyticsV}">`);
   document.write(`<link rel="stylesheet" href="/admin-modal-layout.css?v=${modalLayoutV}">`);
