@@ -245,6 +245,10 @@ Production: PR #127 is live on deployment dpl_C3gf98ZruxSBfckd9uSiuEmz1xMJ. The 
 # Other live layers
 Google Review System PR #98 remains live but the official Google Business review URL is still unconfigured/off. Post-job Customer Experience PR #96 and Staff operations v3 PR #94 remain live.
 
+Production: PR #130 is LIVE on `dpl_CEjJJTQVDgkfCw53YvwHBdaeeYYV`; health HTTP 200 / `ok:true` at `2026-09-25T17:55:13.522Z`.
+
+Search Console: the GSC connector is authorised, but `list_sites` currently returns no properties and both `sc-domain:namdar.co.uk` and `https://namdar.co.uk/` are absent from the owner's Google Search Console account. The first property must be added/verified in Google Search Console before GSC Wizard can register it, inspect URLs, submit the sitemap, or report query/impression data.
+
 Live local-SEO coverage source: production `service_areas` currently contains the five administrative areas Lewisham, Southwark, Lambeth, Wandsworth and Greenwich. Homepage/service/London/South London structured data and copy must stay aligned to those actual boroughs; the postcode checker remains authoritative for each property. Avoid creating thin doorway pages for every borough/postcode without substantive local content.
 
 Rendered-home SEO invariant: Google can render JavaScript, so conversion.js must not overwrite the initial local SEO title/description/H1 with older generic London copy. Initial HTML hides future-service cards/radios and the 3D nav/section; applyServiceAvailability may unhide a service only when its catalog status becomes live, coming_soon or paused.
