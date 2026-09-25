@@ -196,6 +196,37 @@ test('watchdog never reveals the login form while the auth client is still null'
   assert.ok(readyGuard>=0&&reveal>readyGuard,'watchdog must gate login visibility on auth client readiness');
 });
 
+
+test('customers without a cached session see sign-in quickly once auth is ready',()=>{
+  const fixture=createContext('https://namdar.co.uk/account');
+  vm.runInNewContext(hotfixSource,fixture.context);
+  const earlyMs=fixture.context.window.NamdarAuthHotfix.earlyLoginMs;
+  assert.ok(earlyMs<=3000,'early login should not make signed-out customers wait on the restore screen');
+  const early=fixture.timers.find(x=>x.ms===earlyMs&&!x.cleared);
+  assert.ok(early,'early login timer should be scheduled');
+  early.fn();
+  assert.equal(fixture.context.document.querySelector('#accountSessionLoading').classList.contains('hidden'),true);
+  assert.equal(fixture.context.document.querySelector('#authSection').classList.contains('hidden'),false);
+});
+
+test('customers with a valid cached session keep the protected restore path',()=>{
+  const fixture=createContext('https://namdar.co.uk/account');
+  const future=Math.floor(Date.now()/1000)+3600;
+  fixture.local.set('sb-qjigldxjcpnrlyxgmlqq-auth-token',JSON.stringify({
+    access_token:'access-token',
+    refresh_token:'refresh-token',
+    expires_at:future,
+    user:{id:'customer-restore',email:'restore@example.com'}
+  }));
+  vm.runInNewContext(hotfixSource,fixture.context);
+  const earlyMs=fixture.context.window.NamdarAuthHotfix.earlyLoginMs;
+  const early=fixture.timers.find(x=>x.ms===earlyMs&&!x.cleared);
+  assert.ok(early);
+  early.fn();
+  assert.equal(fixture.context.document.querySelector('#accountSessionLoading').classList.contains('hidden'),false);
+  assert.equal(fixture.context.document.querySelector('#authSection').classList.contains('hidden'),true);
+});
+
 test('Stripe success return performs at most one automatic retry when session restore times out',async()=>{
   const fixture=createContext('https://namdar.co.uk/account?tab=billing&payment=success&session_id=cs_test_safe');
   vm.runInNewContext(hotfixSource,fixture.context);
