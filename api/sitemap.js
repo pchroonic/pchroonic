@@ -1,6 +1,7 @@
 const {db,safeError}=require('../lib/server');
 const {loadServiceCatalog}=require('../lib/service-catalog');
 const cleanDate=v=>/^\d{4}-\d{2}-\d{2}/.test(String(v||''))?String(v).slice(0,10):null;
+const PAGE_LASTMOD=Object.freeze({'window-cleaning':'2026-09-25'});
 module.exports=async function handler(req,res){try{
   if(req.method!=='GET'){res.statusCode=405;return res.end('Method not allowed')}
   const [services,jobs]=await Promise.all([
@@ -10,7 +11,7 @@ module.exports=async function handler(req,res){try{
   const live=services.filter(s=>s.status==='live'),liveKeys=new Set(live.map(s=>s.service_key));
   const urls=[
     {path:'',lastmod:'2026-09-25'},
-    ...live.map(s=>({path:`/services/${s.slug}`,lastmod:cleanDate(s.updated_at)||cleanDate(s.live_since)||'2026-09-25'})),
+    ...live.map(s=>({path:`/services/${s.slug}`,lastmod:PAGE_LASTMOD[s.slug]||cleanDate(s.updated_at)||cleanDate(s.live_since)||'2026-09-25'})),
     {path:'/areas/london',lastmod:'2026-09-25'},
     {path:'/areas/south-london',lastmod:'2026-09-25'},
     {path:'/areas/lewisham',lastmod:'2026-09-25'},
