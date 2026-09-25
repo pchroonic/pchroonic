@@ -11,7 +11,7 @@ test('Reporting hub defines focused report workspaces',()=>{
   }
   assert.match(src,/Choose what you want to review/);
   assert.match(src,/report-hub-grid/);
-  assert.match(src,/9 reports/);
+  assert.match(src,/Object\.keys\(REPORTS\)\.length\} reports/);
 });
 
 test('Reporting hub gives reports stable URLs and browser navigation',()=>{
