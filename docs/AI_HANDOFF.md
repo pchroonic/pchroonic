@@ -1,5 +1,14 @@
 # Namdar AI handoff
 
+## Native My Namdar session flow — CANDIDATE
+- Removes `account-auth-hotfix.js` from the live My Namdar loader.
+- Uses Supabase native persisted-session lifecycle: `persistSession`, `autoRefreshToken`, `detectSessionInUrl`, native `getSession()`, and `onAuthStateChange`.
+- Pins the browser client to Supabase JS 2.117.1.
+- Keeps the historical hotfix file in-repo but unused by production account startup.
+- Regression checks now require that the account loader does not load the custom session wrapper.
+- No database migration or environment-variable change.
+
+
 ## Faster account startup — CANDIDATE
 - Signed-out customers see the login form after ~2.2s once the auth client is ready instead of waiting through the full restore timeout.
 - Customers with a valid cached session remain on the protected restore path.
