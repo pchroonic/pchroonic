@@ -133,6 +133,7 @@ PR #107 / `6.4.49-page-analytics-1`.
 - PDF text extraction is row-aware for multi-column/table invoices.
 - Routine auth token refreshes no longer redraw the Finance form; legitimate reloads preserve the active draft and cursor.
 - Paid invoices with no explicit payment date show a confirmation warning.
+- Review drafts include Re-read so stored receipt text can be reparsed after parser improvements without another file upload; attached expense receipts are immutable to this action.
 
 ## Google Review System — LIVE
 PR #98 / `6.4.43-google-reviews-1` remains live. Owner-controlled fair review requests, one-time reminders, tracked clicks and 30/90/365-day reporting are available, but the official Google Business review URL remains intentionally unconfigured/off.
