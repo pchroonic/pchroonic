@@ -6,13 +6,13 @@ Read `docs/AI_START.md` first. Use `docs/PROJECT_STATUS.md` for roadmap/status.
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current production main merge `94a242b0531f87e11f076a58f29abbe55a5faa97` from PR #122. PR #102 Payment Receipt Tracking remains live below it.
+- Current production main merge `a3e65a0bb13982841b5ece319fbc859d27ed90ae` from PR #125. PR #102 Payment Receipt Tracking remains live below it.
 - Customer base loader `6.4.35-payment-policy-engine-1`; Post-job Customer Experience `6.4.42-post-job-experience-1`; Staff operations/ETA `6.4.41-staff-operations-v3-1`.
 - Admin base `6.4.37-admin-website-crash-fix-1`; Google Reviews `6.4.43-google-reviews-1`; Stripe readiness `6.4.44-stripe-live-readiness-1`; payment receipts `6.4.45-payment-receipts-1`.
 - Supabase production `qjigldxjcpnrlyxgmlqq`.
 - Vercel project `prj_4fILo0pCaLGUSUIMWrBIVGzeWVDC`; team `team_8Az8WtWcnfwtYRdhR8vGqC3L`.
-- Vercel team is on Pro. Production deployment `dpl_DDxDa9B2DWqDbDjF6U8jw4Rg3w9z` is READY on `namdar.co.uk`.
-- Health HTTP 200 / `ok:true` at `2026-09-25T13:41:17.561Z`.
+- Vercel team is on Pro. Production deployment `dpl_3M7PRirsVVwfFgTkDxqGFs5qnUNH` is READY on `namdar.co.uk`.
+- Health HTTP 200 / `ok:true` at `2026-09-25T14:01:35.488Z`.
 - Hourly booking-notification cron (`7 * * * *`) is restored.
 - Window Cleaning only live. Provider AI OFF. Privileged access requires CAPTCHA + AAL2/TOTP.
 - Customer Stripe is ACTIVE for new Window Cleaning bookings. Production `site_settings.payments` revision 1 is `deposit_required`: flat 20%, minimum £0.50, full payment allowed, balance due at completion.
@@ -187,7 +187,7 @@ Migration `20260925122723_allow_receipt_expense_source` updates `business_expens
 
 Observed failure: `api/admin-finance-expenses.js` intentionally sets `row.source='receipt'` when a reviewed Smart Receipt is attached, but the older ledger constraint rejected that value. Production schema now matches the application model. The receipt remains review-first and no accounting entry is created until explicitly saved.
 
-# Automatic foreign-currency expenses — LIVE / ECB HARDENING CANDIDATE
+# Automatic foreign-currency expenses — LIVE / ECB VERIFIED
 Target Admin assets `6.4.58-expense-fx-1`. Production migration `20260925125132_foreign_currency_expense_audit` is applied.
 
 Components:
@@ -201,6 +201,8 @@ Components:
 Save integrity: `api/admin-finance-expenses.js` now re-fetches and verifies the ECB reference server-side before persisting automatic FX metadata, so browser-supplied rate/date/provider values are not trusted. If automatic ECB verification fails, an automatic-reference save is blocked; an explicitly entered actual/manual GBP amount may still be saved without pretending an unverified reference is authoritative.
 
 Save-time freshness invariant: the browser now sends whether the GBP value is automatic or reviewer-entered. On save, the server re-fetches ECB. Automatic values are recalculated from the verified rate (including VAT where an original foreign VAT amount is present); reviewer-entered GBP values are preserved as `actual_override`. This prevents a form opened before the ECB daily publication from saving yesterday's automatic GBP amount after today's rate has become available.
+
+Production: PR #125 is live on deployment `dpl_3M7PRirsVVwfFgTkDxqGFs5qnUNH`.
 
 Accounting invariant: automatic FX is a reference amount, not an assertion of the card issuer's exact rate. If staff enter a different GBP amount (for example the actual card statement charge), the ledger stores that GBP amount as the expense and marks the FX method `actual_override` while preserving the historical reference conversion.
 
