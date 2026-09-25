@@ -9,6 +9,8 @@ test('smart receipt API is staff protected and review-first',()=>{
   assert.match(api,/requireStaff\(req,'settings'\)/);
   assert.match(api,/action==='prepare'/);
   assert.match(api,/action==='analyze'/);
+  assert.match(api,/action==='reanalyze'/);
+  assert.match(api,/server_reread_v2/);
   assert.match(api,/status:'review'/);
   assert.match(api,/sha256/);
   assert.match(api,/duplicateExpenses/);
@@ -43,6 +45,10 @@ test('browser receipt reader keeps OCR local and requires review before save',()
   assert.match(ui,/rememberReceiptEdit/);
   assert.match(ui,/EDIT_IDS/);
   assert.match(ui,/Object\.entries\(currentEdits\)/);
+  assert.match(ui,/pdfTextByRows/);
+  assert.match(ui,/browser_pdf_text_rows_v2/);
+  assert.match(ui,/data-reread-receipt/);
+  assert.match(ui,/Re-read/);
   assert.match(ui,/actual card\/bank charge|actual GBP.*override/);
 });
 
@@ -50,7 +56,7 @@ test('admin loader and CSP keep receipt workflow dependencies',()=>{
   const loader=read('admin.js'),vercel=read('vercel.json');
   assert.match(loader,/6\.4\.37-admin-website-crash-fix-1/);
   assert.match(loader,/admin-finance-receipts\.js/);
-  assert.match(loader,/6\.4\.58-expense-fx-1/);
+  assert.match(loader,/6\.4\.59-finance-receipt-stability-1/);
   assert.match(vercel,/connect-src[^\n]*cdn\.jsdelivr\.net/);
   assert.match(vercel,/worker-src[^\n]*cdn\.jsdelivr\.net/);
 });

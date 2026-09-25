@@ -83,6 +83,22 @@ module.exports=async function handler(req,res){
       await auditLog(req,staff,{action:'finance.receipt_analyze',entityType:'business_expense_receipt',entityId:id,summary:'Analyzed receipt into an expense draft',after:{supplier:suggestion.supplier||null,expense_date:suggestion.expenseDate||null,amount:suggestion.amount,category:suggestion.category,confidence},metadata:{duplicateCandidates:duplicates.length,learnedRuleApplied:suggestion.learnedRuleApplied===true}});
       return json(res,200,{ok:true,receiptId:id,suggestion,duplicateExpenses:duplicates});
     }
+    if(action==='reanalyze'){
+      const id=clean(body.receiptId,80);
+      if(!id)throw bad('Receipt ID is required.');
+      const row=await receipt(id);if(!row)throw Object.assign(new Error('Receipt not found.'),{status:404});
+      if(row.expense_id)return json(res,409,{ok:false,error:'Attached receipts are accounting records and are not automatically re-read.'});
+      const ocrText=dbSafeText(row.ocr_text||row.extracted_data?.ocrPreview||'',100000);
+      if(ocrText.trim().length<8)throw bad('This draft has no readable saved text. Upload/read the receipt again.');
+      let suggestion=dbSafeValue(extractReceipt(ocrText,null)),rule=await learnedRule(suggestion.merchantKey);
+      if(rule)suggestion=dbSafeValue(extractReceipt(ocrText,rule));
+      suggestion=await enrichForeignFx(suggestion);
+      const duplicates=await duplicateExpenses(suggestion),confidence=Number(suggestion.overallConfidence||0);
+      const patch={extracted_data:suggestion,extraction_confidence:confidence,extraction_method:'server_reread_v2',status:'review',updated_by:staff.user.id,updated_at:new Date().toISOString()};
+      await db(`business_expense_receipts?id=eq.${encodeURIComponent(id)}`,{method:'PATCH',prefer:'return=minimal',body:patch});
+      await auditLog(req,staff,{action:'finance.receipt_reanalyze',entityType:'business_expense_receipt',entityId:id,summary:'Re-read stored receipt text with current parser',after:{supplier:suggestion.supplier||null,expense_date:suggestion.expenseDate||null,amount:suggestion.amount,vat_amount:suggestion.vatAmount,reference:suggestion.reference||null,category:suggestion.category,confidence},metadata:{duplicateCandidates:duplicates.length,learnedRuleApplied:suggestion.learnedRuleApplied===true}});
+      return json(res,200,{ok:true,receiptId:id,suggestion,duplicateExpenses:duplicates});
+    }
     if(action==='error'){
       const id=clean(body.receiptId,80),row=await receipt(id);if(!row)throw Object.assign(new Error('Receipt not found.'),{status:404});
       await db(`business_expense_receipts?id=eq.${encodeURIComponent(id)}`,{method:'PATCH',prefer:'return=minimal',body:{status:'error',updated_by:staff.user.id,updated_at:new Date().toISOString()}});

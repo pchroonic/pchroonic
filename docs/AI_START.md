@@ -151,6 +151,16 @@ Google Review System PR #98 remains live, but its official Google review URL is 
 - Ledger rows show original foreign amount and whether GBP was an automatic reference conversion or actual/manual override.
 - HMRC guidance permits reputable exchange-rate sources and commonly accepts the actual sterling amount shown by a bank/card provider; actual card/bank charge therefore takes priority when the reviewer supplies it.
 
+## Smart Receipt extraction + Finance draft stability — CANDIDATE
+- Target assets: `6.4.59-finance-receipt-stability-1`.
+- Real Amazon/Equipmart VAT invoice regression added from the 20 Jul 2026 water-filter purchase.
+- Receipt extraction now prioritises explicit/legal seller names, compound invoice-date labels, invoice-number labels, VAT-summary tables, and the purchased item description instead of layout/header fragments.
+- Expected Amazon fields: Equipmart Ltd; invoice date 2026-07-20; invoice GB6001L14F5R3I; total GBP 24.95; VAT GBP 4.16; category equipment; product description from the invoice item.
+- PDF.js embedded text is reconstructed by visual row coordinates before server analysis, reducing multi-column/table flattening errors.
+- Finance no longer reloads on routine Supabase TOKEN_REFRESHED events. Any legitimate Finance reload captures and restores the active expense form values and cursor position.
+- Paid invoices without an explicit payment date now warn staff to confirm Date paid against the actual bank/card transaction.
+- Unattached review drafts now expose **Re-read**, which re-runs the current parser against the already-saved receipt text without requiring another upload. Attached accounting records are deliberately excluded from automatic re-reading.
+
 ## Open items
 - Use the first genuine payment for authenticated receipt/email/My Namdar verification; do not manufacture a production payment.
 - Configure the real Google Business Profile review-request URL later.

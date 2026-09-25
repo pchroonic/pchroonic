@@ -127,6 +127,14 @@ PR #107 / `6.4.49-page-analytics-1`.
 - Reviewer-entered actual GBP charge overrides the reference conversion without losing the FX trail.
 - Staff-only FX lookup uses Frankfurter historical rates with ECB preference and fallback.
 
+## Smart Receipt extraction + Finance draft stability — CANDIDATE
+- Target `6.4.59-finance-receipt-stability-1`.
+- Fixes Amazon/Equipmart invoice extraction: seller, invoice date, invoice number, VAT and purchased-item description.
+- PDF text extraction is row-aware for multi-column/table invoices.
+- Routine auth token refreshes no longer redraw the Finance form; legitimate reloads preserve the active draft and cursor.
+- Paid invoices with no explicit payment date show a confirmation warning.
+- Review drafts include Re-read so stored receipt text can be reparsed after parser improvements without another file upload; attached expense receipts are immutable to this action.
+
 ## Google Review System — LIVE
 PR #98 / `6.4.43-google-reviews-1` remains live. Owner-controlled fair review requests, one-time reminders, tracked clicks and 30/90/365-day reporting are available, but the official Google Business review URL remains intentionally unconfigured/off.
 

@@ -58,3 +58,13 @@ test('private finance settings are stored under a non-public key',()=>{
   assert.match(source,/finance_private/);
   assert.match(source,/privateFinancialValuesRedacted:true/);
 });
+
+
+test('finance form ignores routine token refreshes and preserves active draft fields',()=>{
+  const ui=read('admin-business-finance.js');
+  assert.match(ui,/captureExpenseDraft/);
+  assert.match(ui,/restoreExpenseDraft/);
+  assert.match(ui,/preserveExpenseDraft/);
+  assert.match(ui,/SIGNED_IN','USER_UPDATED','MFA_CHALLENGE_VERIFIED/);
+  assert.doesNotMatch(ui,/if\(session\)setTimeout\(load,0\)/);
+});
