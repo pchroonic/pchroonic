@@ -74,12 +74,13 @@ PR #107 / `6.4.49-page-analytics-1`.
 - Uses existing first-party page-view data only; no visitor fingerprinting, device ID or third-party tracker added.
 - UI explains that page views are not unique visitors and business ratios are based on page loads rather than person-level attribution.
 
-## Analytics v2 — CANDIDATE / PRODUCTION SCHEMA READY
-- Target `6.4.50-analytics-v2-1`; migration `20260924234226_analytics_v2_session_funnel` is applied in production and committed.
+## Analytics v2 — LIVE / REVENUE DISPLAY HOTFIX CANDIDATE
+- Production base `6.4.50-analytics-v2-1`; hotfix candidate `6.4.51-analytics-v2-revenue-fix-1`; migration `20260924234226_analytics_v2_session_funnel` is applied in production and committed.
 - Adds browser sessions, quote/booking/payment funnel, acquisition sources, UTM campaigns, source-attributed revenue and contact engagement to Reporting.
 - Preview hosts are ignored.
 - No fingerprinting/persistent analytics ID: sessionStorage only. Essential only deletes/disables the current v2 analytics session; UTM campaign/advertising measurement requires Allow marketing.
 - Published Cookie Policy v3 now describes the statistical analytics objection/deletion and marketing-only campaign attribution.
+- PR #109 is live on `dpl_99WrPUXN36wpBoRJ3Wgn8EhHv1o6`; attributed-revenue hotfix candidate separates total, attributed and unattributed payment revenue.
 
 ## Google Review System — LIVE
 PR #98 / `6.4.43-google-reviews-1` remains live. Owner-controlled fair review requests, one-time reminders, tracked clicks and 30/90/365-day reporting are available, but the official Google Business review URL remains intentionally unconfigured/off.
