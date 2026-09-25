@@ -97,3 +97,12 @@ test('reads Vercel invoice correctly when PDF.js flattens the page into one line
   assert.equal(x.originalVatAmount,4);
   assert.equal(x.category,'software');
 });
+
+
+test('normalizes a spaced Vercel invoice reference from PDF.js text',()=>{
+  const flat='Invoice Invoice number YYVCYYP4 0004 Date of issue September 24, 2026 Vercel Inc. @vercel Amount due $24.00 USD';
+  const x=extractReceipt(flat);
+  assert.equal(x.reference,'YYVCYYP4-0004');
+  assert.equal(x.supplier,'Vercel Inc.');
+  assert.equal(x.expenseDate,'2026-09-24');
+});
