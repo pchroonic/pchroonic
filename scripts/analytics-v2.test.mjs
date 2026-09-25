@@ -64,6 +64,11 @@ test('admin analytics reports sessions funnel acquisition campaigns and attribut
   assert.match(api,/attributedRevenue/);
   assert.match(api,/unattributedRevenue/);
   assert.match(ui,/not linked to a v2 session/);
+  assert.match(ui,/bindAnalyticsLifecycle/);
+  assert.match(ui,/websiteAnalyticsRetry/);
+  assert.match(ui,/Analytics took too long to load/);
+  assert.match(ui,/Waiting for secure session/);
+  assert.match(ui,/data-tab="reports"/);
 });
 
 test('database migration preserves RLS tables while extending the session and funnel schema',()=>{
@@ -89,4 +94,10 @@ test('privacy banner explains the analytics objection and marketing measurement 
   const source=read('index.html');
   assert.match(source,/Choose Essential only to opt out of analytics and marketing/);
   assert.match(source,/campaign and advertising measurement/);
+});
+
+
+test('Admin loader pins the Analytics v2 lifecycle fix',()=>{
+  const loader=read('admin.js');
+  assert.match(loader,/6\.4\.57-analytics-load-lifecycle-1/);
 });
