@@ -174,6 +174,16 @@ Google Review System PR #98 remains live, but its official Google review URL is 
 - Dynamic Analytics/Window/Finance panels are adopted into dedicated report workspaces, and opening those routes dispatches `namdar:report-view` so the relevant module refreshes.
 - Production deployment `dpl_DDxDa9B2DWqDbDjF6U8jw4Rg3w9z` is READY and `namdar.co.uk` serves the hub assets; live health HTTP 200 / `ok:true` at `2026-09-25T13:41:17.561Z`.
 
+## Window Cleaning SEO foundation — CANDIDATE
+- SEO scope is intentionally aligned to the commercial truth: Window Cleaning is the only live/quotable/bookable service.
+- Homepage title, description, hero H1 and JSON-LD now target Window Cleaning in South London/Lewisham instead of generic multi-service property care.
+- Live service page targets Exterior Window Cleaning in London and includes Organization + Service + BreadcrumbList structured data plus strong internal links to London, South London and Lewisham.
+- /areas/london, /areas/south-london, and /areas/lewisham are rewritten as unique Window Cleaning landing pages. They no longer statically advertise gutter/roof/jet-wash/handyman/3D as currently available.
+- Planned service pages carry static noindex,follow in their source until deliberate service launch.
+- Sitemap remains catalog-driven for live services only and now emits accurate lastmod for the pages changed in this SEO release.
+- Regression coverage: scripts/seo-foundation.test.mjs.
+- Google Search Console connection/URL Inspection remains an owner connection step; use real Search Console query/impression/indexing data after connection rather than guessing rankings.
+
 ## Open items
 - Use the first genuine payment for authenticated receipt/email/My Namdar verification; do not manufacture a production payment.
 - Configure the real Google Business Profile review-request URL later.
