@@ -1,5 +1,15 @@
 # Namdar project status
 
+## Studio-style customer notifications — CANDIDATE
+- Header notification control is now an icon bell with unread badge.
+- Clicking it opens an anchored recent-notifications panel rather than immediately navigating away.
+- Dropdown includes All, Quotes, Bookings, Billing and Support filters, unread dots, category icons, excerpts and relative timestamps.
+- Full Notification Centre remains available from the dropdown footer for search/archive/history.
+- Mobile uses a near-full-width fixed panel below the header.
+- No database migration or environment-variable change.
+- Regression: `scripts/notification-popover-ui.test.mjs`.
+
+
 ## Signup profile redirect — CANDIDATE
 - Newly signed-in customers with incomplete profile data are automatically taken to My details when no explicit quote/booking/message/tab destination is present.
 - Missing mobile number is prioritised and the Mobile field is focused first.
