@@ -1,5 +1,12 @@
 # Namdar project status
 
+## Account loader cache-chain fix — CANDIDATE
+- `account.html` now versions the top-level `account.js` loader so auth fixes actually reach existing browsers after deployment.
+- Removed the duplicate unpinned Supabase script from account.html; account.js remains the single source for the pinned auth library.
+- Added regression coverage to fail CI if the account loader version becomes stale or a second Supabase preload is reintroduced.
+- No database migration or environment-variable change.
+
+
 ## Auth spinner recovery — CANDIDATE
 - Fixes indefinite “Opening My Namdar… Restoring your secure session” state after a valid cached session is detected.
 - Watchdog now actively calls the account renderer with the recovered session instead of returning and leaving the loading shell visible.
