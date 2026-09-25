@@ -32,6 +32,7 @@ function createContext(href='https://namdar.co.uk/account?tab=billing'){
   };
   const context={
     window:{supabase:{createClient:()=>client}},
+    sb:client,
     document:{querySelector:selector=>({
       '#accountSessionLoading':loading,
       '#authSection':authSection,
@@ -158,6 +159,7 @@ test('cached recovery never renders the portal before the Supabase auth client i
     user:{id:'customer-3',email:'customer3@example.com'}
   }));
   let renders=0;
+  fixture.context.sb=null;
   fixture.context.window.renderState=()=>{renders++};
   vm.runInNewContext(hotfixSource,fixture.context);
   const timeoutMs=fixture.context.window.NamdarAuthHotfix.sessionTimeoutMs;
