@@ -6,7 +6,7 @@ Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PR
 
 ## Production source of truth
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current production main merge: `94a242b0531f87e11f076a58f29abbe55a5faa97` (PR #122 Reporting hub release). Payment Receipt Tracking PR #102 remains live beneath it.
+- Current production main merge: `a3e65a0bb13982841b5ece319fbc859d27ed90ae` (PR #125 ECB save-refresh release). Payment Receipt Tracking PR #102 remains live beneath it.
 - Customer base loader remains `6.4.35-payment-policy-engine-1`; post-job extension `6.4.42-post-job-experience-1`; Staff operations/ETA `6.4.41-staff-operations-v3-1`.
 - Admin base remains `6.4.37-admin-website-crash-fix-1`; Google Review System `6.4.43-google-reviews-1`; Stripe readiness `6.4.44-stripe-live-readiness-1`; payment receipts `6.4.45-payment-receipts-1`.
 - Supabase production project: `qjigldxjcpnrlyxgmlqq`.
@@ -141,8 +141,8 @@ Google Review System PR #98 remains live, but its official Google review URL is 
 - The constraint now allows `receipt` as a first-class expense source, preserving accurate audit/source classification.
 - No expense was auto-created during the fix; the current Vercel receipt remains review-first until the owner clicks Add expense.
 
-## Automatic foreign-currency expenses — LIVE / ECB HARDENING CANDIDATE
-- Existing FX base: `6.4.58-expense-fx-1`; hardening target: `6.4.62-ecb-save-refresh-1`.
+## Automatic foreign-currency expenses — LIVE / ECB VERIFIED
+- Existing FX base: `6.4.58-expense-fx-1`; live hardening: `6.4.62-ecb-save-refresh-1`.
 - Production migration `20260925125132_foreign_currency_expense_audit` is applied and mirrored in the repo.
 - Business expenses can retain original currency/amount/VAT plus FX rate, rate date/provider, reference GBP value and whether the final GBP amount was the automatic reference or a reviewer override.
 - Staff expense form supports GBP, USD, EUR, CAD, AUD, NZD, CHF and JPY. Entering a foreign amount/date triggers historical GBP conversion through the staff-only `/api/admin-fx-rate` endpoint.
@@ -150,6 +150,7 @@ Google Review System PR #98 remains live, but its official Google review URL is 
 - Smart Receipt foreign invoices are enriched server-side with the historical GBP reference amount; the reviewer can replace it with the actual card/bank GBP charge without losing the original rate audit trail.
 - Expense creation/update now re-verifies the ECB reference on the server before saving FX metadata; automatic conversions are not persisted if that verification fails.
 - Save-time freshness invariant: if the visible GBP amount was still an automatic reference, the server replaces it with the newest verified ECB amount at save time. If staff manually entered the actual bank/card GBP amount, that amount is preserved and recorded as an override.
+- Production deployment `dpl_3M7PRirsVVwfFgTkDxqGFs5qnUNH` is READY on `namdar.co.uk`; live health HTTP 200 / `ok:true` at `2026-09-25T14:01:35.488Z`.
 - Ledger rows show original foreign amount and whether GBP was an automatic reference conversion or actual/manual override.
 - HMRC guidance permits reputable exchange-rate sources and commonly accepts the actual sterling amount shown by a bank/card provider; actual card/bank charge therefore takes priority when the reviewer supplies it.
 
