@@ -1,5 +1,16 @@
 # Namdar project status
 
+## Verified contact + explicit property details — CANDIDATE
+- Mobile entry supports 07…, +44… and 0044… plus selectable calling codes and normalizes to E.164-style international format.
+- My details now includes SMS OTP verification; `profiles.phone_verified` is set true only after successful Supabase phone-change verification.
+- Region, district and property type have no silent default. Each is required; Other reveals a required custom text input saved into the existing profile field.
+- Editing the postcode invalidates old verification, hides/clears the map and clears derived region/district/city until Find address runs again.
+- Address provider outages are distinguished from genuine no-address results.
+- No database migration or new env var.
+- Production GetAddress currently still returns Unauthorized; this branch improves the customer-facing fallback but does not mask that provider issue.
+- Regression: `scripts/profile-contact-location-validation.test.mjs`.
+
+
 ## Studio-style customer notifications — CANDIDATE
 - Header notification control is now an icon bell with unread badge.
 - Clicking it opens an anchored recent-notifications panel rather than immediately navigating away.
