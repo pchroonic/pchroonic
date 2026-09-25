@@ -228,6 +228,18 @@ Shared controls remain single-instance to avoid duplicate IDs. Period/export vis
 
 PR #122 is live on production deployment `dpl_DDxDa9B2DWqDbDjF6U8jw4Rg3w9z`.
 
+# Window Cleaning SEO foundation — CANDIDATE
+SEO deliberately follows the service-catalog truth: only Window Cleaning is live.
+
+Public search architecture:
+- homepage: Window Cleaning in South London & Lewisham | Namdar; descriptive Window Cleaning H1; Organization/WebSite/Service JSON-LD;
+- live service: /services/window-cleaning, with Exterior Window Cleaning intent, Service + BreadcrumbList schema, and internal local-area links;
+- local landing pages: /areas/london, /areas/south-london, /areas/lewisham; each has unique title/description/H1/content and Window Cleaning-only Service schema;
+- planned service pages: static noindex,follow in source, in addition to the existing runtime service gate; sitemap already excludes non-live services;
+- sitemap: dynamic live-service catalog plus accurate lastmod signals for the homepage/service/local pages changed in this release.
+
+Do not create thin postcode/neighbourhood doorway pages without genuine coverage/content. Do not claim LocalBusiness address/telephone structured-data fields unless real public business details are available. Search Console/Business Profile should be connected separately for measured indexing/query/local visibility.
+
 # Other live layers
 Google Review System PR #98 remains live but the official Google Business review URL is still unconfigured/off. Post-job Customer Experience PR #96 and Staff operations v3 PR #94 remain live.
 
