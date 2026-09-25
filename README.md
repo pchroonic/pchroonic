@@ -1,3 +1,7 @@
+# Namdar v6.4.68 — Auth session recovery guard
+
+My Namdar no longer treats a slow Supabase session restore as an immediate logout. The legacy session guard now waits 12 seconds, recovers a still-valid cached Supabase session when the normal restore is blocked/slow (for example with multiple Namdar tabs), and only shows sign-in when no recoverable session exists. The watchdog no longer overwrites a valid cached customer session with the login screen. The existing account-auth regression suite now requires this recovery behaviour, so future PRs that reintroduce the false-logout condition fail CI. No database or environment change.
+
 # Namdar v6.4.67 — Verified contact + explicit property details
 
 My Namdar profile onboarding now requires explicit customer choices instead of silent defaults. Mobile entry supports local UK, +44 and 0044 formats plus selectable country calling codes, normalizes numbers to international format, and exposes SMS OTP verification in My details using Supabase phone-change verification. Area/region, borough/district and property type start unselected; choosing Other reveals a required free-text field whose value is saved into the existing profile field. Editing a previously verified postcode immediately clears stale map/location verification. Address-search provider failures are shown as temporary lookup outages instead of misleading zero-result messages. No database migration or new environment variable is required. GetAddress itself is still returning Unauthorized in production and remains a separate credential/provider issue.
