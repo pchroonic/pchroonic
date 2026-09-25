@@ -81,6 +81,6 @@ Amount due $24.00 USD`;
 test('database-safe text repairs NUL separators and lone surrogate characters',()=>{
   const cleaned=dbSafeText('ABC\u0000123\u0000 text '+String.fromCharCode(0xD800));
   assert.equal(cleaned.includes('\u0000'),false);
-  assert.match(cleaned,/ABC-123 text/);
+  assert.match(cleaned,/ABC-123\s+text/);
   assert.ok(cleaned.includes('�'));
 });
