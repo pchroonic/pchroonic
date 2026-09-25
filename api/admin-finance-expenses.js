@@ -31,9 +31,11 @@ function normalize(body,staff,existing=null){
   const fxRateDate=date(body.fxRateDate||body.fx_rate_date||existing?.fx_rate_date);
   const fxProvider=clean(body.fxProvider??body.fx_provider??existing?.fx_provider,160)||null;
   const fxReferenceGbp=fxNumber(body.fxReferenceGbp??body.fx_reference_gbp??existing?.fx_reference_gbp);
-  let fxMethod=FX_METHODS.has(body.fxMethod||body.fx_method)?(body.fxMethod||body.fx_method):(existing?.fx_method||null);
+  const requestedFxMethod=FX_METHODS.has(body.fxMethod||body.fx_method)?(body.fxMethod||body.fx_method):null;
+  let fxMethod=requestedFxMethod||(existing?.fx_method||null);
   if(originalCurrency&&originalCurrency!=='GBP'&&originalAmount!==null){
-    if(fxRate&&fxReferenceGbp!==null)fxMethod=Math.abs(amount-fxReferenceGbp)>0.01?'actual_override':'auto_reference';
+    if(requestedFxMethod==='actual_override')fxMethod='actual_override';
+    else if(fxRate&&fxReferenceGbp!==null)fxMethod=Math.abs(amount-fxReferenceGbp)>0.01?'actual_override':'auto_reference';
     else if(!fxMethod)fxMethod='manual';
   }else fxMethod=null;
   return{expense_date:expenseDate,category,description,supplier:clean(body.supplier??existing?.supplier,160)||null,amount,vat_amount:vat,business_use_percent:pct(body.businessUsePercent??body.business_use_percent??existing?.business_use_percent),tax_treatment:treatment,payment_method:method,booking_id:clean(body.bookingId||body.booking_id||existing?.booking_id,80)||null,reference:clean(body.reference??existing?.reference,160)||null,receipt_reference:clean(body.receiptReference||body.receipt_reference||existing?.receipt_reference,500)||null,notes:clean(body.notes??existing?.notes,1500)||null,source:existing?.source||'manual',original_currency:originalCurrency,original_amount:originalAmount,original_vat_amount:originalVatAmount,fx_rate:fxRate,fx_rate_date:fxRateDate,fx_provider:fxProvider,fx_reference_gbp:fxReferenceGbp,fx_method:fxMethod,updated_by:staff.user.id,updated_at:new Date().toISOString()};
@@ -51,7 +53,11 @@ async function verifyAuthoritativeFx(row){
     row.fx_rate_date=fx.rateDate;
     row.fx_provider=fx.provider;
     row.fx_reference_gbp=reference;
-    row.fx_method=Math.abs(Number(row.amount)-Number(reference))>0.01?'actual_override':'auto_reference';
+    if(clientMethod==='auto_reference'){
+      row.amount=reference;
+      if(row.original_vat_amount!==null){const verifiedVat=convert(row.original_vat_amount,fx.rate);if(verifiedVat!==null)row.vat_amount=Math.min(reference,verifiedVat)}
+      row.fx_method='auto_reference';
+    }else row.fx_method='actual_override';
     return row;
   }catch(error){
     row.fx_rate=null;row.fx_rate_date=null;row.fx_provider=null;row.fx_reference_gbp=null;
