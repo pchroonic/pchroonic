@@ -1,5 +1,17 @@
 # Namdar project status
 
+## Customer GetAddress postcode lookup — CANDIDATE
+- Fixes the public quote postcode selector using only partial cached/OpenStreetMap results even when GetAddress is configured.
+- A real customer-entered postcode may trigger one GetAddress autocomplete request only when Namdar has no cached GetAddress rows for that postcode; returned addresses are cached in private `master_addresses` and then reused.
+- Provider policy fails closed: the customer path requires the GetAddress dataset to be active with `operational_use_allowed=true` and `human_input_required=true`; automated/bulk harvesting remains blocked.
+- Fresh zero-result lookups are cached for 24 hours and provider errors for 10 minutes to avoid repeated charge/rate-limit pressure.
+- If a complete GetAddress cache exists, partial OSM rows are omitted from the customer picker; OSM/manual entry remain fallbacks.
+- Public address lookup throttle is 12 requests/IP/10 minutes.
+- No Supabase migration or new environment variable is required; existing `GETADDRESS_API_KEY` is used server-side when configured.
+- Regression: `scripts/address-customer-lookup.test.mjs`.
+- Not yet merged/deployed at this checkpoint.
+
+
 Last updated: 2026-09-25 UTC
 
 ## Production baseline
