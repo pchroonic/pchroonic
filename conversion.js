@@ -134,7 +134,7 @@
       const mobileStrong=document.querySelector('#mobileConversionBar strong'),mobileText=document.querySelector('#mobileConversionBar span');
       if(mobileStrong)mobileStrong.textContent='Need window cleaning?';if(mobileText)mobileText.textContent='Check your postcode and get a guide estimate.';
       document.title='Window Cleaning in South London & Lewisham | Namdar';
-      const meta=document.querySelector('meta[name="description"]');if(meta)meta.content='Book exterior window cleaning in South London and Lewisham with Namdar. Get an online guide estimate, postcode check, reviewed final quote and manage your booking online.';
+      const meta=document.querySelector('meta[name="description"]');if(meta)meta.content='Book exterior window cleaning across Lewisham, Southwark, Lambeth, Wandsworth and Greenwich with postcode checks, online estimates and reviewed final quotes.';
       windowQuoteEnhancements();
     }
     if(resultBadge){const active=document.querySelector('input[name="service"]:checked');if(active)resultBadge.textContent=`${serviceLabels[active.value]||'Namdar'} · GUIDE ESTIMATE`;}
