@@ -200,6 +200,15 @@ Components:
 
 Accounting invariant: automatic FX is a reference amount, not an assertion of the card issuer's exact rate. If staff enter a different GBP amount (for example the actual card statement charge), the ledger stores that GBP amount as the expense and marks the FX method `actual_override` while preserving the historical reference conversion.
 
+# Smart Receipt extraction + Finance draft stability — CANDIDATE
+Target assets `6.4.59-finance-receipt-stability-1`.
+
+Observed production failure on an Amazon VAT invoice for an Equip2clean water filter: total/category were broadly correct but supplier became a table header, reference became `date`, VAT was zero, and the expense date followed the order date rather than the explicit invoice/delivery date. The parser now prefers explicit/legal seller names and properly labelled invoice numbers/dates, reads VAT summary rows, and extracts an item description around ASIN/product-table context.
+
+Browser PDF extraction now groups PDF.js text items by visual Y coordinate and sorts each row by X before analysis (`browser_pdf_text_rows_v2`) instead of relying only on `hasEOL`, which was weak for invoices with columns/tables.
+
+Finance UX: `admin-business-finance.js` no longer redraws the page on routine auth token refresh events. It only reacts to meaningful auth state changes and captures/restores the full active expense draft (including FX metadata/manual overrides and selection focus) around legitimate data reloads.
+
 # Other live layers
 Google Review System PR #98 remains live but the official Google Business review URL is still unconfigured/off. Post-job Customer Experience PR #96 and Staff operations v3 PR #94 remain live.
 
