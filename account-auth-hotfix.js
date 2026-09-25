@@ -1,5 +1,5 @@
 (()=>{
-  const SESSION_TIMEOUT_MS=5000;
+  const SESSION_TIMEOUT_MS=12000;
   const PATCHED=Symbol.for('namdar.auth.session-hotfix');
   const FACTORY_PATCHED=Symbol.for('namdar.auth.factory-hotfix');
   const TIMEOUT=Symbol('namdar.auth.session-timeout');
@@ -28,7 +28,30 @@
     return false;
   }
 
+  function cachedSession(){
+    try{
+      const keys=[];
+      for(let i=0;i<localStorage.length;i++){
+        const key=localStorage.key(i);
+        if(key&&/^sb-.*-auth-token$/.test(key))keys.push(key);
+      }
+      for(const key of keys){
+        const raw=localStorage.getItem(key);
+        if(!raw)continue;
+        const parsed=JSON.parse(raw);
+        const session=parsed?.currentSession||parsed;
+        const expiresAt=Number(session?.expires_at||0);
+        if(session?.access_token&&session?.refresh_token&&session?.user&&expiresAt>Date.now()/1000+15)return session;
+      }
+    }catch(error){
+      console.warn('Namdar cached session recovery skipped',error);
+    }
+    return null;
+  }
+
   function timeoutResult(){
+    const session=cachedSession();
+    if(session)return {data:{session},error:null,recovered:true};
     return {data:{session:null},error:new Error('Session restore timed out')};
   }
 
@@ -89,14 +112,16 @@
     const loading=document.querySelector('#accountSessionLoading');
     if(!loading||loading.classList.contains('hidden'))return;
     if(tryStripeReturnReload())return;
+    const recovered=cachedSession();
+    if(recovered)return;
     loading.classList.add('hidden');
     document.querySelector('#portalSection')?.classList.add('hidden');
     document.querySelector('#authSection')?.classList.remove('hidden');
     const status=document.querySelector('#authStatus');
     if(status){
-      status.textContent='Your secure session is taking longer than expected. Refresh this page. If it repeats, close any other Namdar tabs and try again.';
+      status.textContent='We could not restore your secure session. Try signing in again. Your saved Namdar data has not been changed.';
       status.classList.add('error');
       status.classList.remove('success');
     }
-  },SESSION_TIMEOUT_MS+750);
+  },SESSION_TIMEOUT_MS+1500);
 })();
