@@ -1,5 +1,6 @@
 const {json,parseBody,db,requireStaff,auditLog,queryParam,safeError}=require('../lib/server');
 const {merchantKey}=require('../lib/receipt-intelligence');
+const {referenceRate,convert}=require('../lib/fx-rates');
 
 const CATEGORIES=new Set(['materials','travel','parking','vehicle','office','phone_internet','software','advertising','insurance','professional_fees','training','uniform_ppe','premises','staff_subcontractors','equipment','bank_finance','other']);
 const TAX_TREATMENTS=new Set(['allowable','capital_allowance','non_allowable']);
@@ -37,6 +38,28 @@ function normalize(body,staff,existing=null){
   }else fxMethod=null;
   return{expense_date:expenseDate,category,description,supplier:clean(body.supplier??existing?.supplier,160)||null,amount,vat_amount:vat,business_use_percent:pct(body.businessUsePercent??body.business_use_percent??existing?.business_use_percent),tax_treatment:treatment,payment_method:method,booking_id:clean(body.bookingId||body.booking_id||existing?.booking_id,80)||null,reference:clean(body.reference??existing?.reference,160)||null,receipt_reference:clean(body.receiptReference||body.receipt_reference||existing?.receipt_reference,500)||null,notes:clean(body.notes??existing?.notes,1500)||null,source:existing?.source||'manual',original_currency:originalCurrency,original_amount:originalAmount,original_vat_amount:originalVatAmount,fx_rate:fxRate,fx_rate_date:fxRateDate,fx_provider:fxProvider,fx_reference_gbp:fxReferenceGbp,fx_method:fxMethod,updated_by:staff.user.id,updated_at:new Date().toISOString()};
 }
+async function verifyAuthoritativeFx(row){
+  if(!row.original_currency||row.original_currency==='GBP'||row.original_amount===null){
+    row.fx_rate=null;row.fx_rate_date=null;row.fx_provider=null;row.fx_reference_gbp=null;row.fx_method=null;
+    return row;
+  }
+  const clientMethod=row.fx_method;
+  try{
+    const fx=await referenceRate({from:row.original_currency,to:'GBP',date:row.expense_date});
+    const reference=convert(row.original_amount,fx.rate);
+    row.fx_rate=fx.rate;
+    row.fx_rate_date=fx.rateDate;
+    row.fx_provider=fx.provider;
+    row.fx_reference_gbp=reference;
+    row.fx_method=Math.abs(Number(row.amount)-Number(reference))>0.01?'actual_override':'auto_reference';
+    return row;
+  }catch(error){
+    row.fx_rate=null;row.fx_rate_date=null;row.fx_provider=null;row.fx_reference_gbp=null;
+    if(clientMethod==='auto_reference')throw Object.assign(new Error('Could not verify the ECB exchange rate before saving. Retry shortly, or enter the actual GBP amount charged by your bank/card.'),{status:503,cause:error});
+    row.fx_method='manual';
+    return row;
+  }
+}
 async function getOne(id){return (await db(`business_expenses?id=eq.${encodeURIComponent(id)}&select=*&limit=1`).catch(()=>[]))?.[0]||null}
 async function getReceipt(id){return (await db(`business_expense_receipts?id=eq.${encodeURIComponent(id)}&select=*&limit=1`).catch(()=>[]))?.[0]||null}
 async function learnMerchant(expense,staff){
@@ -60,7 +83,7 @@ module.exports=async function handler(req,res){
       if(receiptId&&!receipt)return json(res,404,{ok:false,error:'Receipt draft not found.'});
       if(receipt?.expense_id)return json(res,409,{ok:false,error:'This receipt is already attached to another expense.'});
       if(receipt&&receipt.status!=='review')return json(res,409,{ok:false,error:'Read and review the receipt before saving the expense.'});
-      const row={...normalize(body,staff),created_by:staff.user.id,created_at:new Date().toISOString()};
+      const row={...(await verifyAuthoritativeFx(normalize(body,staff))),created_by:staff.user.id,created_at:new Date().toISOString()};
       if(receipt){row.receipt_reference=receipt.id;row.source='receipt'}
       const created=(await db('business_expenses',{method:'POST',prefer:'return=representation',body:row}))?.[0];
       if(receipt&&created?.id){
@@ -73,7 +96,7 @@ module.exports=async function handler(req,res){
     const id=clean(body.id,80);if(!id)return json(res,400,{ok:false,error:'Expense ID is required.'});
     const before=await getOne(id);if(!before)return json(res,404,{ok:false,error:'Expense not found.'});
     if(req.method==='PATCH'){
-      const row=normalize(body,staff,before);
+      const row=await verifyAuthoritativeFx(normalize(body,staff,before));
       const updated=(await db(`business_expenses?id=eq.${encodeURIComponent(id)}`,{method:'PATCH',prefer:'return=representation',body:row}))?.[0];
       if(updated?.source==='receipt'||updated?.receipt_reference)await learnMerchant(updated,staff);
       await auditLog(req,staff,{action:'finance.expense_update',entityType:'business_expense',entityId:id,summary:`Updated ${row.category} expense`,before:{expense_date:before.expense_date,category:before.category,amount:before.amount,business_use_percent:before.business_use_percent,tax_treatment:before.tax_treatment},after:{expense_date:row.expense_date,category:row.category,amount:row.amount,business_use_percent:row.business_use_percent,tax_treatment:row.tax_treatment}});
