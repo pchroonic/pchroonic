@@ -104,6 +104,11 @@ PR #107 / `6.4.49-page-analytics-1`.
 - Spaced PDF invoice numbers normalize correctly.
 - Current Vercel draft was corrected while still unattached; no expense ledger entry was created automatically.
 
+## Smart receipt manual-edit persistence — CANDIDATE
+- Target `6.4.56-receipt-manual-edits-1`.
+- Manual reviewer edits now survive Finance-panel rerenders and override re-applied receipt suggestions.
+- Foreign-currency GBP amount remains manual, but once entered it is no longer wiped.
+
 ## Google Review System — LIVE
 PR #98 / `6.4.43-google-reviews-1` remains live. Owner-controlled fair review requests, one-time reminders, tracked clicks and 30/90/365-day reporting are available, but the official Google Business review URL remains intentionally unconfigured/off.
 
