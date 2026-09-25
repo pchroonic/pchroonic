@@ -39,7 +39,8 @@ initConversionProof();
       if(service?.status==='paused'){const span=a.querySelector('span');if(span)span.textContent='Temporarily paused →'}
     });
   }
-  function setPublishedWorkAvailability(jobs){document.querySelectorAll('[data-real-work-link]').forEach(a=>a.hidden=!(Array.isArray(jobs)&&jobs.length));}\n  function apply(services){
+  function setPublishedWorkAvailability(jobs){document.querySelectorAll('[data-real-work-link]').forEach(a=>a.hidden=!(Array.isArray(jobs)&&jobs.length));}
+  function apply(services){
     const service=current(services),live=service.status==='live';
     robots(!live);
     const old=document.getElementById('serviceAvailabilityNotice');if(old)old.remove();
