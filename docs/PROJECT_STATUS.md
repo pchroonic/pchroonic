@@ -83,6 +83,12 @@ PR #107 / `6.4.49-page-analytics-1`.
 - Historical page views before v2 remain in totals but have no session/campaign attribution.
 - PR #109 launched Analytics v2; PR #110 is live and separates total, attributed and unattributed payment revenue so only v2-linked payments appear as attributed.
 
+## Smart receipt Vercel PDF fix — CANDIDATE
+- Target `6.4.52-receipt-unicode-currency-1`.
+- Real Vercel invoice reproduced the PostgreSQL Unicode error because PDF text includes hidden NUL characters.
+- Server sanitization, same-file retry, Vercel→Software recognition, month-first date parsing, and foreign-currency GBP safety are implemented.
+- Existing Vercel receipt remains unattached and status `error` until the owner retries it after release.
+
 ## Google Review System — LIVE
 PR #98 / `6.4.43-google-reviews-1` remains live. Owner-controlled fair review requests, one-time reminders, tracked clicks and 30/90/365-day reporting are available, but the official Google Business review URL remains intentionally unconfigured/off.
 
