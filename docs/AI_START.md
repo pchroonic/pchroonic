@@ -141,6 +141,16 @@ Google Review System PR #98 remains live, but its official Google review URL is 
 - The constraint now allows `receipt` as a first-class expense source, preserving accurate audit/source classification.
 - No expense was auto-created during the fix; the current Vercel receipt remains review-first until the owner clicks Add expense.
 
+## Automatic foreign-currency expenses — CANDIDATE / PRODUCTION SCHEMA READY
+- Target Admin assets: `6.4.58-expense-fx-1`.
+- Production migration `20260925125132_foreign_currency_expense_audit` is applied and mirrored in the repo.
+- Business expenses can retain original currency/amount/VAT plus FX rate, rate date/provider, reference GBP value and whether the final GBP amount was the automatic reference or a reviewer override.
+- Staff expense form supports GBP, USD, EUR, CAD, AUD, NZD, CHF and JPY. Entering a foreign amount/date triggers historical GBP conversion through the staff-only `/api/admin-fx-rate` endpoint.
+- FX source: historical reference rate from Frankfurter, preferring ECB data and falling back to the Frankfurter reference blend / prior business days when needed. No API key is stored.
+- Smart Receipt foreign invoices are enriched server-side with the historical GBP reference amount; the reviewer can replace it with the actual card/bank GBP charge without losing the original rate audit trail.
+- Ledger rows show original foreign amount and whether GBP was an automatic reference conversion or actual/manual override.
+- HMRC guidance permits reputable exchange-rate sources and commonly accepts the actual sterling amount shown by a bank/card provider; actual card/bank charge therefore takes priority when the reviewer supplies it.
+
 ## Open items
 - Use the first genuine payment for authenticated receipt/email/My Namdar verification; do not manufacture a production payment.
 - Configure the real Google Business Profile review-request URL later.

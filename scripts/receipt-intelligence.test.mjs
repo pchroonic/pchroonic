@@ -75,7 +75,7 @@ Amount due $24.00 USD`;
   assert.equal(x.amount,null);
   assert.equal(x.vatAmount,null);
   assert.equal(x.category,'software');
-  assert.ok(x.warnings.some(w=>/actual GBP amount/i.test(w)));
+  assert.ok(x.warnings.some(w=>/historical GBP reference|actual GBP card or bank charge/i.test(w)));
 });
 
 test('database-safe text repairs NUL separators and lone surrogate characters',()=>{

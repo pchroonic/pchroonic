@@ -4,9 +4,12 @@ const {merchantKey}=require('../lib/receipt-intelligence');
 const CATEGORIES=new Set(['materials','travel','parking','vehicle','office','phone_internet','software','advertising','insurance','professional_fees','training','uniform_ppe','premises','staff_subcontractors','equipment','bank_finance','other']);
 const TAX_TREATMENTS=new Set(['allowable','capital_allowance','non_allowable']);
 const METHODS=new Set(['cash','bank_transfer','card','direct_debit','other']);
+const FX_METHODS=new Set(['auto_reference','actual_override','manual']);
 const clean=(v,max=500)=>String(v||'').trim().slice(0,max);
 const money=(v,max=1000000)=>{const n=Number(v);return Number.isFinite(n)?Math.min(max,Math.max(0,Number(n.toFixed(2)))):0};
 const pct=v=>{const n=Number(v);return Number.isFinite(n)?Math.min(100,Math.max(0,Number(n.toFixed(2)))):100};
+const fxNumber=(v,max=100000000)=>{const n=Number(v);return Number.isFinite(n)&&n>=0?Math.min(max,n):null};
+const currency=v=>{const s=String(v||'').trim().toUpperCase();return /^[A-Z]{3}$/.test(s)?s:null};
 function date(v){const s=String(v||'');if(!/^\d{4}-\d{2}-\d{2}$/.test(s))return null;const d=new Date(`${s}T00:00:00Z`);return Number.isFinite(d.getTime())?s:null}
 function badRequest(message){return Object.assign(new Error(message),{status:400})}
 function normalize(body,staff,existing=null){
@@ -20,7 +23,19 @@ function normalize(body,staff,existing=null){
   if(!description)throw badRequest('Expense description is required.');
   if(amount<=0)throw badRequest('Expense amount must be greater than £0.');
   const vat=Math.min(amount,money(body.vatAmount??body.vat_amount??existing?.vat_amount));
-  return{expense_date:expenseDate,category,description,supplier:clean(body.supplier??existing?.supplier,160)||null,amount,vat_amount:vat,business_use_percent:pct(body.businessUsePercent??body.business_use_percent??existing?.business_use_percent),tax_treatment:treatment,payment_method:method,booking_id:clean(body.bookingId||body.booking_id||existing?.booking_id,80)||null,reference:clean(body.reference??existing?.reference,160)||null,receipt_reference:clean(body.receiptReference||body.receipt_reference||existing?.receipt_reference,500)||null,notes:clean(body.notes??existing?.notes,1500)||null,source:existing?.source||'manual',updated_by:staff.user.id,updated_at:new Date().toISOString()};
+  const originalCurrency=currency(body.originalCurrency??body.original_currency??existing?.original_currency);
+  const originalAmount=fxNumber(body.originalAmount??body.original_amount??existing?.original_amount);
+  const originalVatAmount=fxNumber(body.originalVatAmount??body.original_vat_amount??existing?.original_vat_amount);
+  const fxRate=fxNumber(body.fxRate??body.fx_rate??existing?.fx_rate,1000000);
+  const fxRateDate=date(body.fxRateDate||body.fx_rate_date||existing?.fx_rate_date);
+  const fxProvider=clean(body.fxProvider??body.fx_provider??existing?.fx_provider,160)||null;
+  const fxReferenceGbp=fxNumber(body.fxReferenceGbp??body.fx_reference_gbp??existing?.fx_reference_gbp);
+  let fxMethod=FX_METHODS.has(body.fxMethod||body.fx_method)?(body.fxMethod||body.fx_method):(existing?.fx_method||null);
+  if(originalCurrency&&originalCurrency!=='GBP'&&originalAmount!==null){
+    if(fxRate&&fxReferenceGbp!==null)fxMethod=Math.abs(amount-fxReferenceGbp)>0.01?'actual_override':'auto_reference';
+    else if(!fxMethod)fxMethod='manual';
+  }else fxMethod=null;
+  return{expense_date:expenseDate,category,description,supplier:clean(body.supplier??existing?.supplier,160)||null,amount,vat_amount:vat,business_use_percent:pct(body.businessUsePercent??body.business_use_percent??existing?.business_use_percent),tax_treatment:treatment,payment_method:method,booking_id:clean(body.bookingId||body.booking_id||existing?.booking_id,80)||null,reference:clean(body.reference??existing?.reference,160)||null,receipt_reference:clean(body.receiptReference||body.receipt_reference||existing?.receipt_reference,500)||null,notes:clean(body.notes??existing?.notes,1500)||null,source:existing?.source||'manual',original_currency:originalCurrency,original_amount:originalAmount,original_vat_amount:originalVatAmount,fx_rate:fxRate,fx_rate_date:fxRateDate,fx_provider:fxProvider,fx_reference_gbp:fxReferenceGbp,fx_method:fxMethod,updated_by:staff.user.id,updated_at:new Date().toISOString()};
 }
 async function getOne(id){return (await db(`business_expenses?id=eq.${encodeURIComponent(id)}&select=*&limit=1`).catch(()=>[]))?.[0]||null}
 async function getReceipt(id){return (await db(`business_expense_receipts?id=eq.${encodeURIComponent(id)}&select=*&limit=1`).catch(()=>[]))?.[0]||null}

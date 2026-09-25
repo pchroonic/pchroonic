@@ -120,6 +120,13 @@ PR #107 / `6.4.49-page-analytics-1`.
 - Receipt-created ledger entries may now use `source='receipt'`; manual/import/job-cost sources remain valid.
 - Fixes Add expense failure on reviewed Smart Receipts without weakening review or attachment safeguards.
 
+## Automatic foreign-currency expenses — CANDIDATE / PRODUCTION SCHEMA READY
+- Target `6.4.58-expense-fx-1`; migration `20260925125132_foreign_currency_expense_audit` is applied in production.
+- Manual and Smart Receipt expenses support automatic historical FX → GBP conversion.
+- Original currency/amount and reference rate/date/provider are preserved for audit.
+- Reviewer-entered actual GBP charge overrides the reference conversion without losing the FX trail.
+- Staff-only FX lookup uses Frankfurter historical rates with ECB preference and fallback.
+
 ## Google Review System — LIVE
 PR #98 / `6.4.43-google-reviews-1` remains live. Owner-controlled fair review requests, one-time reminders, tracked clicks and 30/90/365-day reporting are available, but the official Google Business review URL remains intentionally unconfigured/off.
 
