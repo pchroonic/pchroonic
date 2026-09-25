@@ -65,6 +65,14 @@ function createContext(href='https://namdar.co.uk/account?tab=billing'){
   return {context,timers,client,local,get reloads(){return reloads}};
 }
 
+
+test('account HTML cache-busts the loader and does not preload a second Supabase build',()=>{
+  const html=fs.readFileSync(new URL('../account.html',import.meta.url),'utf8');
+  assert.match(html,/account\.js\?v=6\.4\.70-account-loader/);
+  const matches=html.match(/@supabase\/supabase-js/g)||[];
+  assert.equal(matches.length,0,'account.html should not preload an unpinned duplicate Supabase script');
+});
+
 test('account loader pins the current lockless Supabase build before the auth guard',()=>{
   assert.match(loaderSource,/const supabaseVersion='2\.116\.0'/);
   const supabase=loaderSource.indexOf('cdn.jsdelivr.net/npm/@supabase/supabase-js@');
