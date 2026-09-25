@@ -43,14 +43,14 @@ test('browser receipt reader keeps OCR local and requires review before save',()
   assert.match(ui,/rememberReceiptEdit/);
   assert.match(ui,/EDIT_IDS/);
   assert.match(ui,/Object\.entries\(currentEdits\)/);
-  assert.match(ui,/actual GBP amount/);
+  assert.match(ui,/actual card\/bank charge|actual GBP.*override/);
 });
 
 test('admin loader and CSP keep receipt workflow dependencies',()=>{
   const loader=read('admin.js'),vercel=read('vercel.json');
   assert.match(loader,/6\.4\.37-admin-website-crash-fix-1/);
   assert.match(loader,/admin-finance-receipts\.js/);
-  assert.match(loader,/6\.4\.56-receipt-manual-edits-1/);
+  assert.match(loader,/6\.4\.58-expense-fx-1/);
   assert.match(vercel,/connect-src[^\n]*cdn\.jsdelivr\.net/);
   assert.match(vercel,/worker-src[^\n]*cdn\.jsdelivr\.net/);
 });
