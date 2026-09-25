@@ -134,6 +134,15 @@
         }
       }catch{}
     }
+    if(!authClientReady()){
+      const status=document.querySelector('#authStatus');
+      if(status){
+        status.textContent='Secure sign-in is still loading. Please refresh the page if this message remains.';
+        status.classList.add('error');
+        status.classList.remove('success');
+      }
+      return;
+    }
     loading.classList.add('hidden');
     document.querySelector('#portalSection')?.classList.add('hidden');
     document.querySelector('#authSection')?.classList.remove('hidden');

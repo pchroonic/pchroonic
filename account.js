@@ -1,6 +1,6 @@
 (()=>{
   const v='6.4.35-payment-policy-engine-1';
-  const authV='6.4.71-auth-client-ready-1';
+  const authV='6.4.73-login-client-ready-1';
   const postJobV='6.4.42-post-job-experience-1';
   const fieldOpsV='6.4.41-staff-operations-v3-1';
   const receiptV='6.4.45-payment-receipts-1';

@@ -1,3 +1,7 @@
+# Namdar v6.4.73 — Login auth-client readiness
+
+Fixes a My Namdar login crash where the visible sign-in form could be used before the Supabase client had finished initialising, causing `Cannot read properties of null (reading 'auth')`. The password sign-in handler now fails safely if the auth client is not ready, and the session watchdog no longer exposes the sign-in form while `sb` is still null. Regression tests cover both conditions. No database or environment change.
+
 # Namdar v6.4.72 — Fresh sign-in state cleanup
 
 When My Namdar falls back to the sign-in form after an unrecoverable old browser session, the recovery warning no longer remains underneath a new login attempt. Editing the email/password or submitting Sign in clears the stale recovery message first, so customers only see feedback from the current authentication attempt. No auth protocol, database, or environment change.
