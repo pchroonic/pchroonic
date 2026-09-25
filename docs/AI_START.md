@@ -114,6 +114,12 @@ Google Review System PR #98 remains live, but its official Google review URL is 
 - Unattached receipt rows in either `error` or `review` state can be safely re-read with the same file, reusing the existing private storage object instead of being blocked as a duplicate.
 - Attached receipts remain immutable through this path.
 
+## Smart receipt form persistence — CANDIDATE
+- Target asset: `6.4.55-receipt-form-persistence-1`.
+- Active receipt suggestion is now kept in memory and automatically re-applied if the Business Finance expense form re-renders after authentication/report refresh activity.
+- Spaced PDF invoice references such as `YYVCYYP4 0004` normalize to `YYVCYYP4-0004` without greedily capturing following labels.
+- This prevents a successfully analysed receipt from visually reverting to today's date/default category/blank supplier before save.
+
 ## Open items
 - Use the first genuine payment for authenticated receipt/email/My Namdar verification; do not manufacture a production payment.
 - Configure the real Google Business Profile review-request URL later.

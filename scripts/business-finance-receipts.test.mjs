@@ -36,6 +36,9 @@ test('browser receipt reader keeps OCR local and requires review before save',()
   assert.match(ui,/finance-receipts/);
   assert.match(ui,/upsert:prep\.retry===true/);
   assert.match(ui,/Foreign-currency invoice detected/);
+  assert.match(ui,/currentSuggestion/);
+  assert.match(ui,/MutationObserver/);
+  assert.match(ui,/applyCurrentSuggestion/);
   assert.match(ui,/actual GBP amount/);
 });
 
@@ -43,7 +46,7 @@ test('admin loader and CSP keep receipt workflow dependencies',()=>{
   const loader=read('admin.js'),vercel=read('vercel.json');
   assert.match(loader,/6\.4\.37-admin-website-crash-fix-1/);
   assert.match(loader,/admin-finance-receipts\.js/);
-  assert.match(loader,/6\.4\.54-receipt-reread-draft-1/);
+  assert.match(loader,/6\.4\.55-receipt-form-persistence-1/);
   assert.match(vercel,/connect-src[^\n]*cdn\.jsdelivr\.net/);
   assert.match(vercel,/worker-src[^\n]*cdn\.jsdelivr\.net/);
 });
