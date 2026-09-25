@@ -1,5 +1,13 @@
 # Namdar AI handoff
 
+## Auth spinner recovery — CANDIDATE
+- Fixes indefinite “Opening My Namdar… Restoring your secure session” state after a valid cached session is detected.
+- Watchdog now actively calls the account renderer with the recovered session instead of returning and leaving the loading shell visible.
+- If the renderer is unavailable, a sessionStorage guard allows at most one recovery reload; no reload loop.
+- Regression added to `scripts/account-auth-hotfix.test.mjs` for the exact visible-spinner failure.
+- No database migration or environment-variable change.
+
+
 ## Auth session recovery guard — CANDIDATE
 - Fixes false logout/login screen when Supabase session restoration exceeds the old 5-second hard timeout.
 - Auth guard now allows 12 seconds and recovers a valid unexpired cached Supabase session before returning a null session.
