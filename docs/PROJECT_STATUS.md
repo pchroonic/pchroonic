@@ -4,11 +4,11 @@ Last updated: 2026-09-25 UTC
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current production main merge `44d4d06add1666234560ccbddc3b30be7cbd99a0` (PR #113 flattened PDF receipt parsing fix). PR #102 Payment Receipt Tracking remains live.
+- Current production main merge `e6974adff26b8d48297871a4253bbbd3c7d3a89c` (PR #116 receipt form persistence fix). PR #102 Payment Receipt Tracking remains live.
 - Customer base loader `6.4.35-payment-policy-engine-1`; post-job extension `6.4.42-post-job-experience-1`; Staff operations/ETA `6.4.41-staff-operations-v3-1`.
 - Admin base `6.4.37-admin-website-crash-fix-1`; Google Review System `6.4.43-google-reviews-1`; Stripe readiness `6.4.44-stripe-live-readiness-1`; Payment Receipt Tracking `6.4.45-payment-receipts-1`.
 - Supabase production `qjigldxjcpnrlyxgmlqq`.
-- Vercel team is on Pro. Production deployment `dpl_CQFiX2Dft2nc2KYYt9d6wysfdMXc` is READY and aliased to `namdar.co.uk`; health HTTP 200 / `ok:true` at `2026-09-25T11:34:31.279Z`.
+- Vercel team is on Pro. Production deployment `dpl_57PNhT8E2ZVtfwwuNKx7eDfnkvtU` is READY and aliased to `namdar.co.uk`; health HTTP 200 / `ok:true` at `2026-09-25T11:46:59.630Z`.
 - Hourly booking-notification cron (`7 * * * *`) is restored.
 - Window Cleaning only live.
 - Privileged Staff/Admin requires CAPTCHA + AAL2/TOTP MFA.
@@ -98,10 +98,11 @@ PR #107 / `6.4.49-page-analytics-1`.
 - Target `6.4.54-receipt-reread-draft-1`.
 - Same-file re-read is allowed for unattached error/review drafts; attached receipts remain protected.
 
-## Smart receipt form persistence — CANDIDATE
-- Target `6.4.55-receipt-form-persistence-1`.
+## Smart receipt form persistence — LIVE
+- Live `6.4.55-receipt-form-persistence-1`.
 - Active receipt values survive Business Finance re-renders.
 - Spaced PDF invoice numbers normalize correctly.
+- Current Vercel draft was corrected while still unattached; no expense ledger entry was created automatically.
 
 ## Google Review System — LIVE
 PR #98 / `6.4.43-google-reviews-1` remains live. Owner-controlled fair review requests, one-time reminders, tracked clicks and 30/90/365-day reporting are available, but the official Google Business review URL remains intentionally unconfigured/off.
