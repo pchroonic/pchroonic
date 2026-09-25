@@ -1,3 +1,7 @@
+# Namdar v6.4.66 — Studio-style customer notifications
+
+The My Namdar header notification control now behaves like a compact notification centre: an icon bell with unread badge opens an anchored dropdown showing recent notifications, unread state, category icons, filters (All, Quotes, Bookings, Billing, Support), relative time and a direct link to the full Notification Centre. The existing full notification page remains unchanged for search, archive and complete history. Responsive styling keeps the panel usable on mobile. No database migration or environment-variable change is required.
+
 # Namdar v6.4.65 — Signup profile redirect
 
 Newly signed-in customers with incomplete account details are now routed directly to **My details** unless they arrived with an explicit quote/booking/message/tab destination. If the mobile number is missing, the Mobile field receives focus first. This especially improves social/OAuth signup and any account created without a complete profile. Existing email/password signup still collects a mobile number during registration. No database migration or new environment variable is required.

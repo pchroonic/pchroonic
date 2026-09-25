@@ -249,3 +249,25 @@
 .session-loading-shell{min-height:calc(100vh - 78px);display:grid;place-items:center;padding:28px}.admin-page .session-loading-shell,.staff-jobs-page .session-loading-shell{min-height:100vh}.session-loading-card{display:flex;align-items:center;gap:14px;min-width:min(360px,90vw);padding:20px 22px;border:1px solid var(--line);border-radius:18px;background:var(--white,#fff);box-shadow:var(--shadow);color:var(--ink)}.session-loading-card div{display:grid;gap:3px}.session-loading-card strong{font-size:15px}.session-loading-card small{color:var(--muted)}.session-spinner{width:22px;height:22px;border:3px solid rgba(23,60,50,.16);border-top-color:var(--green);border-radius:999px;animation:namdar-session-spin .8s linear infinite;flex:0 0 auto}@keyframes namdar-session-spin{to{transform:rotate(360deg)}}
 .support-inbox-kpis{grid-template-columns:repeat(6,minmax(120px,1fr));gap:10px}.support-inbox-kpi{position:relative;transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease}.support-inbox-kpi:not(.static):hover{transform:translateY(-1px);border-color:rgba(23,60,50,.28);box-shadow:0 8px 22px rgba(23,60,50,.07)}.support-inbox-kpi.active{box-shadow:inset 0 0 0 2px rgba(23,60,50,.18),0 8px 22px rgba(23,60,50,.06)}.support-inbox-kpi[data-inbox-quick="closed"].active:after{content:"Viewing folder";position:absolute;right:9px;top:8px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--green)}.support-inbox-detail-head{position:sticky;top:0;z-index:3;background:var(--white,#fff);margin:-1rem -1rem 0;padding:1rem 1.2rem;border-radius:16px 16px 0 0}.support-inbox-controls .danger-btn.small{padding:8px 12px}.support-inbox-closed-note{position:sticky;bottom:0;background:var(--white,#fff);border:1px solid var(--line);box-shadow:0 -8px 24px rgba(0,0,0,.04)}
 @media(max-width:1100px){.support-inbox-kpis{grid-template-columns:repeat(3,minmax(120px,1fr))}}@media(max-width:650px){.support-inbox-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.session-loading-card{min-width:0;width:100%}.support-inbox-detail-head{position:static}.support-inbox-controls{justify-content:flex-start}.support-inbox-controls>button{flex:1 1 auto}}
+
+/* My Namdar notification bell + dropdown refresh */
+.notification-bell-icon{position:relative;display:inline-grid;place-items:center;width:46px;height:46px;border:1px solid var(--line,#dfe5df);border-radius:50%;background:var(--surface,#fff);color:inherit;cursor:pointer;box-shadow:0 3px 14px rgba(9,31,25,.04);transition:background .16s ease,border-color .16s ease,transform .16s ease}
+.notification-bell-icon:hover{background:rgba(23,60,50,.055);border-color:rgba(23,60,50,.24);transform:translateY(-1px)}
+.notification-bell-glyph{font-size:1.05rem;line-height:1}
+.notification-bell-icon .notification-badge{position:absolute;right:-4px;top:-5px;min-width:1.15rem;height:1.15rem;padding:0 .28rem;font-size:.64rem;border:2px solid var(--surface,#fff)}
+.notification-popover{width:min(470px,calc(100vw - 32px));max-height:min(680px,78vh);padding:0;overflow:hidden;border-radius:22px;box-shadow:0 24px 70px rgba(9,31,25,.2)}
+.notification-popover-head{padding:1rem 1rem .8rem;border-bottom:1px solid var(--line,#e3e8e4)}
+.notification-popover-head strong{font-size:1.2rem}
+.notification-popover-filters{display:flex;gap:.45rem;overflow-x:auto;padding:.7rem 1rem;border-bottom:1px solid var(--line,#e7ebe8);scrollbar-width:none}
+.notification-popover-filters::-webkit-scrollbar{display:none}
+.notification-popover-filters button{border:0;border-radius:999px;padding:.48rem .78rem;background:rgba(23,60,50,.06);color:#4d625a;font:inherit;font-size:.78rem;font-weight:800;cursor:pointer;white-space:nowrap}
+.notification-popover-filters button.active{background:#173c32;color:#fff}
+.notification-popover-list{max-height:470px;overflow:auto;padding:.45rem .45rem .25rem}
+.notification-popover-item{padding:.8rem .6rem;min-height:76px}
+.notification-popover-copy strong{font-size:.92rem;white-space:normal;line-height:1.3}
+.notification-popover-copy small{margin-top:.1rem;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.35;text-transform:none;letter-spacing:0;font-weight:500}
+.notification-popover-meta{margin-top:.08rem;color:#718079!important;font-size:.7rem!important}
+.notification-popover-footer{width:100%;border:0;border-top:1px solid var(--line,#e3e8e4);background:var(--surface,#fff);padding:.9rem 1rem;color:#173c32;font:inherit;font-weight:850;cursor:pointer;text-align:center}
+.notification-popover-footer:hover{background:rgba(23,60,50,.045)}
+@media(max-width:760px){.notification-bell-icon{width:44px;height:44px}.notification-popover{top:72px;left:12px;right:12px;width:auto;max-height:78vh}.notification-popover-list{max-height:56vh}}
+[data-theme="dark"] .notification-bell-icon,[data-theme="dark"] .notification-popover-footer{background:#15201d;border-color:#30423c}[data-theme="dark"] .notification-popover-filters button{background:#22302c;color:#d7e0dc}[data-theme="dark"] .notification-popover-filters button.active{background:#d9eee6;color:#15362c}
