@@ -18,6 +18,8 @@ module.exports=async function handler(req,res){
       rateDate:fx.rateDate,
       provider:fx.provider,
       providerKey:fx.providerKey,
+      sourceType:fx.sourceType,
+      fallbackDays:fx.fallbackDays,
       convertedAmount:convert(amount,fx.rate)
     });
   }catch(e){return safeError(res,e)}
