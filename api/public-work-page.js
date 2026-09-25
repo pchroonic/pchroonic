@@ -40,7 +40,7 @@ module.exports=async function handler(req,res){try{
   }).join('');
   const firstImage=publicJobs.flatMap(j=>j.image_urls||[])[0]||'';
   const itemList=publicJobs.map((j,i)=>({"@type":"ListItem",position:i+1,url:`https://namdar.co.uk/work/${encodeURIComponent(j.id)}`,name:String(j.title||'Namdar Window Cleaning project')}));
-  const schema=esc(JSON.stringify({"@context":"https://schema.org","@graph":[{"@type":"CollectionPage","@id":"https://namdar.co.uk/work#page","url":"https://namdar.co.uk/work","name":"Window Cleaning Case Studies | Namdar","description":"Genuine completed Window Cleaning work published by Namdar."},{"@type":"ItemList","itemListElement":itemList},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://namdar.co.uk/"},{"@type":"ListItem","position":2,"name":"Our work","item":"https://namdar.co.uk/work"}]}]}));
+  const schema=JSON.stringify({"@context":"https://schema.org","@graph":[{"@type":"CollectionPage","@id":"https://namdar.co.uk/work#page","url":"https://namdar.co.uk/work","name":"Window Cleaning Case Studies | Namdar","description":"Genuine completed Window Cleaning work published by Namdar."},{"@type":"ItemList","itemListElement":itemList},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://namdar.co.uk/"},{"@type":"ListItem","position":2,"name":"Our work","item":"https://namdar.co.uk/work"}]}]}).replace(/</g,'\\u003c');
   res.statusCode=200;
   res.setHeader('Cache-Control','public, max-age=60, s-maxage=120');
   return res.end(shell({
