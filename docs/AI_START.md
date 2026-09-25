@@ -159,6 +159,7 @@ Google Review System PR #98 remains live, but its official Google review URL is 
 - PDF.js embedded text is reconstructed by visual row coordinates before server analysis, reducing multi-column/table flattening errors.
 - Finance no longer reloads on routine Supabase TOKEN_REFRESHED events. Any legitimate Finance reload captures and restores the active expense form values and cursor position.
 - Paid invoices without an explicit payment date now warn staff to confirm Date paid against the actual bank/card transaction.
+- Unattached review drafts now expose **Re-read**, which re-runs the current parser against the already-saved receipt text without requiring another upload. Attached accounting records are deliberately excluded from automatic re-reading.
 
 ## Open items
 - Use the first genuine payment for authenticated receipt/email/My Namdar verification; do not manufacture a production payment.
