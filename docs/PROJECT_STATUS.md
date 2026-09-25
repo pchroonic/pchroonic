@@ -1,5 +1,14 @@
 # Namdar project status
 
+## Homepage auth lock fix — CANDIDATE
+- Homepage auth callback now uses the session passed by Supabase instead of calling `getSession()` again inside `onAuthStateChange`.
+- Profile/UI refresh is deferred to the next tick.
+- Initial homepage load still does one normal session read outside the callback.
+- Targets the cross-tab lock where the homepage showed “My account” while `/account` hung restoring the same session.
+- Regression: `scripts/homepage-auth-lock.test.mjs`.
+- No database migration or environment-variable change.
+
+
 ## Non-blocking My Namdar auth bootstrap — CANDIDATE
 - Replaces blocking initial `getSession()` with Supabase `INITIAL_SESSION` event handling.
 - Auth listener no longer performs awaited portal/database work directly inside `onAuthStateChange`; rendering is deferred to the next tick.
