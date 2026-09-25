@@ -4,11 +4,11 @@ Last updated: 2026-09-25 UTC
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current production main merge `94a242b0531f87e11f076a58f29abbe55a5faa97` (PR #122 Reporting hub release). PR #102 Payment Receipt Tracking remains live.
+- Current production main merge `a3e65a0bb13982841b5ece319fbc859d27ed90ae` (PR #125 ECB save-refresh release). PR #102 Payment Receipt Tracking remains live.
 - Customer base loader `6.4.35-payment-policy-engine-1`; post-job extension `6.4.42-post-job-experience-1`; Staff operations/ETA `6.4.41-staff-operations-v3-1`.
 - Admin base `6.4.37-admin-website-crash-fix-1`; Google Review System `6.4.43-google-reviews-1`; Stripe readiness `6.4.44-stripe-live-readiness-1`; Payment Receipt Tracking `6.4.45-payment-receipts-1`.
 - Supabase production `qjigldxjcpnrlyxgmlqq`.
-- Vercel team is on Pro. Production deployment `dpl_DDxDa9B2DWqDbDjF6U8jw4Rg3w9z` is READY and aliased to `namdar.co.uk`; health HTTP 200 / `ok:true` at `2026-09-25T13:41:17.561Z`.
+- Vercel team is on Pro. Production deployment `dpl_3M7PRirsVVwfFgTkDxqGFs5qnUNH` is READY and aliased to `namdar.co.uk`; health HTTP 200 / `ok:true` at `2026-09-25T14:01:35.488Z`.
 - Hourly booking-notification cron (`7 * * * *`) is restored.
 - Window Cleaning only live.
 - Privileged Staff/Admin requires CAPTCHA + AAL2/TOTP MFA.
@@ -120,8 +120,8 @@ PR #107 / `6.4.49-page-analytics-1`.
 - Receipt-created ledger entries may now use `source='receipt'`; manual/import/job-cost sources remain valid.
 - Fixes Add expense failure on reviewed Smart Receipts without weakening review or attachment safeguards.
 
-## Automatic foreign-currency expenses — LIVE / ECB HARDENING CANDIDATE
-- Base `6.4.58-expense-fx-1`; ECB hardening target `6.4.62-ecb-save-refresh-1`; migration `20260925125132_foreign_currency_expense_audit` is applied in production.
+## Automatic foreign-currency expenses — LIVE / ECB VERIFIED
+- Base `6.4.58-expense-fx-1`; ECB hardening live `6.4.62-ecb-save-refresh-1`; migration `20260925125132_foreign_currency_expense_audit` is applied in production.
 - Manual and Smart Receipt expenses support automatic historical FX → GBP conversion.
 - Original currency/amount and reference rate/date/provider are preserved for audit.
 - Reviewer-entered actual GBP charge overrides the reference conversion without losing the FX trail.
