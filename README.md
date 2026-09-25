@@ -1,3 +1,7 @@
+# Namdar v6.4.65 — Signup profile redirect
+
+Newly signed-in customers with incomplete account details are now routed directly to **My details** unless they arrived with an explicit quote/booking/message/tab destination. If the mobile number is missing, the Mobile field receives focus first. This especially improves social/OAuth signup and any account created without a complete profile. Existing email/password signup still collects a mobile number during registration. No database migration or new environment variable is required.
+
 # Namdar v6.4.64 — Human postcode lookup + safe address cache
 
 Customer postcode verification now prefers a real, human-triggered GetAddress.io postcode autocomplete lookup when that postcode is not already cached. The complete returned address list is saved into Namdar's private `master_addresses` cache and reused on future lookups. GetAddress is never called by the customer endpoint for bulk discovery or background harvesting; the existing provider-rights gate requires `operational_use_allowed=true` and `human_input_required=true`. Fresh zero-result responses are cached for 24 hours and provider errors for 10 minutes to avoid repeated paid calls. Once a GetAddress postcode set exists, partial OpenStreetMap rows are not mixed into the customer selector; OSM remains a fallback when GetAddress is unavailable and no cached master data exists. Public lookup rate limiting is tightened to 12 postcode requests per IP per 10 minutes. No database migration is required.
