@@ -1,3 +1,7 @@
+# Namdar v6.4.67 — Verified contact + explicit property details
+
+My Namdar profile onboarding now requires explicit customer choices instead of silent defaults. Mobile entry supports local UK, +44 and 0044 formats plus selectable country calling codes, normalizes numbers to international format, and exposes SMS OTP verification in My details using Supabase phone-change verification. Area/region, borough/district and property type start unselected; choosing Other reveals a required free-text field whose value is saved into the existing profile field. Editing a previously verified postcode immediately clears stale map/location verification. Address-search provider failures are shown as temporary lookup outages instead of misleading zero-result messages. No database migration or new environment variable is required. GetAddress itself is still returning Unauthorized in production and remains a separate credential/provider issue.
+
 # Namdar v6.4.66 — Studio-style customer notifications
 
 The My Namdar header notification control now behaves like a compact notification centre: an icon bell with unread badge opens an anchored dropdown showing recent notifications, unread state, category icons, filters (All, Quotes, Bookings, Billing, Support), relative time and a direct link to the full Notification Centre. The existing full notification page remains unchanged for search, archive and complete history. Responsive styling keeps the panel usable on mobile. No database migration or environment-variable change is required.
