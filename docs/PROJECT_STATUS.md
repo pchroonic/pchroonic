@@ -4,11 +4,11 @@ Last updated: 2026-09-25 UTC
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current production main merge `b851660b8285c2ad74c01f00fe240e5be0dd86d5` (PR #107 Professional Page View Analytics). PR #102 Payment Receipt Tracking remains live.
+- Current production main merge `ef9ff366a0b956ab96776a11faa8203fba12bda5` (PR #110 Analytics v2 attributed-revenue accuracy fix). PR #102 Payment Receipt Tracking remains live.
 - Customer base loader `6.4.35-payment-policy-engine-1`; post-job extension `6.4.42-post-job-experience-1`; Staff operations/ETA `6.4.41-staff-operations-v3-1`.
 - Admin base `6.4.37-admin-website-crash-fix-1`; Google Review System `6.4.43-google-reviews-1`; Stripe readiness `6.4.44-stripe-live-readiness-1`; Payment Receipt Tracking `6.4.45-payment-receipts-1`.
 - Supabase production `qjigldxjcpnrlyxgmlqq`.
-- Vercel team is on Pro. Production deployment `dpl_BcXGivSXztjCAEg4WZyiZr1Zb1XH` is READY and aliased to `namdar.co.uk`; health HTTP 200 / `ok:true` at `2026-09-24T23:27:30.265Z`.
+- Vercel team is on Pro. Production deployment `dpl_5ejdx52DnrLFJzctMhpJe88iGc7q` is READY and aliased to `namdar.co.uk`; health HTTP 200 / `ok:true` at `2026-09-25T00:01:42.762Z`.
 - Hourly booking-notification cron (`7 * * * *`) is restored.
 - Window Cleaning only live.
 - Privileged Staff/Admin requires CAPTCHA + AAL2/TOTP MFA.
@@ -74,13 +74,14 @@ PR #107 / `6.4.49-page-analytics-1`.
 - Uses existing first-party page-view data only; no visitor fingerprinting, device ID or third-party tracker added.
 - UI explains that page views are not unique visitors and business ratios are based on page loads rather than person-level attribution.
 
-## Analytics v2 — LIVE / REVENUE DISPLAY HOTFIX CANDIDATE
-- Production base `6.4.50-analytics-v2-1`; hotfix candidate `6.4.51-analytics-v2-revenue-fix-1`; migration `20260924234226_analytics_v2_session_funnel` is applied in production and committed.
+## Analytics v2 — LIVE
+- Live Admin analytics asset `6.4.51-analytics-v2-revenue-fix-1`; browser tracker remains `6.4.50-analytics-v2-1`; migration `20260924234226_analytics_v2_session_funnel` is applied in production and committed.
 - Adds browser sessions, quote/booking/payment funnel, acquisition sources, UTM campaigns, source-attributed revenue and contact engagement to Reporting.
 - Preview hosts are ignored.
 - No fingerprinting/persistent analytics ID: sessionStorage only. Essential only deletes/disables the current v2 analytics session; UTM campaign/advertising measurement requires Allow marketing.
 - Published Cookie Policy v3 now describes the statistical analytics objection/deletion and marketing-only campaign attribution.
-- PR #109 is live on `dpl_99WrPUXN36wpBoRJ3Wgn8EhHv1o6`; attributed-revenue hotfix candidate separates total, attributed and unattributed payment revenue.
+- Historical page views before v2 remain in totals but have no session/campaign attribution.
+- PR #109 launched Analytics v2; PR #110 is live and separates total, attributed and unattributed payment revenue so only v2-linked payments appear as attributed.
 
 ## Google Review System — LIVE
 PR #98 / `6.4.43-google-reviews-1` remains live. Owner-controlled fair review requests, one-time reminders, tracked clicks and 30/90/365-day reporting are available, but the official Google Business review URL remains intentionally unconfigured/off.

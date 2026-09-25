@@ -6,7 +6,7 @@ Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PR
 
 ## Production source of truth
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current production main merge: `b851660b8285c2ad74c01f00fe240e5be0dd86d5` (PR #107 Professional Page View Analytics). Payment Receipt Tracking PR #102 remains live beneath it.
+- Current production main merge: `ef9ff366a0b956ab96776a11faa8203fba12bda5` (PR #110 Analytics v2 attributed-revenue accuracy fix). Payment Receipt Tracking PR #102 remains live beneath it.
 - Customer base loader remains `6.4.35-payment-policy-engine-1`; post-job extension `6.4.42-post-job-experience-1`; Staff operations/ETA `6.4.41-staff-operations-v3-1`.
 - Admin base remains `6.4.37-admin-website-crash-fix-1`; Google Review System `6.4.43-google-reviews-1`; Stripe readiness `6.4.44-stripe-live-readiness-1`; payment receipts `6.4.45-payment-receipts-1`.
 - Supabase production project: `qjigldxjcpnrlyxgmlqq`.
@@ -78,7 +78,7 @@ Google Review System PR #98 remains live, but its official Google review URL is 
 - No persistent visitor/device identifier, fingerprint or third-party analytics tracker is added; the UI explicitly states that views are page loads, not unique people.
 - Production deployment `dpl_BcXGivSXztjCAEg4WZyiZr1Zb1XH` is READY on `namdar.co.uk`; the analytics endpoint rejects unauthenticated access with HTTP 401.
 
-## Analytics v2 — LIVE / REVENUE DISPLAY HOTFIX CANDIDATE
+## Analytics v2 — LIVE
 - Asset target: `6.4.50-analytics-v2-1`.
 - Production migration `20260924234226_analytics_v2_session_funnel` is applied and mirrored in the repo.
 - Existing first-party `page_views` now supports temporary session ID plus UTM source/medium/campaign; existing rows remain valid with null v2 fields.
@@ -88,7 +88,8 @@ Google Review System PR #98 remains live, but its official Google review URL is 
 - Vercel preview/non-production hosts are ignored by tracking endpoints.
 - Privacy design: session ID is stored in `sessionStorage`, not a persistent analytics cookie/device identifier; Essential only is a free objection that deletes the current session's raw page views/events/quote link and disables future v2 tracking; UTM campaign/advertising fields are stored only after Allow marketing.
 - Published Cookie Policy v3 now describes the statistical-purpose analytics session, Essential-only objection/deletion, and marketing-only campaign measurement.
-- PR #109 is merged and production deployment `dpl_99WrPUXN36wpBoRJ3Wgn8EhHv1o6` is READY. Follow-up hotfix separates total payment revenue from revenue actually linked to a v2 session so the attributed revenue headline cannot overstate attribution.
+- Older page-view rows remain valid but have no v2 session/campaign fields; session, funnel and attribution metrics become meaningful from the v2 release onward.
+- PR #109 launched Analytics v2; PR #110 corrected attributed-revenue reporting. Production deployment `dpl_5ejdx52DnrLFJzctMhpJe88iGc7q` is READY on `namdar.co.uk`.
 
 ## Open items
 - Use the first genuine payment for authenticated receipt/email/My Namdar verification; do not manufacture a production payment.
