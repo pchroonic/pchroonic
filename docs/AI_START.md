@@ -101,6 +101,13 @@ Google Review System PR #98 remains live, but its official Google review URL is 
 - Foreign-currency invoices are never silently treated as GBP. The source currency/amount/VAT are shown, while GBP amount/VAT are left for the reviewer to enter from the actual card/bank charge.
 - Production receipt record for `Invoice-YYVCYYP4-0004.pdf` is currently status `error`, unattached to any expense, ready for retry after release.
 
+## Smart receipt flattened-PDF fix — CANDIDATE
+- Target Admin asset: `6.4.53-receipt-pdf-layout-1`.
+- Real production retry proved PDF.js can flatten the Vercel invoice page into one long text line, which caused supplier/date/VAT misreads even though the Unicode crash was fixed.
+- Browser PDF extraction now preserves PDF.js `hasEOL` line endings when available.
+- Server parser is hardened for flattened PDFs: legal-entity supplier fallback, explicit labelled invoice-date priority, specific amount-due parsing and Standard Rate VAT parsing.
+- Exact flattened Vercel regression must resolve to Vercel Inc., 2026-09-24, USD 24.00 total and USD 4.00 VAT.
+
 ## Open items
 - Use the first genuine payment for authenticated receipt/email/My Namdar verification; do not manufacture a production payment.
 - Configure the real Google Business Profile review-request URL later.
