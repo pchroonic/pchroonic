@@ -137,6 +137,21 @@ Legacy page-view rows pre-date session attribution and remain usable only for hi
 
 PR #109 launched Analytics v2 and PR #110 is live with the attributed-revenue accuracy fix. `totalRevenue`, `attributedRevenue` and `unattributedRevenue` are calculated separately; only payments linked through the v2 quote/session chain count as attributed.
 
+# Smart receipt Vercel PDF fix — CANDIDATE
+Target `6.4.52-receipt-unicode-currency-1`.
+
+Root cause was reproduced against the real Vercel invoice PDF: text extraction yields seven NUL characters (for example inside the invoice reference/date punctuation). PostgreSQL text/jsonb rejects those characters with “unsupported Unicode escape sequence”. The fix sanitizes receipt text server-side through `lib/db-safe-text.js` before parsing/storage, including lone-surrogate handling.
+
+Receipt intelligence improvements:
+- skip PDF page headers when choosing supplier;
+- Vercel/hosting/domain → Software;
+- parse month-first dates;
+- preserve source currency/original amount/VAT;
+- for non-GBP receipts, leave GBP ledger amount blank and warn the reviewer to use the actual GBP card/bank charge;
+- failed receipt rows are retriable with the same file using authenticated storage upsert.
+
+The existing production Vercel receipt row is status `error` and has no `expense_id`, so release does not mutate accounting data automatically.
+
 # Other live layers
 Google Review System PR #98 remains live but the official Google Business review URL is still unconfigured/off. Post-job Customer Experience PR #96 and Staff operations v3 PR #94 remain live.
 
