@@ -161,13 +161,14 @@ PR #107 / `6.4.49-page-analytics-1`.
 - Real service-area SEO: homepage/service/London/South London copy and `areaServed` schema now reflect the production borough set Lewisham, Southwark, Lambeth, Wandsworth and Greenwich; exact property coverage is still determined by the live postcode checker.
 - Rendered-home SEO invariant keeps initial and JavaScript-rendered title/description/hero aligned to South London/Lewisham Window Cleaning, while future-service cards/radios/3D content start hidden until catalog status permits them.
 
-## Portfolio SEO fail-closed — CANDIDATE
+## Portfolio SEO fail-closed — LIVE
 - Current production database has 0 published portfolio jobs.
 - Candidate release makes `/work` dynamic: 404 + noindex while no genuine published live-service work exists; server-rendered/indexable when qualifying work is later published.
 - Empty `/work` is conditionally removed from the sitemap and hidden from public navigation.
 - Individual case-study URLs enter the sitemap only when their published job belongs to a currently live service.
 - Legacy `work.html` is removed so Vercel cannot serve the static clean URL ahead of the dynamic `/work` gate.
 - No synthetic case studies or reviews are created for SEO.
+- Production proof: PR #133 / main `5e824312a5768cfa41ce992da6f0c148df6055f8` is live on `dpl_9X7fXDm4cYfvR9BKgkk74QV1ihr8`; `/work` is 404 + noindex with zero published jobs, sitemap omits it, portfolio nav is hidden, and health is green.
 
 ## Google Review System — LIVE
 PR #98 / `6.4.43-google-reviews-1` remains live. Owner-controlled fair review requests, one-time reminders, tracked clicks and 30/90/365-day reporting are available, but the official Google Business review URL remains intentionally unconfigured/off.

@@ -242,7 +242,7 @@ Do not create thin postcode/neighbourhood doorway pages without genuine coverage
 
 Production: PR #127 is live on deployment dpl_C3gf98ZruxSBfckd9uSiuEmz1xMJ. The sitemap pins the Window Cleaning public-page lastmod to 2026-09-25 because the SEO page content changed independently of the older service-catalog DB timestamp.
 
-# Portfolio SEO fail-closed — CANDIDATE
+# Portfolio SEO fail-closed — LIVE
 The portfolio is now tied to genuine published work instead of being an always-indexable empty shell.
 
 Architecture:
@@ -253,6 +253,8 @@ Architecture:
 - The legacy `work.html` file is removed. This is required because Vercel clean-URL filesystem routing otherwise wins before the `/work` rewrite and would shadow the dynamic handler.
 
 Safety invariant: never create synthetic portfolio jobs, reviews, locations or images for SEO. Search visibility for “Our work” must come from genuine completed jobs deliberately published by Namdar staff.
+
+Production proof: PR #133 / main `5e824312a5768cfa41ce992da6f0c148df6055f8` is live on `dpl_9X7fXDm4cYfvR9BKgkk74QV1ihr8`. With the current zero published jobs, `/work` returns 404 with meta robots and `X-Robots-Tag: noindex, follow`; `/sitemap.xml` omits `/work`; public navigation starts hidden; health is HTTP 200 / `ok:true` at `2026-09-25T20:29:18.283Z`.
 
 # Other live layers
 Google Review System PR #98 remains live but the official Google Business review URL is still unconfigured/off. Post-job Customer Experience PR #96 and Staff operations v3 PR #94 remain live.
