@@ -6,7 +6,7 @@ Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PR
 
 ## Production source of truth
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current production main merge: `e6974adff26b8d48297871a4253bbbd3c7d3a89c` (PR #116 receipt form persistence fix). Payment Receipt Tracking PR #102 remains live beneath it.
+- Current production main merge: `94a242b0531f87e11f076a58f29abbe55a5faa97` (PR #122 Reporting hub release). Payment Receipt Tracking PR #102 remains live beneath it.
 - Customer base loader remains `6.4.35-payment-policy-engine-1`; post-job extension `6.4.42-post-job-experience-1`; Staff operations/ETA `6.4.41-staff-operations-v3-1`.
 - Admin base remains `6.4.37-admin-website-crash-fix-1`; Google Review System `6.4.43-google-reviews-1`; Stripe readiness `6.4.44-stripe-live-readiness-1`; payment receipts `6.4.45-payment-receipts-1`.
 - Supabase production project: `qjigldxjcpnrlyxgmlqq`.
@@ -161,14 +161,15 @@ Google Review System PR #98 remains live, but its official Google review URL is 
 - Paid invoices without an explicit payment date now warn staff to confirm Date paid against the actual bank/card transaction.
 - Unattached review drafts now expose **Re-read**, which re-runs the current parser against the already-saved receipt text without requiring another upload. Attached accounting records are deliberately excluded from automatic re-reading.
 
-## Reporting hub + focused report pages — CANDIDATE
-- Target Admin asset: `6.4.60-report-hub-1`.
+## Reporting hub + focused report pages — LIVE
+- Live Admin asset: `6.4.60-report-hub-1`.
 - Reporting is no longer designed as one long stacked page. `/admin?tab=reports` is the report-centre home with nine focused report cards.
 - Routed report URLs: `overview`, `revenue`, `quotes`, `services`, `staff`, `feedback`, `website`, `window`, and `finance` via `?tab=reports&report=<id>`.
 - Existing report DOM/data is preserved and reorganised rather than duplicated: Overview KPIs; Revenue + payment methods; Quotes funnel; Service performance; Staff workload; Feedback; Analytics v2; Window Cleaning performance; Business Finance.
 - Browser Back works between the report hub and individual report pages. Clicking Reporting in the sidebar returns to the hub.
 - Period/Refresh/Export controls are contextual: Finance hides the period/export controls; Website and Window reports use the selected period without showing the generic CSV export.
 - Dynamic Analytics/Window/Finance panels are adopted into dedicated report workspaces, and opening those routes dispatches `namdar:report-view` so the relevant module refreshes.
+- Production deployment `dpl_DDxDa9B2DWqDbDjF6U8jw4Rg3w9z` is READY and `namdar.co.uk` serves the hub assets; live health HTTP 200 / `ok:true` at `2026-09-25T13:41:17.561Z`.
 
 ## Open items
 - Use the first genuine payment for authenticated receipt/email/My Namdar verification; do not manufacture a production payment.

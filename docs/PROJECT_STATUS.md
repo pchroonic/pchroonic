@@ -4,11 +4,11 @@ Last updated: 2026-09-25 UTC
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current production main merge `e6974adff26b8d48297871a4253bbbd3c7d3a89c` (PR #116 receipt form persistence fix). PR #102 Payment Receipt Tracking remains live.
+- Current production main merge `94a242b0531f87e11f076a58f29abbe55a5faa97` (PR #122 Reporting hub release). PR #102 Payment Receipt Tracking remains live.
 - Customer base loader `6.4.35-payment-policy-engine-1`; post-job extension `6.4.42-post-job-experience-1`; Staff operations/ETA `6.4.41-staff-operations-v3-1`.
 - Admin base `6.4.37-admin-website-crash-fix-1`; Google Review System `6.4.43-google-reviews-1`; Stripe readiness `6.4.44-stripe-live-readiness-1`; Payment Receipt Tracking `6.4.45-payment-receipts-1`.
 - Supabase production `qjigldxjcpnrlyxgmlqq`.
-- Vercel team is on Pro. Production deployment `dpl_57PNhT8E2ZVtfwwuNKx7eDfnkvtU` is READY and aliased to `namdar.co.uk`; health HTTP 200 / `ok:true` at `2026-09-25T11:46:59.630Z`.
+- Vercel team is on Pro. Production deployment `dpl_DDxDa9B2DWqDbDjF6U8jw4Rg3w9z` is READY and aliased to `namdar.co.uk`; health HTTP 200 / `ok:true` at `2026-09-25T13:41:17.561Z`.
 - Hourly booking-notification cron (`7 * * * *`) is restored.
 - Window Cleaning only live.
 - Privileged Staff/Admin requires CAPTCHA + AAL2/TOTP MFA.
@@ -135,8 +135,8 @@ PR #107 / `6.4.49-page-analytics-1`.
 - Paid invoices with no explicit payment date show a confirmation warning.
 - Review drafts include Re-read so stored receipt text can be reparsed after parser improvements without another file upload; attached expense receipts are immutable to this action.
 
-## Reporting hub + focused report pages — CANDIDATE
-- Target `6.4.60-report-hub-1`.
+## Reporting hub + focused report pages — LIVE
+- Live `6.4.60-report-hub-1`.
 - Reporting now opens a report-centre hub instead of exposing every section in one long page.
 - Nine focused routes: overview, revenue/payments, quotes/conversion, services, staff, feedback, website analytics, Window Cleaning performance and Business Finance.
 - Each report has a stable `?tab=reports&report=...` URL and browser Back support.
