@@ -1,5 +1,8 @@
 const { json, authUser, db, safeError, queryParam, env } = require('../lib/server');
 const { consumeRateLimit } = require('../lib/security');
+const { autocompletePostcode, DATASET: GETADDRESS_DATASET } = require('../lib/address-harvest');
+const { datasetPolicy } = require('../lib/address-policy');
+
 function cleanPostcode(value=''){const raw=String(value).trim().toUpperCase().replace(/\s+/g,'');return raw.length>3?`${raw.slice(0,-3)} ${raw.slice(-3)}`:raw}
 function label(a){return [a.address_line1,a.address_line2,a.city,a.postcode].filter(Boolean).join(', ')}
 function normLabel(v=''){return String(v).toLowerCase().replace(/\s+/g,' ').replace(/\s*,\s*/g,',').trim()}
@@ -42,13 +45,40 @@ function osmRecord(el,postcode,loc){
     import_batch:`postcode:${postcode.replace(/\s/g,'')}`,updated_at:new Date().toISOString()
   };
 }
-async function cacheState(postcode){
-  const rows=await db(`address_lookup_cache?postcode=eq.${encodeURIComponent(postcode)}&source_dataset=eq.osm-postcode-cache&select=status,result_count,expires_at&limit=1`).catch(()=>[]);
+async function cacheState(postcode,sourceDataset='osm-postcode-cache'){
+  const rows=await db(`address_lookup_cache?postcode=eq.${encodeURIComponent(postcode)}&source_dataset=eq.${encodeURIComponent(sourceDataset)}&select=status,result_count,expires_at,last_error&limit=1`).catch(()=>[]);
   return rows?.[0]||null;
 }
-async function saveCache(postcode,status,count,lastError='',ttlMs=1000*60*60*24){
+async function saveCache(postcode,status,count,lastError='',ttlMs=1000*60*60*24,sourceDataset='osm-postcode-cache'){
   const now=new Date();
-  await db('address_lookup_cache?on_conflict=postcode,source_dataset',{method:'POST',prefer:'resolution=merge-duplicates',body:{postcode,source_dataset:'osm-postcode-cache',status,result_count:count,checked_at:now.toISOString(),expires_at:new Date(now.getTime()+ttlMs).toISOString(),last_error:lastError||null}}).catch(()=>null);
+  await db('address_lookup_cache?on_conflict=postcode,source_dataset',{method:'POST',prefer:'resolution=merge-duplicates',body:{postcode,source_dataset:sourceDataset,status,result_count:count,checked_at:now.toISOString(),expires_at:new Date(now.getTime()+ttlMs).toISOString(),last_error:lastError||null}}).catch(()=>null);
+}
+async function lookupGetAddress(postcode){
+  const apiKey=env('GETADDRESS_API_KEY','').trim();
+  if(!apiKey)return{attempted:false,available:false,reason:'api_key_missing',rows:[]};
+  const policy=await datasetPolicy(GETADDRESS_DATASET);
+  if(!policy.active||policy.operationalUseAllowed!==true||policy.humanInputRequired!==true){
+    return{attempted:false,available:false,reason:'policy_blocked',rows:[]};
+  }
+  const cached=await cacheState(postcode,GETADDRESS_DATASET);
+  if(cached?.expires_at&&new Date(cached.expires_at).getTime()>Date.now()){
+    if(cached.status==='ok')return{attempted:false,available:true,reason:'cache_fresh',rows:[]};
+    if(cached.status==='error')return{attempted:false,available:false,reason:'recent_error',rows:[]};
+  }
+  try{
+    const result=await autocompletePostcode(postcode,apiKey);
+    const rows=result.rows||[];
+    if(rows.length){
+      await db('master_addresses?on_conflict=source_dataset,source_record_id',{method:'POST',prefer:'resolution=merge-duplicates,return=minimal',body:rows});
+    }
+    await saveCache(postcode,'ok',rows.length,'',rows.length?1000*60*60*24*30:1000*60*60*24,GETADDRESS_DATASET);
+    return{attempted:true,available:true,reason:'provider_lookup',rows};
+  }catch(error){
+    const message=String(error?.message||error).slice(0,240);
+    console.warn('GetAddress customer postcode lookup:',message);
+    await saveCache(postcode,'error',0,message,1000*60*10,GETADDRESS_DATASET);
+    return{attempted:true,available:false,reason:'provider_error',rows:[]};
+  }
 }
 function overpassEndpoints(){
   const configured=env('OVERPASS_API_URL','').trim();
@@ -64,12 +94,10 @@ async function overpassRequest(endpoint,query,timeoutMs=6500){
 }
 async function fetchOpenStreetMap(postcode){
   const cached=await cacheState(postcode);
-  // Only trust a successful cache. A previous network timeout should never block a retry.
   if(cached?.status==='ok'&&cached?.expires_at&&new Date(cached.expires_at).getTime()>Date.now())return [];
   const compact=postcode.replace(/\s/g,'');
   const loc=await postcodeLocation(postcode);
   const lat=Number(loc.latitude),lon=Number(loc.longitude);
-  // A postcode-centred spatial query is much cheaper than scanning the global address index.
   const spatial=Number.isFinite(lat)&&Number.isFinite(lon);
   const selector=(pc)=>spatial?`nwr(around:1200,${lat},${lon})["addr:postcode"="${qlString(pc)}"]`:`nwr["addr:postcode"="${qlString(pc)}"]`;
   const query=`[out:json][timeout:6];(${selector(postcode)};${selector(compact)};);out center tags 250;`;
@@ -81,7 +109,6 @@ async function fetchOpenStreetMap(postcode){
       for(const el of data?.elements||[]){const row=osmRecord(el,postcode,loc);if(row&&!byLabel.has(normLabel(row.display_address)))byLabel.set(normLabel(row.display_address),row)}
       const rows=[...byLabel.values()].slice(0,200);
       if(rows.length)await db('master_addresses?on_conflict=source_dataset,source_record_id',{method:'POST',prefer:'resolution=merge-duplicates',body:rows});
-      // Positive results are kept for 30 days; a genuine zero is retried the next day.
       await saveCache(postcode,'ok',rows.length,'',rows.length?1000*60*60*24*30:1000*60*60*24);
       return rows;
     }catch(e){
@@ -97,22 +124,37 @@ async function masterRows(postcode){
 }
 module.exports=async function handler(req,res){try{
   if(req.method!=='GET')return json(res,405,{ok:false,error:'Method not allowed'});
-  await consumeRateLimit(req,res,{scope:'address.lookup.ip',limit:30,windowSeconds:600,message:'Too many address lookups were made from this connection. Please wait a few minutes and try again.'});
+  await consumeRateLimit(req,res,{scope:'address.lookup.ip',limit:12,windowSeconds:600,message:'Too many address lookups were made from this connection. Please wait a few minutes and try again.'});
   const postcode=cleanPostcode(queryParam(req,'postcode')||'');
   if(!postcode)return json(res,400,{ok:false,error:'Enter a postcode.'});
 
   let master=await masterRows(postcode);
+  let providerCached=master.some(a=>a.source_dataset===GETADDRESS_DATASET);
+  let providerAttempted=false,providerAvailable=providerCached;
+  if(!providerCached){
+    const provider=await lookupGetAddress(postcode);
+    providerAttempted=provider.attempted;
+    providerAvailable=provider.available;
+    if(provider.attempted||provider.reason==='cache_fresh')master=await masterRows(postcode);
+    providerCached=master.some(a=>a.source_dataset===GETADDRESS_DATASET);
+  }
+
   let openDataAttempted=false;
-  if(!(master||[]).length){
+  if(!providerCached&&!(master||[]).length){
     openDataAttempted=true;
     await fetchOpenStreetMap(postcode);
     master=await masterRows(postcode);
   }
-  const addresses=(master||[]).map(a=>({
+
+  // Once a full GetAddress postcode set is cached, do not mix partial OSM rows into
+  // the customer picker. Other licensed/owned master sources remain eligible.
+  const displayMaster=providerCached?(master||[]).filter(a=>a.source_dataset!=='osm-postcode-cache'):(master||[]);
+  const addresses=displayMaster.map(a=>({
     id:`master:${a.id}`,address:a.display_address,
     houseUnit:[a.sub_building_name,a.building_name,a.building_number].filter(Boolean).join(', '),
     street:[a.dependent_thoroughfare,a.thoroughfare].filter(Boolean).join(' '),
-    source:a.source_dataset==='osm-postcode-cache'?'openstreetmap':'namdar-master',dataset:a.source_dataset
+    source:a.source_dataset==='osm-postcode-cache'?'openstreetmap':a.source_dataset===GETADDRESS_DATASET?'getaddress':'namdar-master',
+    dataset:a.source_dataset
   }));
 
   const approved=await db(`address_directory?postcode=eq.${encodeURIComponent(postcode)}&active=eq.true&verified=eq.true&select=id,postcode,house_unit,street,address_line1,address_line2,city,district,region,country_code,latitude,longitude&order=address_line1.asc&limit=100`).catch(()=>[]);
@@ -132,5 +174,6 @@ module.exports=async function handler(req,res){try{
   }
   addresses.sort((a,b)=>a.address.localeCompare(b.address,'en-GB',{numeric:true,sensitivity:'base'}));
   const osmCount=addresses.filter(a=>a.source==='openstreetmap').length;
-  return json(res,200,{ok:true,enabled:true,mode:'namdar-master',postcode,addresses:addresses.slice(0,200),count:Math.min(addresses.length,200),manualEntryAllowed:true,masterCount:(master||[]).length,openDataAttempted,openStreetMapCount:osmCount,attribution:osmCount?'© OpenStreetMap contributors, ODbL':''});
+  const getAddressCount=addresses.filter(a=>a.source==='getaddress').length;
+  return json(res,200,{ok:true,enabled:true,mode:providerCached?'getaddress-cache':'namdar-master',postcode,addresses:addresses.slice(0,200),count:Math.min(addresses.length,200),manualEntryAllowed:true,masterCount:(master||[]).length,getAddressCount,providerCached,providerAttempted,providerAvailable,openDataAttempted,openStreetMapCount:osmCount,attribution:osmCount?'© OpenStreetMap contributors, ODbL':''});
 }catch(e){return safeError(res,e)}};
