@@ -17,7 +17,7 @@
   const initialParam=new URLSearchParams(location.search).get('report');
   const initialReport=REPORTS[initialParam]?initialParam:'hub';
   let initialPending=initialReport!=='hub';
-  let setupDone=false,current='hub',adoptQueued=false;
+  let setupDone=false,activatedOnce=false,current='hub',adoptQueued=false;
 
   const esc=(v='')=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const root=()=>document.getElementById('reports');
@@ -143,8 +143,8 @@
     const r=root();if(!r)return;
     const activate=()=>{
       if(r.classList.contains('hidden'))return;
-      if(initialPending){initialPending=false;open(initialReport,{historyMode:'replace',scroll:false})}
-      else if(!setupDone)open('hub',{historyMode:'replace',scroll:false});
+      if(initialPending){initialPending=false;activatedOnce=true;open(initialReport,{historyMode:'replace',scroll:false})}
+      else if(!activatedOnce){activatedOnce=true;open('hub',{historyMode:'replace',scroll:false})}
     };
     new MutationObserver(activate).observe(r,{attributes:true,attributeFilter:['class']});
     activate();
