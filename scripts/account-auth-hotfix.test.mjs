@@ -117,6 +117,28 @@ test('a valid cached session is recovered instead of falsely signing the custome
   assert.equal(result.data.session.user.id,'customer-1');
 });
 
+
+test('watchdog actively resumes the portal instead of leaving the loading spinner visible',async()=>{
+  const fixture=createContext('https://namdar.co.uk/account');
+  const future=Math.floor(Date.now()/1000)+3600;
+  fixture.local.set('sb-qjigldxjcpnrlyxgmlqq-auth-token',JSON.stringify({
+    access_token:'access-token',
+    refresh_token:'refresh-token',
+    expires_at:future,
+    user:{id:'customer-2',email:'customer2@example.com'}
+  }));
+  let rendered=null;
+  fixture.context.window.renderState=session=>{rendered=session; fixture.context.document.querySelector('#accountSessionLoading').classList.add('hidden')};
+  vm.runInNewContext(hotfixSource,fixture.context);
+  const timeoutMs=fixture.context.window.NamdarAuthHotfix.sessionTimeoutMs;
+  const watchdog=fixture.timers.find(x=>x.ms===timeoutMs+1500&&!x.cleared);
+  assert.ok(watchdog,'watchdog should be scheduled');
+  watchdog.fn();
+  await Promise.resolve();
+  assert.equal(rendered?.user?.id,'customer-2');
+  assert.equal(fixture.context.document.querySelector('#accountSessionLoading').classList.contains('hidden'),true);
+});
+
 test('Stripe success return performs at most one automatic retry when session restore times out',async()=>{
   const fixture=createContext('https://namdar.co.uk/account?tab=billing&payment=success&session_id=cs_test_safe');
   vm.runInNewContext(hotfixSource,fixture.context);
