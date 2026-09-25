@@ -172,6 +172,11 @@ Live `6.4.55-receipt-form-persistence-1`. The Smart Receipt UI now stores the ac
 
 Current Vercel draft remains unattached and was corrected in-place to supplier Vercel Inc., date 2026-09-24, category software, USD 24 original total, USD 4 original VAT, reference YYVCYYP4-0004.
 
+# Smart receipt manual-edit persistence — CANDIDATE
+Target `6.4.56-receipt-manual-edits-1`.
+
+After the form-persistence release, a remaining edge case was observed for foreign-currency receipts: reapplying the extracted suggestion after a Business Finance rerender intentionally blanked the GBP amount again. The receipt UI now tracks reviewer overrides in `currentEdits` via delegated input/change events and reapplies those values after the extracted suggestion. This applies to all editable expense fields, not just amount, and preserves the review-first accounting model.
+
 # Other live layers
 Google Review System PR #98 remains live but the official Google Business review URL is still unconfigured/off. Post-job Customer Experience PR #96 and Staff operations v3 PR #94 remain live.
 
