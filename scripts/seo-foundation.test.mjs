@@ -51,6 +51,8 @@ test('sitemap contains only live service catalog entries and SEO lastmod signals
   assert.match(src,/\/areas\/lewisham/);
   assert.match(src,/<lastmod>/);
   assert.match(src,/PAGE_LASTMOD=Object\.freeze\(\{'window-cleaning':'2026-09-25'\}\)/);
+  assert.match(src,/const publicJobs=\(jobs\|\|\[\]\)\.filter\(j=>liveKeys\.has\(j\.service_key\)\)/);
+  assert.match(src,/publicJobs\.length\?\[\{path:'\/work'/);
   assert.doesNotMatch(src,/\/services\/gutter-cleaning/);
 });
 
@@ -81,4 +83,32 @@ test('SEO uses the production borough coverage without creating doorway pages',(
   }
   assert.doesNotMatch(home,/Window Cleaning in Southwark<\/a>/);
   assert.doesNotMatch(home,/Window Cleaning in Lambeth<\/a>/);
+});
+
+
+test('portfolio SEO fails closed until genuine live-service work is published',()=>{
+  const handler=read('api/public-work-page.js');
+  const vercel=read('vercel.json');
+  const home=read('index.html');
+  const app=read('app.js');
+  const seo=read('seo-page.js');
+  const legacy=read('work.html');
+  assert.match(vercel,/"source": "\/work", "destination": "\/api\/public-work-page"/);
+  assert.match(handler,/filter\(j=>liveKeys\.has\(j\.service_key\)\)/);
+  assert.match(handler,/if\(!publicJobs\.length\)/);
+  assert.match(handler,/res\.statusCode=404/);
+  assert.match(handler,/X-Robots-Tag','noindex, follow'/);
+  assert.match(handler,/Window Cleaning Case Studies \| Namdar/);
+  assert.match(handler,/CollectionPage/);
+  assert.match(home,/data-real-work-link hidden href="#work"/);
+  assert.match(app,/\[data-real-work-link\]/);
+  assert.match(seo,/setPublishedWorkAvailability/);
+  assert.match(legacy,/<meta name="robots" content="noindex,follow">/);
+});
+
+test('indexable SEO pages hide portfolio links in raw HTML until public work exists',()=>{
+  for(const path of ['services/window-cleaning.html','areas/london.html','areas/south-london.html','areas/lewisham.html']){
+    const html=read(path);
+    assert.match(html,/data-real-work-link hidden href="\/work">Our work<\/a>/);
+  }
 });
