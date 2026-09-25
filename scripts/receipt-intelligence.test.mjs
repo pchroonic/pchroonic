@@ -66,7 +66,7 @@ Amount due $24.00 USD`;
   const cleaned=dbSafeText(raw);
   assert.equal(cleaned.includes('\u0000'),false);
   const x=extractReceipt(cleaned);
-  assert.equal(x.supplier,'Vercel Inc. @vercel');
+  assert.equal(x.supplier,'Vercel Inc.');
   assert.equal(x.expenseDate,'2026-09-24');
   assert.equal(x.reference,'YYVCYYP4-0004');
   assert.equal(x.currency,'USD');
