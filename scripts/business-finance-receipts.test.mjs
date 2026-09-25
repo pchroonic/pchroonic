@@ -13,7 +13,7 @@ test('smart receipt API is staff protected and review-first',()=>{
   assert.match(api,/sha256/);
   assert.match(api,/duplicateExpenses/);
   assert.match(api,/dbSafeText/);
-  assert.match(api,/existing\?\.status==='error'/);
+  assert.match(api,/\['error','review'\]\.includes\(existing\.status\)/);
   assert.match(api,/retry:true/);
 });
 
@@ -43,7 +43,7 @@ test('admin loader and CSP keep receipt workflow dependencies',()=>{
   const loader=read('admin.js'),vercel=read('vercel.json');
   assert.match(loader,/6\.4\.37-admin-website-crash-fix-1/);
   assert.match(loader,/admin-finance-receipts\.js/);
-  assert.match(loader,/6\.4\.53-receipt-pdf-layout-1/);
+  assert.match(loader,/6\.4\.54-receipt-reread-draft-1/);
   assert.match(vercel,/connect-src[^\n]*cdn\.jsdelivr\.net/);
   assert.match(vercel,/worker-src[^\n]*cdn\.jsdelivr\.net/);
 });
