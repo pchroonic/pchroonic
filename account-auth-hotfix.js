@@ -49,9 +49,13 @@
     return null;
   }
 
+  function authClientReady(){
+    try{return typeof sb!=='undefined'&&!!sb?.auth}catch{return false}
+  }
+
   function timeoutResult(){
     const session=cachedSession();
-    if(session)return {data:{session},error:null,recovered:true};
+    if(session&&authClientReady())return {data:{session},error:null,recovered:true};
     return {data:{session:null},error:new Error('Session restore timed out')};
   }
 
@@ -115,7 +119,7 @@
     const recovered=cachedSession();
     if(recovered){
       try{
-        if(typeof window.renderState==='function'){
+        if(authClientReady()&&typeof window.renderState==='function'){
           Promise.resolve(window.renderState(recovered)).catch(error=>console.error('Namdar cached session render recovery failed',error));
           return;
         }
