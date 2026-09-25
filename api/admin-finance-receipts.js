@@ -1,6 +1,7 @@
 const crypto=require('crypto');
 const {json,parseBody,db,requireStaff,auditLog,queryParam,safeError}=require('../lib/server');
 const {extractReceipt,merchantKey}=require('../lib/receipt-intelligence');
+const {dbSafeText,dbSafeValue}=require('../lib/db-safe-text');
 
 const TYPES=new Map([
   ['image/jpeg','jpg'],['image/png','png'],['image/webp','webp'],['application/pdf','pdf']
@@ -32,7 +33,11 @@ module.exports=async function handler(req,res){
       if(!TYPES.has(mimeType))throw bad('Use a JPG, PNG, WebP or PDF receipt.');
       if(fileSize<=0||fileSize>10*1024*1024)throw bad('Receipt files must be between 1 byte and 10 MB.');
       if(!hex64(sha256))throw bad('Receipt fingerprint is invalid.');
-      const existing=(await db(`business_expense_receipts?sha256=eq.${encodeURIComponent(sha256)}&status=neq.rejected&select=id,expense_id,storage_path,original_name,status,created_at&order=created_at.desc&limit=1`).catch(()=>[]))?.[0]||null;
+      const existing=(await db(`business_expense_receipts?sha256=eq.${encodeURIComponent(sha256)}&status=neq.rejected&select=id,expense_id,storage_path,original_name,mime_type,status,created_at&order=created_at.desc&limit=1`).catch(()=>[]))?.[0]||null;
+      if(existing?.status==='error'&&!existing.expense_id){
+        await db(`business_expense_receipts?id=eq.${encodeURIComponent(existing.id)}`,{method:'PATCH',prefer:'return=minimal',body:{status:'uploading',updated_by:staff.user.id,updated_at:new Date().toISOString()}});
+        return json(res,200,{ok:true,duplicate:false,retry:true,receipt:{id:existing.id,storagePath:existing.storage_path,originalName:existing.original_name,mimeType:existing.mime_type}});
+      }
       if(existing)return json(res,200,{ok:true,duplicate:true,receipt:existing,message:existing.expense_id?'This exact receipt file is already attached to an expense.':'This exact receipt file was already uploaded and can be reviewed instead of duplicated.'});
       const id=crypto.randomUUID(),month=new Date().toISOString().slice(0,7),ext=TYPES.get(mimeType),storagePath=`${staff.user.id}/${month}/${id}.${ext}`;
       const row={id,storage_path:storagePath,original_name:originalName,mime_type:mimeType,file_size:fileSize,sha256,status:'uploading',created_by:staff.user.id,updated_by:staff.user.id,created_at:new Date().toISOString(),updated_at:new Date().toISOString()};
@@ -41,13 +46,13 @@ module.exports=async function handler(req,res){
       return json(res,201,{ok:true,duplicate:false,receipt:{id:created.id,storagePath:created.storage_path,originalName:created.original_name,mimeType:created.mime_type}});
     }
     if(action==='analyze'){
-      const id=clean(body.receiptId,80),ocrText=String(body.ocrText||'').slice(0,100000);
+      const id=clean(body.receiptId,80),ocrText=dbSafeText(body.ocrText,100000);
       if(!id)throw bad('Receipt ID is required.');
       const row=await receipt(id);if(!row)throw Object.assign(new Error('Receipt not found.'),{status:404});
       if(row.expense_id)return json(res,409,{ok:false,error:'This receipt is already attached to an expense.'});
       if(ocrText.trim().length<8)throw bad('Not enough receipt text could be read. Try a clearer image or enter the expense manually.');
-      let suggestion=extractReceipt(ocrText,null),rule=await learnedRule(suggestion.merchantKey);
-      if(rule)suggestion=extractReceipt(ocrText,rule);
+      let suggestion=dbSafeValue(extractReceipt(ocrText,null)),rule=await learnedRule(suggestion.merchantKey);
+      if(rule)suggestion=dbSafeValue(extractReceipt(ocrText,rule));
       const duplicates=await duplicateExpenses(suggestion),confidence=Number(suggestion.overallConfidence||0);
       const patch={ocr_text:ocrText,extracted_data:suggestion,extraction_confidence:confidence,extraction_method:clean(body.extractionMethod,80)||'browser_ocr_v1',status:'review',updated_by:staff.user.id,updated_at:new Date().toISOString()};
       await db(`business_expense_receipts?id=eq.${encodeURIComponent(id)}`,{method:'PATCH',prefer:'return=minimal',body:patch});
