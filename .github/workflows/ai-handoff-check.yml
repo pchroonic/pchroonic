@@ -42,6 +42,7 @@ jobs:
           node --test scripts/privileged-login-captcha.test.mjs
           node --check admin.js
           node --check admin-page-analytics.js
+          node --check admin-report-hub.js
           node --check admin-original.js
           node --check admin-brand-assets.js
           node --check admin-inbox-safety.js
@@ -154,6 +155,7 @@ jobs:
           node --test scripts/service-catalog.test.mjs
           node --test scripts/window-stage1.test.mjs
           node --test scripts/analytics-v2.test.mjs
+          node --test scripts/report-hub.test.mjs
           node --test scripts/booking-operations.test.mjs
           node --test scripts/window-performance.test.mjs
           node --test scripts/post-job-followup.test.mjs
