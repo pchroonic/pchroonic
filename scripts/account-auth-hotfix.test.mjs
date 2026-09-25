@@ -180,6 +180,22 @@ test('MFA guard only labels MFA challenge failures, not ordinary portal render f
   assert.ok(mfaMessage>challengeCatch&&mfaMessage<renderCall,'MFA failure copy should be scoped to the challenge step only');
 });
 
+
+test('login flow never calls sb.auth before the Supabase client exists',()=>{
+  const src=fs.readFileSync(new URL('../account-original.js',import.meta.url),'utf8');
+  assert.match(src,/if\(!sb\?\.auth\)throw new Error\('Secure sign-in is still loading/);
+  const guard=src.indexOf("if(!sb?.auth)throw new Error('Secure sign-in is still loading");
+  const call=src.indexOf("sb.auth.signInWithPassword",guard);
+  assert.ok(guard>=0&&call>guard,'auth readiness guard must run before password sign-in');
+});
+
+test('watchdog never reveals the login form while the auth client is still null',()=>{
+  const src=fs.readFileSync(new URL('../account-auth-hotfix.js',import.meta.url),'utf8');
+  const readyGuard=src.indexOf("if(!authClientReady())");
+  const reveal=src.indexOf("document.querySelector('#authSection')?.classList.remove('hidden')",readyGuard);
+  assert.ok(readyGuard>=0&&reveal>readyGuard,'watchdog must gate login visibility on auth client readiness');
+});
+
 test('Stripe success return performs at most one automatic retry when session restore times out',async()=>{
   const fixture=createContext('https://namdar.co.uk/account?tab=billing&payment=success&session_id=cs_test_safe');
   vm.runInNewContext(hotfixSource,fixture.context);
