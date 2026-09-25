@@ -242,6 +242,18 @@ Do not create thin postcode/neighbourhood doorway pages without genuine coverage
 
 Production: PR #127 is live on deployment dpl_C3gf98ZruxSBfckd9uSiuEmz1xMJ. The sitemap pins the Window Cleaning public-page lastmod to 2026-09-25 because the SEO page content changed independently of the older service-catalog DB timestamp.
 
+# Portfolio SEO fail-closed — CANDIDATE
+The portfolio is now tied to genuine published work instead of being an always-indexable empty shell.
+
+Architecture:
+- `vercel.json` rewrites exact `/work` to `api/public-work-page.js`; `/work/:id` keeps the existing individual public-job handler.
+- `api/public-work-page.js` loads the service catalog and published portfolio jobs, filters jobs to currently live service keys, and returns HTTP 404 + noindex when none exist. When jobs exist it server-renders the portfolio, case-study links and CollectionPage/ItemList/BreadcrumbList structured data.
+- `api/sitemap.js` derives `publicJobs` from published jobs whose service key is live and conditionally includes `/work` plus those job URLs only when eligible content exists.
+- `index.html` and indexable service/area pages hide portfolio navigation in source. `app.js` / `seo-page.js` only reveal it after `/api/public-data` returns genuine public jobs.
+- `work.html` remains only a legacy fallback and is statically noindex.
+
+Safety invariant: never create synthetic portfolio jobs, reviews, locations or images for SEO. Search visibility for “Our work” must come from genuine completed jobs deliberately published by Namdar staff.
+
 # Other live layers
 Google Review System PR #98 remains live but the official Google Business review URL is still unconfigured/off. Post-job Customer Experience PR #96 and Staff operations v3 PR #94 remain live.
 
