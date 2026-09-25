@@ -1,5 +1,14 @@
 # Namdar project status
 
+## Auth session recovery guard — CANDIDATE
+- Fixes false logout/login screen when Supabase session restoration exceeds the old 5-second hard timeout.
+- Auth guard now allows 12 seconds and recovers a valid unexpired cached Supabase session before returning a null session.
+- Session watchdog no longer switches a customer to the login form when a valid cached session exists.
+- Failure copy no longer tells users to close tabs; it only appears when there is no recoverable session.
+- Existing `scripts/account-auth-hotfix.test.mjs` now includes a mandatory cached-session recovery regression test, and it is already part of the PR JavaScript gate.
+- No database migration or environment-variable change.
+
+
 ## Verified contact + explicit property details — CANDIDATE
 - Mobile entry supports 07…, +44… and 0044… plus selectable calling codes and normalizes to E.164-style international format.
 - My details now includes SMS OTP verification; `profiles.phone_verified` is set true only after successful Supabase phone-change verification.
