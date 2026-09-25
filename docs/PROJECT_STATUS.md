@@ -1,5 +1,14 @@
 # Namdar project status
 
+## Signup profile redirect — CANDIDATE
+- Newly signed-in customers with incomplete profile data are automatically taken to My details when no explicit quote/booking/message/tab destination is present.
+- Missing mobile number is prioritised and the Mobile field is focused first.
+- Explicit deep links remain authoritative, so checkout returns and customer links are not hijacked.
+- Email/password registration still requires a mobile number during signup; this primarily protects social/OAuth and incomplete-profile paths.
+- No database migration or environment change.
+- Regression: `scripts/signup-profile-redirect.test.mjs`.
+
+
 ## Customer GetAddress postcode lookup — CANDIDATE
 - Fixes the public quote postcode selector using only partial cached/OpenStreetMap results even when GetAddress is configured.
 - A real customer-entered postcode may trigger one GetAddress autocomplete request only when Namdar has no cached GetAddress rows for that postcode; returned addresses are cached in private `master_addresses` and then reused.
