@@ -51,6 +51,7 @@ test('sitemap contains only live service catalog entries and SEO lastmod signals
   assert.match(src,/\/areas\/south-london/);
   assert.match(src,/\/areas\/lewisham/);
   assert.match(src,/<lastmod>/);
+  assert.match(src,/PAGE_LASTMOD=Object\.freeze\(\{'window-cleaning':'2026-09-25'\}\)/);
   assert.doesNotMatch(src,/\/services\/gutter-cleaning/);
 });
 
