@@ -127,14 +127,14 @@
     if(live.length===1&&live[0]==='windows'){
       if(head)head.textContent='Window cleaning is available now.';
       if(copy)copy.textContent='Exterior glass, frames and sills with one-off or regular cleaning. Future Namdar services will appear here only when each stage is ready.';
-      const heroEyebrow=document.querySelector('.hero .eyebrow');if(heroEyebrow)heroEyebrow.textContent='Window cleaning without the back-and-forth.';
-      const heroTitle=document.querySelector('.hero h1');if(heroTitle)heroTitle.innerHTML='Clear windows.<br><em>A clearer booking process.</em>';
-      const heroCopy=document.querySelector('.hero-copy > p');if(heroCopy)heroCopy.textContent='Check your postcode, get a guide estimate for exterior window cleaning, then receive a reviewed final quote before choosing an appointment.';
+      const heroEyebrow=document.querySelector('.hero .eyebrow');if(heroEyebrow)heroEyebrow.textContent='Window cleaning in South London & Lewisham';
+      const heroTitle=document.querySelector('.hero h1');if(heroTitle)heroTitle.innerHTML='Window cleaning, quoted online.<br><em>Postcode checked before booking.</em>';
+      const heroCopy=document.querySelector('.hero-copy > p');if(heroCopy)heroCopy.textContent='Request exterior window cleaning for homes, flats and commercial properties, including exterior frames and sills. Get a guide estimate online, then Namdar reviews the final quote before you choose an appointment.';
       const footer=document.querySelector('footer p');if(footer)footer.textContent='Window cleaning · More Namdar services will launch in stages';
       const mobileStrong=document.querySelector('#mobileConversionBar strong'),mobileText=document.querySelector('#mobileConversionBar span');
       if(mobileStrong)mobileStrong.textContent='Need window cleaning?';if(mobileText)mobileText.textContent='Check your postcode and get a guide estimate.';
-      document.title='Namdar | Window Cleaning in London — Quote Online';
-      const meta=document.querySelector('meta[name="description"]');if(meta)meta.content='Get a guide estimate for exterior window cleaning in Namdar service areas. Frames and exterior sills included in the request; final quotes are reviewed before booking.';
+      document.title='Window Cleaning in South London & Lewisham | Namdar';
+      const meta=document.querySelector('meta[name="description"]');if(meta)meta.content='Book exterior window cleaning in South London and Lewisham with Namdar. Get an online guide estimate, postcode check, reviewed final quote and manage your booking online.';
       windowQuoteEnhancements();
     }
     if(resultBadge){const active=document.querySelector('input[name="service"]:checked');if(active)resultBadge.textContent=`${serviceLabels[active.value]||'Namdar'} · GUIDE ESTIMATE`;}

@@ -186,6 +186,8 @@ Google Review System PR #98 remains live, but its official Google review URL is 
 - PR #127 is live on production deployment dpl_C3gf98ZruxSBfckd9uSiuEmz1xMJ; production health HTTP 200 / ok:true at 2026-09-25T14:50:21.502Z.
 - Window Cleaning public page and homepage/local pages were updated on 2026-09-25; sitemap explicitly reports that date for the Window Cleaning page rather than the older service-catalog row date.
 
+- Rendered-home SEO invariant: conversion.js must preserve the same South London/Lewisham title, meta description and hero copy as the initial HTML. Future-service cards, quote radios, the 3D nav item and the 3D section start hidden and are only unhidden by the live service-catalog state.
+
 ## Open items
 - Use the first genuine payment for authenticated receipt/email/My Namdar verification; do not manufacture a production payment.
 - Configure the real Google Business Profile review-request URL later.

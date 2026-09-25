@@ -61,3 +61,14 @@ test('robots advertises the sitemap and leaves public pages crawlable',()=>{
   assert.match(robots,/Allow: \//);
   assert.match(robots,/Sitemap: https:\/\/namdar\.co\.uk\/sitemap\.xml/);
 });
+
+test('rendered homepage keeps local SEO and future services hidden until launch',()=>{
+  const html=read('index.html'),runtime=read('conversion.js');
+  assert.match(html,/<a hidden href="#3d">3D tours<\/a>/);
+  assert.match(html,/<section class="section-pad three-d-section" hidden id="3d">/);
+  assert.match(html,/<article class="service-card" hidden><div class="service-icon">⌁/);
+  assert.match(html,/<label hidden><input disabled name="service" type="radio" value="gutters"/);
+  assert.match(runtime,/document\.title='Window Cleaning in South London & Lewisham \| Namdar'/);
+  assert.match(runtime,/Book exterior window cleaning in South London and Lewisham/);
+  assert.doesNotMatch(runtime,/Namdar \| Window Cleaning in London — Quote Online/);
+});

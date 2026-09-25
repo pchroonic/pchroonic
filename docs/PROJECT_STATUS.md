@@ -156,6 +156,8 @@ PR #107 / `6.4.49-page-analytics-1`.
 - PR #127 is live on production deployment dpl_C3gf98ZruxSBfckd9uSiuEmz1xMJ; health HTTP 200 / ok:true at 2026-09-25T14:50:21.502Z.
 - Window Cleaning sitemap lastmod is pinned to 2026-09-25 to reflect the actual public SEO page update.
 
+- Rendered-home SEO invariant keeps initial and JavaScript-rendered title/description/hero aligned to South London/Lewisham Window Cleaning, while future-service cards/radios/3D content start hidden until catalog status permits them.
+
 ## Google Review System — LIVE
 PR #98 / `6.4.43-google-reviews-1` remains live. Owner-controlled fair review requests, one-time reminders, tracked clicks and 30/90/365-day reporting are available, but the official Google Business review URL remains intentionally unconfigured/off.
 
