@@ -98,6 +98,11 @@ PR #107 / `6.4.49-page-analytics-1`.
 - Target `6.4.54-receipt-reread-draft-1`.
 - Same-file re-read is allowed for unattached error/review drafts; attached receipts remain protected.
 
+## Smart receipt form persistence — CANDIDATE
+- Target `6.4.55-receipt-form-persistence-1`.
+- Active receipt values survive Business Finance re-renders.
+- Spaced PDF invoice numbers normalize correctly.
+
 ## Google Review System — LIVE
 PR #98 / `6.4.43-google-reviews-1` remains live. Owner-controlled fair review requests, one-time reminders, tracked clicks and 30/90/365-day reporting are available, but the official Google Business review URL remains intentionally unconfigured/off.
 
