@@ -4,6 +4,7 @@
 
   const baseRenderReporting=renderReporting;
   const nf=new Intl.NumberFormat('en-GB');
+  let websiteAnalyticsLoadSeq=0,websiteAnalyticsReady=false;
   const money=v=>Number(v||0).toLocaleString('en-GB',{style:'currency',currency:'GBP'});
 
   function ensureOverviewAnalytics(){
@@ -144,15 +145,70 @@
     const ctx=$('#statViewsContext');if(ctx)ctx.textContent=`${nf.format(s.allTimeViews||0)} page views all time · ${nf.format(s.sessions||0)} sessions in ${String(range.label||'selected period').toLowerCase()}`;
   }
 
-  async function loadWebsiteAnalytics(){
-    if(!allowed('analytics')||!currentSession)return;
+  function setAnalyticsLoading(){
     ensureWebsiteAnalyticsPanel();
-    const range=$('#reportRange')?.value||'30d';
-    try{renderWebsiteAnalytics(await api(`/api/admin-page-analytics?range=${encodeURIComponent(range)}`))}
-    catch(e){const panel=ensureWebsiteAnalyticsPanel();if(panel)$('#websiteAnalyticsStats').innerHTML=`<div class="crm-empty">${esc(e.message)}</div>`}
+    const period=$('#websiteAnalyticsPeriod'),stats=$('#websiteAnalyticsStats'),trend=$('#websiteAnalyticsTrend'),funnel=$('#websiteAnalyticsFunnel');
+    if(period)period.textContent='Loading…';
+    if(stats&&!websiteAnalyticsReady)stats.innerHTML='<div class="crm-empty">Loading website analytics…</div>';
+    if(trend&&!trend.innerHTML.trim())trend.innerHTML='<div class="crm-empty">Loading traffic trend…</div>';
+    if(funnel&&!funnel.innerHTML.trim())funnel.innerHTML='<div class="crm-empty">Loading customer funnel…</div>';
+  }
+  function setAnalyticsError(error){
+    ensureWebsiteAnalyticsPanel();
+    const message=error?.message||'Could not load website analytics.';
+    const period=$('#websiteAnalyticsPeriod'),stats=$('#websiteAnalyticsStats');
+    if(period)period.textContent='Could not load';
+    if(stats)stats.innerHTML=`<div class="crm-empty"><strong>Analytics could not load.</strong><br>${esc(message)}<br><button type="button" class="ghost-btn small" id="websiteAnalyticsRetry">Try again</button></div>`;
+    $('#websiteAnalyticsRetry')?.addEventListener('click',()=>loadWebsiteAnalytics({force:true}));
+  }
+  async function analyticsRequest(range,seq){
+    let timer;
+    const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('Analytics took too long to load. Click Try again.')),15000)});
+    try{
+      const data=await Promise.race([api(`/api/admin-page-analytics?range=${encodeURIComponent(range)}`),timeout]);
+      if(seq!==websiteAnalyticsLoadSeq)return null;
+      return data;
+    }finally{clearTimeout(timer)}
+  }
+  async function loadWebsiteAnalytics({force=false}={}){
+    ensureWebsiteAnalyticsPanel();
+    if(!currentSession||!allowed('analytics')){
+      const period=$('#websiteAnalyticsPeriod');if(period)period.textContent='Waiting for secure session…';
+      return;
+    }
+    const seq=++websiteAnalyticsLoadSeq,range=$('#reportRange')?.value||'30d';
+    setAnalyticsLoading();
+    try{
+      const data=await analyticsRequest(range,seq);
+      if(!data||seq!==websiteAnalyticsLoadSeq)return;
+      renderWebsiteAnalytics(data);
+      websiteAnalyticsReady=true;
+    }catch(e){
+      if(seq!==websiteAnalyticsLoadSeq)return;
+      setAnalyticsError(e);
+    }
+  }
+  function bindAnalyticsLifecycle(){
+    const tab=document.querySelector('[data-tab="reports"]');
+    if(tab&&!tab.dataset.analyticsV2Bound){tab.dataset.analyticsV2Bound='1';tab.addEventListener('click',()=>setTimeout(()=>loadWebsiteAnalytics({force:true}),0))}
+    const range=$('#reportRange');
+    if(range&&!range.dataset.analyticsV2Bound){range.dataset.analyticsV2Bound='1';range.addEventListener('change',()=>loadWebsiteAnalytics({force:true}))}
+    const refresh=$('#reportRefresh');
+    if(refresh&&!refresh.dataset.analyticsV2Bound){refresh.dataset.analyticsV2Bound='1';refresh.addEventListener('click',()=>loadWebsiteAnalytics({force:true}))}
+  }
+  function bootAnalyticsLifecycle(){
+    ensureOverviewAnalytics();ensureWebsiteAnalyticsPanel();bindAnalyticsLifecycle();
+    let attempts=0;
+    const tick=()=>{
+      attempts++;
+      bindAnalyticsLifecycle();
+      if(currentSession&&allowed('analytics')){loadWebsiteAnalytics({force:true});return}
+      if(attempts<40)setTimeout(tick,250);
+      else{const period=$('#websiteAnalyticsPeriod');if(period)period.textContent='Open Reporting to load';}
+    };
+    tick();
   }
 
   renderReporting=function(){baseRenderReporting();loadWebsiteAnalytics()};
-  ensureOverviewAnalytics();ensureWebsiteAnalyticsPanel();
-  if(currentSession&&allowed('analytics'))loadWebsiteAnalytics();
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bootAnalyticsLifecycle,{once:true});else bootAnalyticsLifecycle();
 })();
