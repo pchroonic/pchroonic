@@ -25,6 +25,8 @@ test('expense ledger stores original foreign values and FX audit metadata',()=>{
   assert.match(api,/verifyAuthoritativeFx/);
   assert.match(api,/referenceRate\(\{from:row\.original_currency,to:'GBP',date:row\.expense_date\}\)/);
   assert.match(api,/Could not verify the ECB exchange rate before saving/);
+  assert.match(api,/if\(clientMethod==='auto_reference'\)/);
+  assert.match(api,/row\.amount=reference/);
 });
 
 test('business finance form supports automatic foreign amount conversion',()=>{
@@ -35,6 +37,8 @@ test('business finance form supports automatic foreign amount conversion',()=>{
   assert.match(ui,/Finding the .* → GBP rate/);
   assert.match(ui,/Edit Amount paid £ if your bank\/card charged a different sterling amount/);
   assert.match(ui,/fxPayload/);
+  assert.match(ui,/fxMethod:currency&&currency!=='GBP'/);
+  assert.match(ui,/fxManual==='1'\?'actual_override':'auto_reference'/);
   assert.match(ui,/actual GBP override/);
 });
 
@@ -59,5 +63,5 @@ test('foreign currency migration is additive and keeps an audit trail',()=>{
 
 test('Admin loader pins the FX release assets',()=>{
   const loader=read('admin.js');
-  assert.match(loader,/6\.4\.61-ecb-fx-hardening-1/);
+  assert.match(loader,/6\.4\.62-ecb-save-refresh-1/);
 });

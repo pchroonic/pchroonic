@@ -200,6 +200,8 @@ Components:
 
 Save integrity: `api/admin-finance-expenses.js` now re-fetches and verifies the ECB reference server-side before persisting automatic FX metadata, so browser-supplied rate/date/provider values are not trusted. If automatic ECB verification fails, an automatic-reference save is blocked; an explicitly entered actual/manual GBP amount may still be saved without pretending an unverified reference is authoritative.
 
+Save-time freshness invariant: the browser now sends whether the GBP value is automatic or reviewer-entered. On save, the server re-fetches ECB. Automatic values are recalculated from the verified rate (including VAT where an original foreign VAT amount is present); reviewer-entered GBP values are preserved as `actual_override`. This prevents a form opened before the ECB daily publication from saving yesterday's automatic GBP amount after today's rate has become available.
+
 Accounting invariant: automatic FX is a reference amount, not an assertion of the card issuer's exact rate. If staff enter a different GBP amount (for example the actual card statement charge), the ledger stores that GBP amount as the expense and marks the FX method `actual_override` while preserving the historical reference conversion.
 
 # Smart Receipt extraction + Finance draft stability — CANDIDATE

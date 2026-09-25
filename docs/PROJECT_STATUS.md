@@ -121,11 +121,12 @@ PR #107 / `6.4.49-page-analytics-1`.
 - Fixes Add expense failure on reviewed Smart Receipts without weakening review or attachment safeguards.
 
 ## Automatic foreign-currency expenses — LIVE / ECB HARDENING CANDIDATE
-- Base `6.4.58-expense-fx-1`; ECB hardening target `6.4.61-ecb-fx-hardening-1`; migration `20260925125132_foreign_currency_expense_audit` is applied in production.
+- Base `6.4.58-expense-fx-1`; ECB hardening target `6.4.62-ecb-save-refresh-1`; migration `20260925125132_foreign_currency_expense_audit` is applied in production.
 - Manual and Smart Receipt expenses support automatic historical FX → GBP conversion.
 - Original currency/amount and reference rate/date/provider are preserved for audit.
 - Reviewer-entered actual GBP charge overrides the reference conversion without losing the FX trail.
 - Automatic reference metadata is re-verified server-side against the ECB provider at save time; browser FX metadata is not trusted.
+- Save-time freshness: automatic GBP values are recalculated from the newly verified ECB rate when the expense is saved; reviewer-entered actual GBP charges are preserved as overrides.
 - Staff-only FX lookup is pinned to the ECB provider through Frankfurter; no blended-rate fallback is used for automatic accounting references.
 
 ## Smart Receipt extraction + Finance draft stability — CANDIDATE
