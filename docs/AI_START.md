@@ -186,6 +186,8 @@ Google Review System PR #98 remains live, but its official Google review URL is 
 - PR #127 is live on production deployment dpl_C3gf98ZruxSBfckd9uSiuEmz1xMJ; production health HTTP 200 / ok:true at 2026-09-25T14:50:21.502Z.
 - Window Cleaning public page and homepage/local pages were updated on 2026-09-25; sitemap explicitly reports that date for the Window Cleaning page rather than the older service-catalog row date.
 
+- PR #130 is LIVE on production deployment `dpl_CEjJJTQVDgkfCw53YvwHBdaeeYYV`; production health HTTP 200 / `ok:true` at `2026-09-25T17:55:13.522Z`.
+- Google Search Console connector is authorised for the owner Google account, but Google Search Console currently has no `namdar.co.uk` property. Add and verify the first top-level property in Google Search Console before URL Inspection/search-performance tools can run.
 - Live service-area SEO source of truth: production `service_areas` currently covers Lewisham, Southwark, Lambeth, Wandsworth and Greenwich. Public SEO now names those five boroughs in homepage/service/South London/London content and `areaServed` schema, while the postcode checker remains the final property-level coverage gate. Do not create thin borough/postcode doorway pages just for keywords.
 
 - Rendered-home SEO invariant: conversion.js must preserve the same South London/Lewisham title, meta description and hero copy as the initial HTML. Future-service cards, quote radios, the 3D nav item and the 3D section start hidden and are only unhidden by the live service-catalog state.
