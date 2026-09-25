@@ -250,7 +250,7 @@ Architecture:
 - `api/public-work-page.js` loads the service catalog and published portfolio jobs, filters jobs to currently live service keys, and returns HTTP 404 + noindex when none exist. When jobs exist it server-renders the portfolio, case-study links and CollectionPage/ItemList/BreadcrumbList structured data.
 - `api/sitemap.js` derives `publicJobs` from published jobs whose service key is live and conditionally includes `/work` plus those job URLs only when eligible content exists.
 - `index.html` and indexable service/area pages hide portfolio navigation in source. `app.js` / `seo-page.js` only reveal it after `/api/public-data` returns genuine public jobs.
-- `work.html` remains only a legacy fallback and is statically noindex.
+- The legacy `work.html` file is removed. This is required because Vercel clean-URL filesystem routing otherwise wins before the `/work` rewrite and would shadow the dynamic handler.
 
 Safety invariant: never create synthetic portfolio jobs, reviews, locations or images for SEO. Search visibility for “Our work” must come from genuine completed jobs deliberately published by Namdar staff.
 

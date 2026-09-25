@@ -92,7 +92,6 @@ test('portfolio SEO fails closed until genuine live-service work is published',(
   const home=read('index.html');
   const app=read('app.js');
   const seo=read('seo-page.js');
-  const legacy=read('work.html');
   assert.match(vercel,/"source": "\/work", "destination": "\/api\/public-work-page"/);
   assert.match(handler,/filter\(j=>liveKeys\.has\(j\.service_key\)\)/);
   assert.match(handler,/if\(!publicJobs\.length\)/);
@@ -103,7 +102,7 @@ test('portfolio SEO fails closed until genuine live-service work is published',(
   assert.match(home,/data-real-work-link hidden href="#work"/);
   assert.match(app,/\[data-real-work-link\]/);
   assert.match(seo,/setPublishedWorkAvailability/);
-  assert.match(legacy,/<meta name="robots" content="noindex,follow">/);
+  assert.equal(fs.existsSync(new URL('../work.html',import.meta.url)),false,'static work.html must not shadow the dynamic /work route');
 });
 
 test('indexable SEO pages hide portfolio links in raw HTML until public work exists',()=>{

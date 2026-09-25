@@ -166,7 +166,7 @@ PR #107 / `6.4.49-page-analytics-1`.
 - Candidate release makes `/work` dynamic: 404 + noindex while no genuine published live-service work exists; server-rendered/indexable when qualifying work is later published.
 - Empty `/work` is conditionally removed from the sitemap and hidden from public navigation.
 - Individual case-study URLs enter the sitemap only when their published job belongs to a currently live service.
-- Legacy `/work.html` is permanently noindex to avoid duplicate portfolio indexing.
+- Legacy `work.html` is removed so Vercel cannot serve the static clean URL ahead of the dynamic `/work` gate.
 - No synthetic case studies or reviews are created for SEO.
 
 ## Google Review System — LIVE
