@@ -35,7 +35,7 @@ test('browser receipt reader keeps OCR local and requires review before save',()
   assert.match(ui,/possible duplicate/i);
   assert.match(ui,/finance-receipts/);
   assert.match(ui,/upsert:prep\.retry===true/);
-  assert.match(ui,/Foreign-currency invoice detected/);
+  assert.match(ui,/Foreign currency converted to GBP automatically/);
   assert.match(ui,/currentSuggestion/);
   assert.match(ui,/MutationObserver/);
   assert.match(ui,/applyCurrentSuggestion/);
