@@ -211,6 +211,15 @@ Finance UX: `admin-business-finance.js` no longer redraws the page on routine au
 
 Draft recovery: unattached receipt drafts can use **Re-read** (`action='reanalyze'`) to run the current parser against stored `ocr_text`; this updates the review draft and audit log without re-uploading the original file. Attached accounting records return 409 and are never silently reinterpreted.
 
+# Reporting hub + focused report pages — CANDIDATE
+Target Admin asset `6.4.60-report-hub-1`.
+
+`admin-report-hub.js/css` restructures the existing `#reports` tab at runtime without duplicating report element IDs. The top-level route `/admin?tab=reports` is a hub. Focused pages use `?report=overview|revenue|quotes|services|staff|feedback|website|window|finance`.
+
+Static report content is moved into dedicated subpage containers. Dynamic panels (`websiteAnalyticsPanel`, `windowPerformancePanel`, `businessFinancePanel`) are adopted with a MutationObserver, so their existing modules remain independent. The router dispatches `namdar:report-view`; Website Analytics, Window Performance and Business Finance listen for their own route and refresh only when opened. Browser `popstate` restores report-page navigation.
+
+Shared controls remain single-instance to avoid duplicate IDs. Period/export visibility is contextual per report; Finance is tax-year based and does not show the generic period/export controls.
+
 # Other live layers
 Google Review System PR #98 remains live but the official Google Business review URL is still unconfigured/off. Post-job Customer Experience PR #96 and Staff operations v3 PR #94 remain live.
 
