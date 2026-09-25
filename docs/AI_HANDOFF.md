@@ -6,13 +6,13 @@ Read `docs/AI_START.md` first. Use `docs/PROJECT_STATUS.md` for roadmap/status.
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current production main merge `b851660b8285c2ad74c01f00fe240e5be0dd86d5` from PR #107. PR #102 Payment Receipt Tracking remains live below it.
+- Current production main merge `ef9ff366a0b956ab96776a11faa8203fba12bda5` from PR #110. PR #102 Payment Receipt Tracking remains live below it.
 - Customer base loader `6.4.35-payment-policy-engine-1`; Post-job Customer Experience `6.4.42-post-job-experience-1`; Staff operations/ETA `6.4.41-staff-operations-v3-1`.
 - Admin base `6.4.37-admin-website-crash-fix-1`; Google Reviews `6.4.43-google-reviews-1`; Stripe readiness `6.4.44-stripe-live-readiness-1`; payment receipts `6.4.45-payment-receipts-1`.
 - Supabase production `qjigldxjcpnrlyxgmlqq`.
 - Vercel project `prj_4fILo0pCaLGUSUIMWrBIVGzeWVDC`; team `team_8Az8WtWcnfwtYRdhR8vGqC3L`.
-- Vercel team is on Pro. Production deployment `dpl_BcXGivSXztjCAEg4WZyiZr1Zb1XH` is READY on `namdar.co.uk`.
-- Health HTTP 200 / `ok:true` at `2026-09-24T23:27:30.265Z`.
+- Vercel team is on Pro. Production deployment `dpl_5ejdx52DnrLFJzctMhpJe88iGc7q` is READY on `namdar.co.uk`.
+- Health HTTP 200 / `ok:true` at `2026-09-25T00:01:42.762Z`.
 - Hourly booking-notification cron (`7 * * * *`) is restored.
 - Window Cleaning only live. Provider AI OFF. Privileged access requires CAPTCHA + AAL2/TOTP.
 - Customer Stripe is ACTIVE for new Window Cleaning bookings. Production `site_settings.payments` revision 1 is `deposit_required`: flat 20%, minimum £0.50, full payment allowed, balance due at completion.
@@ -119,8 +119,8 @@ Privacy invariant: these are page-load counts, not unique-user analytics. Do not
 
 Release evidence: PR #107 merged at `b851660b8285c2ad74c01f00fe240e5be0dd86d5`; production `dpl_BcXGivSXztjCAEg4WZyiZr1Zb1XH` READY; live loader pins `6.4.49-page-analytics-1`; unauthenticated analytics endpoint check returns HTTP 401; `/api/health` remains HTTP 200 / `ok:true`.
 
-# Analytics v2 — LIVE / REVENUE DISPLAY HOTFIX CANDIDATE
-Production base asset `6.4.50-analytics-v2-1`; hotfix candidate `6.4.51-analytics-v2-revenue-fix-1`. Production migration `20260924234226_analytics_v2_session_funnel` is already applied and committed.
+# Analytics v2 — LIVE
+Live Admin analytics asset `6.4.51-analytics-v2-revenue-fix-1`; browser tracker remains `6.4.50-analytics-v2-1`. Production migration `20260924234226_analytics_v2_session_funnel` is already applied and committed.
 
 Architecture:
 - `analytics-v2.js`: temporary first-party session ID in sessionStorage, first-party page/event tracking, contact/quote/booking/checkout interactions and privacy-choice hooks.
@@ -133,7 +133,9 @@ Architecture:
 
 Privacy invariant: no device fingerprint, user-agent fingerprint or persistent analytics visitor ID. Campaign/advertising attribution is only captured after Allow marketing. Essential only disables v2 collection and deletes the current v2 session. Published Cookie Policy v3 now accurately describes this model, including the Essential-only objection and marketing-only campaign attribution.
 
-PR #109 is live on production deployment `dpl_99WrPUXN36wpBoRJ3Wgn8EhHv1o6`. A follow-up attributed-revenue accuracy hotfix calculates `totalRevenue`, `attributedRevenue` and `unattributedRevenue` separately; only payments linked through the v2 quote/session chain count as attributed.
+Legacy page-view rows pre-date session attribution and remain usable only for historical page-view totals; v2 sessions/funnel/campaign attribution should be interpreted from the release onward.
+
+PR #109 launched Analytics v2 and PR #110 is live with the attributed-revenue accuracy fix. `totalRevenue`, `attributedRevenue` and `unattributedRevenue` are calculated separately; only payments linked through the v2 quote/session chain count as attributed.
 
 # Other live layers
 Google Review System PR #98 remains live but the official Google Business review URL is still unconfigured/off. Post-job Customer Experience PR #96 and Staff operations v3 PR #94 remain live.
