@@ -1,5 +1,14 @@
 # Namdar AI handoff
 
+## Non-blocking My Namdar auth bootstrap — CANDIDATE
+- Replaces blocking initial `getSession()` with Supabase `INITIAL_SESSION` event handling.
+- Auth listener no longer performs awaited portal/database work directly inside `onAuthStateChange`; rendering is deferred to the next tick.
+- Initial session wait is bounded at 5 seconds.
+- Targets the remaining multi-tab/session-lock stall on My Namdar while the homepage already detects the same signed-in session.
+- Regression: `scripts/account-initial-session-event.test.mjs`.
+- No database migration or environment-variable change.
+
+
 ## Native My Namdar session flow — CANDIDATE
 - Removes `account-auth-hotfix.js` from the live My Namdar loader.
 - Uses Supabase native persisted-session lifecycle: `persistSession`, `autoRefreshToken`, `detectSessionInUrl`, native `getSession()`, and `onAuthStateChange`.
