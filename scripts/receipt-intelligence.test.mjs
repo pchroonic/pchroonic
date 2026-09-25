@@ -106,3 +106,56 @@ test('normalizes a spaced Vercel invoice reference from PDF.js text',()=>{
   assert.equal(x.supplier,'Vercel Inc.');
   assert.equal(x.expenseDate,'2026-09-24');
 });
+
+
+test('reads the Equipmart Amazon VAT invoice completely',()=>{
+  const text=`Invoice
+Paid
+Payment reference ID 3YWhkgCAxMAir9FW3GfG
+Sold by Equipmart Ltd
+VAT # GB985642081
+Invoice date / Delivery date 20 July 2026
+POOYA MOHAMMADI
+Invoice # GB6001L14F5R3I
+FLAT 2 ROWAN HOUSE, ERLANGER ROAD
+Total payable £24.95
+LONDON, LEWISHAM, SE14 5TD
+GB
+For questions about your order, visit www.amazon.co.uk/contact-us
+Billing address Delivery address Sold by
+Pooya Mohammadi pooya mohammadi Equipmart Ltd
+Flat 2 Rowan House, Erlanger Road FLAT 2 ROWAN HOUSE, ERLANGER ROAD KIAM HOUSE
+London, Lewisham, SE14 5TD LONDON, SE14 5TD BIRCHILL ROAD
+GB GB KNOWSLEY INDUSTRIAL PARK, MERSEYSIDE,
+L33 7TD
+GB
+VAT # GB985642081
+Order information
+Order date 17 July 2026
+Order # 205-0985158-6739532
+Invoice details
+Description Qty Unit price VAT rate Unit price Item subtotal
+(excl. VAT) (incl. VAT) (incl. VAT)
+Equip2clean Inline Water Filter for Valeting & Window Cleaning | Mixed-Bed 1 £20.79 20% £24.95 £24.95
+Resin Water Purifier Canister | Compatible with Water Filter Cartridges | Spot-Free Rinse for Cars and Glass | 30 cm
+ASIN: B0D2J351BT
+Shipping Charges £0.00 £0.00 £0.00
+Invoice total £24.95
+VAT rate Item subtotal VAT subtotal
+(excl. VAT)
+20% £20.79 £4.16
+Total £20.79 £4.16`;
+  const x=extractReceipt(text);
+  assert.equal(x.supplier,'Equipmart Ltd');
+  assert.equal(x.expenseDate,'2026-07-20');
+  assert.equal(x.reference,'GB6001L14F5R3I');
+  assert.equal(x.currency,'GBP');
+  assert.equal(x.originalAmount,24.95);
+  assert.equal(x.amount,24.95);
+  assert.equal(x.originalVatAmount,4.16);
+  assert.equal(x.vatAmount,4.16);
+  assert.equal(x.category,'equipment');
+  assert.match(x.description,/Equip2clean Inline Water Filter/i);
+  assert.doesNotMatch(x.description,/excl\.? VAT/i);
+  assert.ok(x.warnings.some(w=>/no payment date is stated/i.test(w)));
+});
