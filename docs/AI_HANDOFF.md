@@ -177,6 +177,11 @@ Target `6.4.56-receipt-manual-edits-1`.
 
 After the form-persistence release, a remaining edge case was observed for foreign-currency receipts: reapplying the extracted suggestion after a Business Finance rerender intentionally blanked the GBP amount again. The receipt UI now tracks reviewer overrides in `currentEdits` via delegated input/change events and reapplies those values after the extracted suggestion. This applies to all editable expense fields, not just amount, and preserves the review-first accounting model.
 
+# Analytics v2 loading lifecycle — CANDIDATE
+Target `6.4.57-analytics-load-lifecycle-1`.
+
+Production runtime logs showed authenticated `GET /api/admin-page-analytics` calls returning HTTP 200 while the Admin Analytics v2 shell could remain at “Loading…”. The fix decouples Analytics v2 from a single page-initialization timing path: it binds explicit reloads to the Reporting tab, range selector and Refresh control, polls briefly for the secure admin session after boot, and provides a 15-second timeout with a retry UI. Existing analytics calculations/API remain unchanged.
+
 # Other live layers
 Google Review System PR #98 remains live but the official Google Business review URL is still unconfigured/off. Post-job Customer Experience PR #96 and Staff operations v3 PR #94 remain live.
 

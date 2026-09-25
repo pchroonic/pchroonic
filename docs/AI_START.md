@@ -128,6 +128,13 @@ Google Review System PR #98 remains live, but its official Google review URL is 
 - After any Finance form rerender, extracted receipt values are restored first, then the reviewer’s manual overrides are reapplied.
 - This keeps the deliberate “do not auto-convert USD to GBP” safeguard while ensuring an entered GBP amount is not wiped.
 
+## Analytics v2 loading lifecycle — CANDIDATE
+- Target Admin analytics asset: `6.4.57-analytics-load-lifecycle-1`.
+- Observed production symptom: Analytics v2 panel shell rendered with “Loading…” while all cards remained blank, even though `/api/admin-page-analytics` returned HTTP 200.
+- The client now loads explicitly after secure session availability and on Reporting tab open, reporting-range change, and Refresh click.
+- A 15-second timeout and visible “Try again” state replace indefinite blank loading.
+- Loading placeholders make it clear when traffic/funnel data is still being fetched.
+
 ## Open items
 - Use the first genuine payment for authenticated receipt/email/My Namdar verification; do not manufacture a production payment.
 - Configure the real Google Business Profile review-request URL later.
