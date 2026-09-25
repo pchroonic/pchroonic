@@ -109,6 +109,12 @@ PR #107 / `6.4.49-page-analytics-1`.
 - Manual reviewer edits now survive Finance-panel rerenders and override re-applied receipt suggestions.
 - Foreign-currency GBP amount remains manual, but once entered it is no longer wiped.
 
+## Analytics v2 loading lifecycle — CANDIDATE
+- Target `6.4.57-analytics-load-lifecycle-1`.
+- Fixes blank/stuck Analytics v2 “Loading…” state while the backend is healthy.
+- Explicit reload hooks: secure-session boot, Reporting tab, range changes and Refresh.
+- Adds timeout/retry/error UI instead of indefinite blank panels.
+
 ## Google Review System — LIVE
 PR #98 / `6.4.43-google-reviews-1` remains live. Owner-controlled fair review requests, one-time reminders, tracked clicks and 30/90/365-day reporting are available, but the official Google Business review URL remains intentionally unconfigured/off.
 
