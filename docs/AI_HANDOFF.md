@@ -209,6 +209,8 @@ Browser PDF extraction now groups PDF.js text items by visual Y coordinate and s
 
 Finance UX: `admin-business-finance.js` no longer redraws the page on routine auth token refresh events. It only reacts to meaningful auth state changes and captures/restores the full active expense draft (including FX metadata/manual overrides and selection focus) around legitimate data reloads.
 
+Draft recovery: unattached receipt drafts can use **Re-read** (`action='reanalyze'`) to run the current parser against stored `ocr_text`; this updates the review draft and audit log without re-uploading the original file. Attached accounting records return 409 and are never silently reinterpreted.
+
 # Other live layers
 Google Review System PR #98 remains live but the official Google Business review URL is still unconfigured/off. Post-job Customer Experience PR #96 and Staff operations v3 PR #94 remain live.
 
