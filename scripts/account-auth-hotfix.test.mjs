@@ -147,6 +147,37 @@ test('watchdog actively resumes the portal instead of leaving the loading spinne
   assert.equal(fixture.context.document.querySelector('#accountSessionLoading').classList.contains('hidden'),true);
 });
 
+
+test('cached recovery never renders the portal before the Supabase auth client is ready',async()=>{
+  const fixture=createContext('https://namdar.co.uk/account');
+  const future=Math.floor(Date.now()/1000)+3600;
+  fixture.local.set('sb-qjigldxjcpnrlyxgmlqq-auth-token',JSON.stringify({
+    access_token:'access-token',
+    refresh_token:'refresh-token',
+    expires_at:future,
+    user:{id:'customer-3',email:'customer3@example.com'}
+  }));
+  let renders=0;
+  fixture.context.window.renderState=()=>{renders++};
+  vm.runInNewContext(hotfixSource,fixture.context);
+  const timeoutMs=fixture.context.window.NamdarAuthHotfix.sessionTimeoutMs;
+  const watchdog=fixture.timers.find(x=>x.ms===timeoutMs+1500&&!x.cleared);
+  assert.ok(watchdog);
+  watchdog.fn();
+  await Promise.resolve();
+  assert.equal(renders,0,'recovery must not call renderState while the auth client is not ready');
+  assert.equal(fixture.reloads,1,'a single guarded reload is used instead');
+});
+
+test('MFA guard only labels MFA challenge failures, not ordinary portal render failures',()=>{
+  const mfaSource=fs.readFileSync(new URL('../account-mfa-guard.js',import.meta.url),'utf8');
+  const challengeCatch=mfaSource.indexOf('verifiedSession=await challengePromise');
+  const renderCall=mfaSource.lastIndexOf('return originalRenderState(verifiedSession)');
+  const mfaMessage=mfaSource.indexOf('Two-step verification could not be completed');
+  assert.ok(challengeCatch>=0&&renderCall>challengeCatch);
+  assert.ok(mfaMessage>challengeCatch&&mfaMessage<renderCall,'MFA failure copy should be scoped to the challenge step only');
+});
+
 test('Stripe success return performs at most one automatic retry when session restore times out',async()=>{
   const fixture=createContext('https://namdar.co.uk/account?tab=billing&payment=success&session_id=cs_test_safe');
   vm.runInNewContext(hotfixSource,fixture.context);
