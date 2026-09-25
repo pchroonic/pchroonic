@@ -115,6 +115,11 @@ PR #107 / `6.4.49-page-analytics-1`.
 - Explicit reload hooks: secure-session boot, Reporting tab, range changes and Refresh.
 - Adds timeout/retry/error UI instead of indefinite blank panels.
 
+## Receipt expense source constraint — PRODUCTION FIX APPLIED
+- Migration `20260925122723_allow_receipt_expense_source` is applied in production.
+- Receipt-created ledger entries may now use `source='receipt'`; manual/import/job-cost sources remain valid.
+- Fixes Add expense failure on reviewed Smart Receipts without weakening review or attachment safeguards.
+
 ## Google Review System — LIVE
 PR #98 / `6.4.43-google-reviews-1` remains live. Owner-controlled fair review requests, one-time reminders, tracked clicks and 30/90/365-day reporting are available, but the official Google Business review URL remains intentionally unconfigured/off.
 
