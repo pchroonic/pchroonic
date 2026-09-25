@@ -1,3 +1,7 @@
+# Namdar v6.4.70 — Account loader cache-chain fix
+
+My Namdar now cache-busts the top-level `account.js` loader from `account.html`, preventing browsers/CDNs from continuing to execute stale auth-recovery code after a deployment. The duplicate unpinned Supabase preload was also removed so the account startup path uses only the pinned Supabase version loaded by `account.js`. The auth regression suite now requires the loader version and verifies that account.html does not preload a second Supabase build. No database or environment change.
+
 # Namdar v6.4.69 — Auth spinner recovery
 
 Fixes a remaining My Namdar session-recovery regression where the account could stay indefinitely on “Opening My Namdar… Restoring your secure session.” If the watchdog finds a valid cached Supabase session while the normal bootstrap is stalled, it now actively resumes the account renderer. If the renderer is unavailable, it performs at most one guarded reload before falling back to sign-in. The auth regression suite now reproduces and blocks this exact stuck-spinner failure. No database or environment change.
