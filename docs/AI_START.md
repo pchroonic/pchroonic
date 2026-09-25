@@ -1,5 +1,14 @@
 # Namdar AI fast resume
 
+## Account boot watchdog — CANDIDATE
+- Independent 8-second watchdog starts in `account.html` before account.js or external auth dependencies.
+- Prevents an endless “Restoring your secure session” screen if startup never reaches the internal auth timeout.
+- Records exact boot phases: init, config, Supabase library/client, initial session, render, ready.
+- On failure the UI exposes an `ACCOUNT-BOOT-<PHASE>` code instead of hanging silently.
+- Watchdog clears on successful render.
+- No authentication protocol, database, or environment change.
+
+
 ## Homepage auth lock fix — CANDIDATE
 - Homepage auth callback now uses the session passed by Supabase instead of calling `getSession()` again inside `onAuthStateChange`.
 - Profile/UI refresh is deferred to the next tick.

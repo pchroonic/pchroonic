@@ -1,3 +1,7 @@
+# Namdar v6.4.78 — Account boot watchdog
+
+My Namdar now has an independent startup watchdog embedded directly in `account.html`, before the account JavaScript loader. If any pre-init dependency stalls (config fetch, Supabase library/client setup, initial session, or rendering), the “Restoring your secure session” screen can no longer remain indefinitely. After 8 seconds the loading shell is dismissed and a diagnostic code identifies the last startup phase. `account-original.js` records phases from `html-ready` through `ready` and clears the watchdog on successful render. This is diagnostic/failsafe protection only and does not change authentication semantics. No database or environment change.
+
 # Namdar v6.4.77 — Homepage auth lock fix
 
 The public homepage no longer re-enters `sb.auth.getSession()` from inside `onAuthStateChange`. The auth callback now receives the Supabase session directly and defers profile/UI refresh to the next tick, while the initial homepage load still performs one normal session read outside the callback. This removes a cross-tab auth lock pattern that could let the homepage show “My account” while a second `/account` tab remained stuck on “Restoring your secure session.” The homepage loader is cache-busted and regression coverage requires the callback to remain free of `getSession()` re-entry. No database or environment change.
