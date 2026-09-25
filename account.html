@@ -2,7 +2,23 @@
 <body>
 <header class="site-header"><a class="brand" href="/"><span class="brand-mark">N</span><span>NAMDAR</span></a><button class="mobile-menu" type="button" aria-label="Open navigation" aria-expanded="false">☰</button><nav class="nav-links"><a href="/#services">Services</a><a href="/#quote">Get a quote</a><a href="/#work">Our work</a><a href="/#contact">Contact</a></nav><div class="header-actions"><a id="adminDashboardLink" class="ghost-btn hidden" href="/admin">Admin dashboard</a><a class="primary-btn small" href="/">Back to website</a></div></header>
 <main class="account-page section-pad">
-<section id="accountSessionLoading" class="session-loading-shell" aria-live="polite"><div class="session-loading-card"><span class="session-spinner" aria-hidden="true"></span><div><strong>Opening My Namdar…</strong><small>Restoring your secure session.</small></div></div></section>
+<section id="accountSessionLoading" class="session-loading-shell" aria-live="polite"><div class="session-loading-card"><span class="session-spinner" aria-hidden="true"></span><div><strong>Opening My Namdar…</strong><small>Restoring your secure session.</small></div></div></section><script>
+window.__namdarAccountBoot={phase:'html-ready',startedAt:Date.now()};
+window.__namdarAccountBootTimer=setTimeout(function(){
+  var loading=document.getElementById('accountSessionLoading');
+  if(!loading||loading.classList.contains('hidden'))return;
+  var auth=document.getElementById('authSection');
+  var phase=(window.__namdarAccountBoot&&window.__namdarAccountBoot.phase)||'unknown';
+  loading.classList.add('hidden');
+  if(auth)auth.classList.remove('hidden');
+  var status=document.getElementById('authStatus');
+  if(status){
+    status.textContent='My Namdar could not finish loading ('+phase+'). Refresh this page once. If it repeats, tell Namdar support this code: ACCOUNT-BOOT-'+phase.toUpperCase().replace(/[^A-Z0-9]+/g,'-');
+    status.classList.add('error');
+    status.classList.remove('success');
+  }
+},8000);
+</script>
 <section id="authSection" class="account-auth-grid hidden">
 <div><div class="eyebrow">Customer account</div><h1>Everything for your property in one place.</h1><p>Create your Namdar profile once. We reuse your verified address and contact details for future quotes, bookings, support and completed projects.</p></div>
 <div class="account-card">
@@ -52,4 +68,4 @@
 <dialog id="bookingChangeDialog" class="modal"><div class="modal-card wide"><button class="modal-close" data-booking-change-close type="button">×</button><div class="eyebrow">Manage appointment</div><h3>Change or cancel your booking</h3><div id="bookingChangeContext" class="crm-context"></div><div id="bookingChangePending" class="hidden"></div><div id="bookingChangeForm"><div class="booking-change-choice"><button id="showRescheduleChoice" class="ghost-btn active" type="button">Choose another slot</button><button id="showCancelChoice" class="ghost-btn" type="button">Request cancellation</button></div><section id="bookingReschedulePanel"><label>Available slot<select id="bookingChangeSlot"><option value="">Loading available slots…</option></select></label><small id="bookingChangeAvailability" class="lookup-status"></small></section><section id="bookingCancelPanel" class="hidden"><p class="muted">Your current appointment stays booked until Namdar approves the cancellation request.</p></section><label>Note for Namdar <span class="optional">(optional)</span><textarea id="bookingChangeReason" rows="4" maxlength="2000" placeholder="Access details, reason for the change, or anything the team should know."></textarea></label><button id="submitBookingChange" class="primary-btn full" type="button">Request this new slot</button><p id="bookingChangeStatus" role="status" aria-live="polite"></p></div></div></dialog>
 
 <footer><a class="brand" href="/"><span class="brand-mark">N</span><span>NAMDAR</span></a><p>Exterior cleaning · Handyman · 3D property services</p><div><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/cookies">Cookies</a></div></footer>
-<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script><script src="https://accounts.google.com/gsi/client" async defer></script><script src="/analytics-v2.js?v=6.4.50-analytics-v2-1"></script><script src="account.js?v=6.4.76-initial-session-event"></script></body></html>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script><script src="https://accounts.google.com/gsi/client" async defer></script><script src="/analytics-v2.js?v=6.4.50-analytics-v2-1"></script><script src="account.js?v=6.4.78-boot-watchdog"></script></body></html>
