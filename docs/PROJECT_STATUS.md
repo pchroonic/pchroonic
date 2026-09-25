@@ -120,12 +120,13 @@ PR #107 / `6.4.49-page-analytics-1`.
 - Receipt-created ledger entries may now use `source='receipt'`; manual/import/job-cost sources remain valid.
 - Fixes Add expense failure on reviewed Smart Receipts without weakening review or attachment safeguards.
 
-## Automatic foreign-currency expenses — CANDIDATE / PRODUCTION SCHEMA READY
-- Target `6.4.58-expense-fx-1`; migration `20260925125132_foreign_currency_expense_audit` is applied in production.
+## Automatic foreign-currency expenses — LIVE / ECB HARDENING CANDIDATE
+- Base `6.4.58-expense-fx-1`; ECB hardening target `6.4.61-ecb-fx-hardening-1`; migration `20260925125132_foreign_currency_expense_audit` is applied in production.
 - Manual and Smart Receipt expenses support automatic historical FX → GBP conversion.
 - Original currency/amount and reference rate/date/provider are preserved for audit.
 - Reviewer-entered actual GBP charge overrides the reference conversion without losing the FX trail.
-- Staff-only FX lookup uses Frankfurter historical rates with ECB preference and fallback.
+- Automatic reference metadata is re-verified server-side against the ECB provider at save time; browser FX metadata is not trusted.
+- Staff-only FX lookup is pinned to the ECB provider through Frankfurter; no blended-rate fallback is used for automatic accounting references.
 
 ## Smart Receipt extraction + Finance draft stability — CANDIDATE
 - Target `6.4.59-finance-receipt-stability-1`.

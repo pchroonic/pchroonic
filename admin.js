@@ -8,7 +8,7 @@
   const receiptV='6.4.45-payment-receipts-1';
   const inboxV='6.4.48-inbox-workflow-polish-fix-1';
   const analyticsV='6.4.57-analytics-load-lifecycle-1';
-  const financeFxV='6.4.59-finance-receipt-stability-1';
+  const financeFxV='6.4.61-ecb-fx-hardening-1';
   const financeReceiptV='6.4.59-finance-receipt-stability-1';
   const reportHubV='6.4.60-report-hub-1';
   document.write(`<link rel="stylesheet" href="/admin-inbox-safety.css?v=${v}">`);

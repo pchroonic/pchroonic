@@ -187,16 +187,18 @@ Migration `20260925122723_allow_receipt_expense_source` updates `business_expens
 
 Observed failure: `api/admin-finance-expenses.js` intentionally sets `row.source='receipt'` when a reviewed Smart Receipt is attached, but the older ledger constraint rejected that value. Production schema now matches the application model. The receipt remains review-first and no accounting entry is created until explicitly saved.
 
-# Automatic foreign-currency expenses — CANDIDATE / PRODUCTION SCHEMA READY
+# Automatic foreign-currency expenses — LIVE / ECB HARDENING CANDIDATE
 Target Admin assets `6.4.58-expense-fx-1`. Production migration `20260925125132_foreign_currency_expense_audit` is applied.
 
 Components:
-- `lib/fx-rates.js`: historical FX reference lookup, ECB-first via Frankfurter, seven-day prior-business-day fallback, money-safe two-decimal conversion.
+- `lib/fx-rates.js`: ECB-only historical reference lookup through Frankfurter's direct ECB provider route, explicit no-store/no-cache fetches, seven-day prior-working-day fallback, money-safe two-decimal conversion.
 - `api/admin-fx-rate.js`: staff/settings-protected USD/EUR/etc. → GBP conversion endpoint.
 - `api/admin-finance-receipts.js`: enriches detected foreign receipts with reference GBP amount/rate before draft storage.
 - `admin-business-finance.js`: original currency/amount controls, automatic conversion, override detection, FX audit display.
 - `admin-finance-receipts.js`: Smart Receipt integration and preservation of manual GBP overrides through rerenders.
 - `api/admin-finance-expenses.js`: persists `original_currency`, `original_amount`, `original_vat_amount`, `fx_rate`, `fx_rate_date`, `fx_provider`, `fx_reference_gbp`, and `fx_method`.
+
+Save integrity: `api/admin-finance-expenses.js` now re-fetches and verifies the ECB reference server-side before persisting automatic FX metadata, so browser-supplied rate/date/provider values are not trusted. If automatic ECB verification fails, an automatic-reference save is blocked; an explicitly entered actual/manual GBP amount may still be saved without pretending an unverified reference is authoritative.
 
 Accounting invariant: automatic FX is a reference amount, not an assertion of the card issuer's exact rate. If staff enter a different GBP amount (for example the actual card statement charge), the ledger stores that GBP amount as the expense and marks the FX method `actual_override` while preserving the historical reference conversion.
 

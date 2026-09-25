@@ -141,13 +141,14 @@ Google Review System PR #98 remains live, but its official Google review URL is 
 - The constraint now allows `receipt` as a first-class expense source, preserving accurate audit/source classification.
 - No expense was auto-created during the fix; the current Vercel receipt remains review-first until the owner clicks Add expense.
 
-## Automatic foreign-currency expenses — CANDIDATE / PRODUCTION SCHEMA READY
-- Target Admin assets: `6.4.58-expense-fx-1`.
+## Automatic foreign-currency expenses — LIVE / ECB HARDENING CANDIDATE
+- Existing FX base: `6.4.58-expense-fx-1`; hardening target: `6.4.61-ecb-fx-hardening-1`.
 - Production migration `20260925125132_foreign_currency_expense_audit` is applied and mirrored in the repo.
 - Business expenses can retain original currency/amount/VAT plus FX rate, rate date/provider, reference GBP value and whether the final GBP amount was the automatic reference or a reviewer override.
 - Staff expense form supports GBP, USD, EUR, CAD, AUD, NZD, CHF and JPY. Entering a foreign amount/date triggers historical GBP conversion through the staff-only `/api/admin-fx-rate` endpoint.
-- FX source: historical reference rate from Frankfurter, preferring ECB data and falling back to the Frankfurter reference blend / prior business days when needed. No API key is stored.
+- FX source is now pinned to the European Central Bank reference-rate provider through Frankfurter. No blended-rate fallback is permitted for automatic accounting references. The service fetches with no-store/no-cache semantics and can use an earlier ECB working-day rate for weekends, TARGET closing days, or before the current working day's ECB publication.
 - Smart Receipt foreign invoices are enriched server-side with the historical GBP reference amount; the reviewer can replace it with the actual card/bank GBP charge without losing the original rate audit trail.
+- Expense creation/update now re-verifies the ECB reference on the server before saving FX metadata; automatic conversions are not persisted if that verification fails.
 - Ledger rows show original foreign amount and whether GBP was an automatic reference conversion or actual/manual override.
 - HMRC guidance permits reputable exchange-rate sources and commonly accepts the actual sterling amount shown by a bank/card provider; actual card/bank charge therefore takes priority when the reviewer supplies it.
 
