@@ -41,6 +41,7 @@
   ],
   "rewrites": [
     { "source": "/sitemap.xml", "destination": "/api/sitemap" },
+    { "source": "/work", "destination": "/api/public-work-page" },
     { "source": "/work/:id", "destination": "/api/public-job-page?id=:id" }
   ]
 }
