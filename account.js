@@ -1,6 +1,6 @@
 (()=>{
   const v='6.4.35-payment-policy-engine-1';
-  const authV='6.4.69-auth-spinner-recovery-1';
+  const authV='6.4.71-auth-client-ready-1';
   const postJobV='6.4.42-post-job-experience-1';
   const fieldOpsV='6.4.41-staff-operations-v3-1';
   const receiptV='6.4.45-payment-receipts-1';
@@ -10,7 +10,7 @@
   document.write(`<script src="/account-auth-hotfix.js?v=${authV}"><\/script>`);
   document.write(`<script src="/account-original.js?v=${analyticsV}"><\/script>`);
   document.write(`<script src="/account-captcha-guard.js?v=${v}"><\/script>`);
-  document.write(`<script src="/account-mfa-guard.js?v=${v}"><\/script>`);
+  document.write(`<script src="/account-mfa-guard.js?v=6.4.71-auth-client-ready-1"><\/script>`);
   document.write(`<script src="/account-security-email.js?v=${v}"><\/script>`);
   document.write(`<script src="/account-service-availability.js?v=${v}"><\/script>`);
   document.write(`<script src="/account-payments.js?v=${receiptV}"><\/script>`);
