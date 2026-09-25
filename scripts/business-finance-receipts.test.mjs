@@ -54,3 +54,13 @@ test('admin loader and CSP keep receipt workflow dependencies',()=>{
   assert.match(vercel,/connect-src[^\n]*cdn\.jsdelivr\.net/);
   assert.match(vercel,/worker-src[^\n]*cdn\.jsdelivr\.net/);
 });
+
+
+test('receipt expense source is allowed by the production schema migration',()=>{
+  const migration=read('supabase/migrations/20260925122723_allow_receipt_expense_source.sql');
+  assert.match(migration,/business_expenses_source_check/);
+  assert.match(migration,/'receipt'::text/);
+  assert.match(migration,/'manual'::text/);
+  assert.match(migration,/'import'::text/);
+  assert.match(migration,/'job_cost_sync'::text/);
+});

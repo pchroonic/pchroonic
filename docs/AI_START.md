@@ -135,6 +135,12 @@ Google Review System PR #98 remains live, but its official Google review URL is 
 - A 15-second timeout and visible “Try again” state replace indefinite blank loading.
 - Loading placeholders make it clear when traffic/funnel data is still being fetched.
 
+## Receipt expense source constraint — PRODUCTION FIX APPLIED
+- Production migration `20260925122723_allow_receipt_expense_source` is applied.
+- Root cause: Smart Receipt correctly saved reviewed receipt expenses with `source='receipt'`, while `business_expenses_source_check` still allowed only `manual`, `import`, and `job_cost_sync`.
+- The constraint now allows `receipt` as a first-class expense source, preserving accurate audit/source classification.
+- No expense was auto-created during the fix; the current Vercel receipt remains review-first until the owner clicks Add expense.
+
 ## Open items
 - Use the first genuine payment for authenticated receipt/email/My Namdar verification; do not manufacture a production payment.
 - Configure the real Google Business Profile review-request URL later.
