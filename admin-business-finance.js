@@ -13,14 +13,16 @@
   const currencyMoney=(amount,currency='GBP')=>{try{return Number(amount||0).toLocaleString('en-GB',{style:'currency',currency:String(currency||'GBP').toUpperCase(),minimumFractionDigits:2,maximumFractionDigits:2})}catch{return `${Number(amount||0).toFixed(2)} ${currency}`}};
   function fxPayload(){
     const val=id=>document.getElementById(id)?.value||null;
+    const currency=val('expenseCurrency'),amount=document.getElementById('expenseAmount');
     return{
-      originalCurrency:val('expenseCurrency'),
+      originalCurrency:currency,
       originalAmount:val('expenseOriginalAmount'),
       originalVatAmount:val('expenseOriginalVat'),
       fxRate:val('expenseFxRate'),
       fxRateDate:val('expenseFxRateDate'),
       fxProvider:val('expenseFxProvider'),
-      fxReferenceGbp:val('expenseFxReferenceGbp')
+      fxReferenceGbp:val('expenseFxReferenceGbp'),
+      fxMethod:currency&&currency!=='GBP'?(amount?.dataset.fxManual==='1'?'actual_override':'auto_reference'):null
     };
   }
   function clearFxMeta(){
