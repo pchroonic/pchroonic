@@ -68,12 +68,17 @@
   renderState=async function(session){
     if(!session)return originalRenderState(session);
     if(!challengePromise)challengePromise=requireSecondFactor(session).finally(()=>{challengePromise=null});
-    try{return await originalRenderState(await challengePromise)}catch(error){
+    let verifiedSession;
+    try{
+      verifiedSession=await challengePromise;
+    }catch(error){
       if(error?.message==='Signed out.')return originalRenderState(null);
       document.querySelector('#accountSessionLoading')?.classList.add('hidden');
       document.querySelector('#portalSection')?.classList.add('hidden');
       document.querySelector('#authSection')?.classList.remove('hidden');
       if(typeof setAuthStatus==='function')setAuthStatus(`Two-step verification could not be completed: ${error.message}`,'error');
+      return;
     }
+    return originalRenderState(verifiedSession);
   };
 })();
