@@ -182,6 +182,11 @@ Target `6.4.57-analytics-load-lifecycle-1`.
 
 Production runtime logs showed authenticated `GET /api/admin-page-analytics` calls returning HTTP 200 while the Admin Analytics v2 shell could remain at “Loading…”. The fix decouples Analytics v2 from a single page-initialization timing path: it binds explicit reloads to the Reporting tab, range selector and Refresh control, polls briefly for the secure admin session after boot, and provides a 15-second timeout with a retry UI. Existing analytics calculations/API remain unchanged.
 
+# Receipt expense source constraint — PRODUCTION FIX APPLIED
+Migration `20260925122723_allow_receipt_expense_source` updates `business_expenses_source_check` to allow `receipt` alongside `manual`, `import`, and `job_cost_sync`.
+
+Observed failure: `api/admin-finance-expenses.js` intentionally sets `row.source='receipt'` when a reviewed Smart Receipt is attached, but the older ledger constraint rejected that value. Production schema now matches the application model. The receipt remains review-first and no accounting entry is created until explicitly saved.
+
 # Other live layers
 Google Review System PR #98 remains live but the official Google Business review URL is still unconfigured/off. Post-job Customer Experience PR #96 and Staff operations v3 PR #94 remain live.
 
