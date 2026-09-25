@@ -1,3 +1,7 @@
+# Namdar v6.4.77 — Homepage auth lock fix
+
+The public homepage no longer re-enters `sb.auth.getSession()` from inside `onAuthStateChange`. The auth callback now receives the Supabase session directly and defers profile/UI refresh to the next tick, while the initial homepage load still performs one normal session read outside the callback. This removes a cross-tab auth lock pattern that could let the homepage show “My account” while a second `/account` tab remained stuck on “Restoring your secure session.” The homepage loader is cache-busted and regression coverage requires the callback to remain free of `getSession()` re-entry. No database or environment change.
+
 # Namdar v6.4.76 — Non-blocking My Namdar auth bootstrap
 
 My Namdar no longer blocks the entire page on an initial `await sb.auth.getSession()`. Startup now resolves the first browser session from Supabase's `INITIAL_SESSION` auth event, and later auth changes are rendered on the next tick instead of doing database/portal work directly inside `onAuthStateChange`. This avoids the cross-tab/session-lock deadlock pattern that could leave signed-in customers stuck on “Restoring your secure session.” The initial wait is bounded at 5 seconds and regression tests require both non-blocking startup and deferred auth rendering. No database or environment change.
