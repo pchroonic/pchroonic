@@ -12,6 +12,9 @@ test('smart receipt API is staff protected and review-first',()=>{
   assert.match(api,/status:'review'/);
   assert.match(api,/sha256/);
   assert.match(api,/duplicateExpenses/);
+  assert.match(api,/dbSafeText/);
+  assert.match(api,/existing\?\.status==='error'/);
+  assert.match(api,/retry:true/);
 });
 
 test('expense save attaches receipt and learns reviewed merchant choices',()=>{
@@ -31,12 +34,16 @@ test('browser receipt reader keeps OCR local and requires review before save',()
   assert.match(ui,/Review every suggested field/);
   assert.match(ui,/possible duplicate/i);
   assert.match(ui,/finance-receipts/);
+  assert.match(ui,/upsert:prep\.retry===true/);
+  assert.match(ui,/Foreign-currency invoice detected/);
+  assert.match(ui,/actual GBP amount/);
 });
 
 test('admin loader and CSP keep receipt workflow dependencies',()=>{
   const loader=read('admin.js'),vercel=read('vercel.json');
   assert.match(loader,/6\.4\.37-admin-website-crash-fix-1/);
   assert.match(loader,/admin-finance-receipts\.js/);
+  assert.match(loader,/6\.4\.52-receipt-unicode-currency-1/);
   assert.match(vercel,/connect-src[^\n]*cdn\.jsdelivr\.net/);
   assert.match(vercel,/worker-src[^\n]*cdn\.jsdelivr\.net/);
 });

@@ -91,6 +91,16 @@ Google Review System PR #98 remains live, but its official Google review URL is 
 - Older page-view rows remain valid but have no v2 session/campaign fields; session, funnel and attribution metrics become meaningful from the v2 release onward.
 - PR #109 launched Analytics v2; PR #110 corrected attributed-revenue reporting. Production deployment `dpl_5ejdx52DnrLFJzctMhpJe88iGc7q` is READY on `namdar.co.uk`.
 
+## Smart receipt Vercel PDF fix — CANDIDATE
+- Target Admin asset: `6.4.52-receipt-unicode-currency-1`.
+- Reproduced with the real Vercel invoice `Invoice-YYVCYYP4-0004.pdf`: extracted PDF text contains seven NUL characters, which PostgreSQL rejects as an unsupported Unicode escape sequence.
+- New `lib/db-safe-text.js` repairs NUL/control/lone-surrogate text before receipt intelligence or database storage. Between alphanumeric characters, a NUL is reconstructed as a hyphen where practical.
+- Failed receipt rows can be retried with the same selected file; the private storage object is safely upserted because Finance staff already have INSERT/SELECT/UPDATE storage policies.
+- Vercel/hosting/domain suppliers are recognised as Software.
+- Month-first dates such as `September 24, 2026` are parsed.
+- Foreign-currency invoices are never silently treated as GBP. The source currency/amount/VAT are shown, while GBP amount/VAT are left for the reviewer to enter from the actual card/bank charge.
+- Production receipt record for `Invoice-YYVCYYP4-0004.pdf` is currently status `error`, unattached to any expense, ready for retry after release.
+
 ## Open items
 - Use the first genuine payment for authenticated receipt/email/My Namdar verification; do not manufacture a production payment.
 - Configure the real Google Business Profile review-request URL later.
