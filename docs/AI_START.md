@@ -6,7 +6,7 @@ Read this first. Use `docs/AI_HANDOFF.md` for implementation detail and `docs/PR
 
 ## Production source of truth
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current production main merge: `ef9ff366a0b956ab96776a11faa8203fba12bda5` (PR #110 Analytics v2 attributed-revenue accuracy fix). Payment Receipt Tracking PR #102 remains live beneath it.
+- Current production main merge: `44d4d06add1666234560ccbddc3b30be7cbd99a0` (PR #113 flattened PDF receipt parsing fix). Payment Receipt Tracking PR #102 remains live beneath it.
 - Customer base loader remains `6.4.35-payment-policy-engine-1`; post-job extension `6.4.42-post-job-experience-1`; Staff operations/ETA `6.4.41-staff-operations-v3-1`.
 - Admin base remains `6.4.37-admin-website-crash-fix-1`; Google Review System `6.4.43-google-reviews-1`; Stripe readiness `6.4.44-stripe-live-readiness-1`; payment receipts `6.4.45-payment-receipts-1`.
 - Supabase production project: `qjigldxjcpnrlyxgmlqq`.
@@ -101,12 +101,13 @@ Google Review System PR #98 remains live, but its official Google review URL is 
 - Foreign-currency invoices are never silently treated as GBP. The source currency/amount/VAT are shown, while GBP amount/VAT are left for the reviewer to enter from the actual card/bank charge.
 - Production receipt record for `Invoice-YYVCYYP4-0004.pdf` is currently status `error`, unattached to any expense, ready for retry after release.
 
-## Smart receipt flattened-PDF fix — CANDIDATE
-- Target Admin asset: `6.4.53-receipt-pdf-layout-1`.
+## Smart receipt flattened-PDF fix — LIVE
+- Live Admin asset: `6.4.53-receipt-pdf-layout-1`.
 - Real production retry proved PDF.js can flatten the Vercel invoice page into one long text line, which caused supplier/date/VAT misreads even though the Unicode crash was fixed.
 - Browser PDF extraction now preserves PDF.js `hasEOL` line endings when available.
 - Server parser is hardened for flattened PDFs: legal-entity supplier fallback, explicit labelled invoice-date priority, specific amount-due parsing and Standard Rate VAT parsing.
-- Exact flattened Vercel regression must resolve to Vercel Inc., 2026-09-24, USD 24.00 total and USD 4.00 VAT.
+- Exact flattened Vercel regression resolves to Vercel Inc., 2026-09-24, USD 24.00 total and USD 4.00 VAT.
+- Production deployment `dpl_CQFiX2Dft2nc2KYYt9d6wysfdMXc` is READY and aliased to `namdar.co.uk`; live health remains HTTP 200 / `ok:true`.
 
 ## Open items
 - Use the first genuine payment for authenticated receipt/email/My Namdar verification; do not manufacture a production payment.

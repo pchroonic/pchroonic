@@ -4,11 +4,11 @@ Last updated: 2026-09-25 UTC
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current production main merge `ef9ff366a0b956ab96776a11faa8203fba12bda5` (PR #110 Analytics v2 attributed-revenue accuracy fix). PR #102 Payment Receipt Tracking remains live.
+- Current production main merge `44d4d06add1666234560ccbddc3b30be7cbd99a0` (PR #113 flattened PDF receipt parsing fix). PR #102 Payment Receipt Tracking remains live.
 - Customer base loader `6.4.35-payment-policy-engine-1`; post-job extension `6.4.42-post-job-experience-1`; Staff operations/ETA `6.4.41-staff-operations-v3-1`.
 - Admin base `6.4.37-admin-website-crash-fix-1`; Google Review System `6.4.43-google-reviews-1`; Stripe readiness `6.4.44-stripe-live-readiness-1`; Payment Receipt Tracking `6.4.45-payment-receipts-1`.
 - Supabase production `qjigldxjcpnrlyxgmlqq`.
-- Vercel team is on Pro. Production deployment `dpl_5ejdx52DnrLFJzctMhpJe88iGc7q` is READY and aliased to `namdar.co.uk`; health HTTP 200 / `ok:true` at `2026-09-25T00:01:42.762Z`.
+- Vercel team is on Pro. Production deployment `dpl_CQFiX2Dft2nc2KYYt9d6wysfdMXc` is READY and aliased to `namdar.co.uk`; health HTTP 200 / `ok:true` at `2026-09-25T11:34:31.279Z`.
 - Hourly booking-notification cron (`7 * * * *`) is restored.
 - Window Cleaning only live.
 - Privileged Staff/Admin requires CAPTCHA + AAL2/TOTP MFA.
@@ -89,10 +89,10 @@ PR #107 / `6.4.49-page-analytics-1`.
 - Server sanitization, same-file retry, Vercel→Software recognition, month-first date parsing, and foreign-currency GBP safety are implemented.
 - Existing Vercel receipt remains unattached and status `error` until the owner retries it after release.
 
-## Smart receipt flattened-PDF fix — CANDIDATE
-- Target `6.4.53-receipt-pdf-layout-1`.
+## Smart receipt flattened-PDF fix — LIVE
+- Live `6.4.53-receipt-pdf-layout-1`.
 - Preserves PDF line endings and hardens supplier/date/total/VAT parsing when PDF.js flattens a page.
-- Exact Vercel flat-text regression expects supplier Vercel Inc., date 2026-09-24, USD 24.00 total, USD 4.00 VAT.
+- Exact Vercel flat-text regression passes with supplier Vercel Inc., date 2026-09-24, USD 24.00 total and USD 4.00 VAT.
 
 ## Google Review System — LIVE
 PR #98 / `6.4.43-google-reviews-1` remains live. Owner-controlled fair review requests, one-time reminders, tracked clicks and 30/90/365-day reporting are available, but the official Google Business review URL remains intentionally unconfigured/off.

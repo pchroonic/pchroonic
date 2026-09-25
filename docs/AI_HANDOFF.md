@@ -6,13 +6,13 @@ Read `docs/AI_START.md` first. Use `docs/PROJECT_STATUS.md` for roadmap/status.
 
 ## Production baseline
 - Repo `pchroonic/pchroonic`, default `main`.
-- Current production main merge `ef9ff366a0b956ab96776a11faa8203fba12bda5` from PR #110. PR #102 Payment Receipt Tracking remains live below it.
+- Current production main merge `44d4d06add1666234560ccbddc3b30be7cbd99a0` from PR #113. PR #102 Payment Receipt Tracking remains live below it.
 - Customer base loader `6.4.35-payment-policy-engine-1`; Post-job Customer Experience `6.4.42-post-job-experience-1`; Staff operations/ETA `6.4.41-staff-operations-v3-1`.
 - Admin base `6.4.37-admin-website-crash-fix-1`; Google Reviews `6.4.43-google-reviews-1`; Stripe readiness `6.4.44-stripe-live-readiness-1`; payment receipts `6.4.45-payment-receipts-1`.
 - Supabase production `qjigldxjcpnrlyxgmlqq`.
 - Vercel project `prj_4fILo0pCaLGUSUIMWrBIVGzeWVDC`; team `team_8Az8WtWcnfwtYRdhR8vGqC3L`.
-- Vercel team is on Pro. Production deployment `dpl_5ejdx52DnrLFJzctMhpJe88iGc7q` is READY on `namdar.co.uk`.
-- Health HTTP 200 / `ok:true` at `2026-09-25T00:01:42.762Z`.
+- Vercel team is on Pro. Production deployment `dpl_CQFiX2Dft2nc2KYYt9d6wysfdMXc` is READY on `namdar.co.uk`.
+- Health HTTP 200 / `ok:true` at `2026-09-25T11:34:31.279Z`.
 - Hourly booking-notification cron (`7 * * * *`) is restored.
 - Window Cleaning only live. Provider AI OFF. Privileged access requires CAPTCHA + AAL2/TOTP.
 - Customer Stripe is ACTIVE for new Window Cleaning bookings. Production `site_settings.payments` revision 1 is `deposit_required`: flat 20%, minimum £0.50, full payment allowed, balance due at completion.
@@ -152,8 +152,8 @@ Receipt intelligence improvements:
 
 The existing production Vercel receipt row is status `error` and has no `expense_id`, so release does not mutate accounting data automatically.
 
-# Smart receipt flattened-PDF fix — CANDIDATE
-Target asset `6.4.53-receipt-pdf-layout-1`.
+# Smart receipt flattened-PDF fix — LIVE
+Live asset `6.4.53-receipt-pdf-layout-1`.
 
 After PR #112 removed the PostgreSQL/NUL crash, the real Vercel retry exposed a second issue: PDF.js flattened the page into one long line, so line-oriented receipt heuristics returned blank supplier, a subscription-range-derived date and zero VAT.
 
