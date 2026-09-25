@@ -245,6 +245,8 @@ Production: PR #127 is live on deployment dpl_C3gf98ZruxSBfckd9uSiuEmz1xMJ. The 
 # Other live layers
 Google Review System PR #98 remains live but the official Google Business review URL is still unconfigured/off. Post-job Customer Experience PR #96 and Staff operations v3 PR #94 remain live.
 
+Live local-SEO coverage source: production `service_areas` currently contains the five administrative areas Lewisham, Southwark, Lambeth, Wandsworth and Greenwich. Homepage/service/London/South London structured data and copy must stay aligned to those actual boroughs; the postcode checker remains authoritative for each property. Avoid creating thin doorway pages for every borough/postcode without substantive local content.
+
 Rendered-home SEO invariant: Google can render JavaScript, so conversion.js must not overwrite the initial local SEO title/description/H1 with older generic London copy. Initial HTML hides future-service cards/radios and the 3D nav/section; applyServiceAvailability may unhide a service only when its catalog status becomes live, coming_soon or paused.
 
 ## Next steps

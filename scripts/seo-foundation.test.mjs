@@ -19,9 +19,8 @@ test('live Window Cleaning service has local schema and internal area links',()=
   assert.match(html,/<title>Exterior Window Cleaning in London \| Namdar<\/title>/);
   assert.match(html,/<h1>Exterior Window Cleaning in London<\/h1>/);
   assert.match(html,/BreadcrumbList/);
-  assert.match(html,/"South London"/);
-  assert.match(html,/"Lewisham"/);
-  assert.match(html,/Window Cleaning in South London/);
+  for(const borough of ['Lewisham','Southwark','Lambeth','Wandsworth','Greenwich']) assert.match(html,new RegExp(`\"name\":\"${borough}\"`));
+  assert.match(html,/South London coverage/);
   assert.match(html,/Window Cleaning in Lewisham/);
 });
 
@@ -69,6 +68,17 @@ test('rendered homepage keeps local SEO and future services hidden until launch'
   assert.match(html,/<article class="service-card" hidden><div class="service-icon">⌁/);
   assert.match(html,/<label hidden><input disabled name="service" type="radio" value="gutters"/);
   assert.match(runtime,/document\.title='Window Cleaning in South London & Lewisham \| Namdar'/);
-  assert.match(runtime,/Book exterior window cleaning in South London and Lewisham/);
+  assert.match(runtime,/Book exterior window cleaning across Lewisham, Southwark, Lambeth, Wandsworth and Greenwich/);
   assert.doesNotMatch(runtime,/Namdar \| Window Cleaning in London — Quote Online/);
+});
+
+test('SEO uses the production borough coverage without creating doorway pages',()=>{
+  const home=read('index.html'),south=read('areas/south-london.html'),london=read('areas/london.html');
+  for(const borough of ['Lewisham','Southwark','Lambeth','Wandsworth','Greenwich']){
+    assert.match(home,new RegExp(borough));
+    assert.match(south,new RegExp(borough));
+    assert.match(london,new RegExp(borough));
+  }
+  assert.doesNotMatch(home,/Window Cleaning in Southwark<\/a>/);
+  assert.doesNotMatch(home,/Window Cleaning in Lambeth<\/a>/);
 });
