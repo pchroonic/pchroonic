@@ -189,6 +189,7 @@
     }
   }
   function bindAnalyticsLifecycle(){
+    if(!window.__NAMDAR_ANALYTICS_REPORT_VIEW_BOUND__){window.__NAMDAR_ANALYTICS_REPORT_VIEW_BOUND__=true;window.addEventListener('namdar:report-view',e=>{if(e.detail?.report==='website')loadWebsiteAnalytics({force:true})})}
     const tab=document.querySelector('[data-tab="reports"]');
     if(tab&&!tab.dataset.analyticsV2Bound){tab.dataset.analyticsV2Bound='1';tab.addEventListener('click',()=>setTimeout(()=>loadWebsiteAnalytics({force:true}),0))}
     const range=$('#reportRange');

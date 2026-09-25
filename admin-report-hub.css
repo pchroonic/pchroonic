@@ -1,0 +1,28 @@
+.report-hub-header{position:relative}
+.report-breadcrumb{display:flex;align-items:center;gap:8px;margin-bottom:7px;font-size:12px;color:#66736e}
+.report-breadcrumb button{padding:0;border:0;background:transparent;color:inherit;font:inherit;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.report-breadcrumb span{opacity:.55}
+.report-hub-back{white-space:nowrap}
+.report-hub-home{display:grid;gap:18px}
+.report-hub-intro{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:20px 22px;border:1px solid #dde6e1;border-radius:18px;background:#fff}
+.report-hub-intro h2{margin:4px 0 6px;font-size:22px}
+.report-hub-intro p{margin:0;max-width:760px;color:#65716c;line-height:1.55}
+.report-hub-count{flex:0 0 auto;padding:7px 11px;border-radius:999px;background:#f0f4f1;font-size:12px;font-weight:800;color:#41524b}
+.report-hub-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.report-hub-card{appearance:none;display:grid;grid-template-columns:44px 1fr;grid-template-rows:1fr auto;gap:13px 14px;min-height:190px;padding:18px;text-align:left;border:1px solid #dce5e0;border-radius:18px;background:#fff;color:inherit;cursor:pointer;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease}
+.report-hub-card:hover,.report-hub-card:focus-visible{transform:translateY(-2px);border-color:#aebdb5;box-shadow:0 10px 30px rgba(24,49,39,.08);outline:none}
+.report-hub-mark{display:grid;place-items:center;width:44px;height:44px;border-radius:13px;background:#edf3ef;font-size:12px;font-weight:900;letter-spacing:.03em;color:#173d31}
+.report-hub-copy{display:grid;align-content:start;gap:5px;min-width:0}
+.report-hub-copy small{text-transform:uppercase;letter-spacing:.065em;font-size:10px;font-weight:800;color:#77827d}
+.report-hub-copy strong{font-size:17px;line-height:1.25}
+.report-hub-copy>span{font-size:12px;line-height:1.5;color:#66716d}
+.report-hub-open{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;padding-top:12px;border-top:1px solid #edf1ef;font-size:12px;font-weight:800}
+.report-hub-open b{font-size:17px}
+.report-pages{min-width:0}
+.report-subpage{min-width:0}
+.report-subpage-content{display:grid;gap:16px;min-width:0}
+.report-subpage-content>.admin-panel,.report-subpage-content>.report-stat-grid{margin:0}
+.report-subpage-content>#businessFinancePanel,.report-subpage-content>#websiteAnalyticsPanel,.report-subpage-content>#windowPerformancePanel{width:100%}
+.report-hub-header .report-actions[hidden],.report-hub-header label[hidden],.report-hub-header button[hidden],#reportGenerated[hidden]{display:none!important}
+@media(max-width:1180px){.report-hub-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:720px){.report-hub-grid{grid-template-columns:1fr}.report-hub-intro{flex-direction:column}.report-hub-card{min-height:165px}.report-hub-header .panel-head{align-items:flex-start;flex-direction:column}.report-hub-header .report-actions{width:100%;flex-wrap:wrap}}

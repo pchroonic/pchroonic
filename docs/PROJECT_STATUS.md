@@ -135,6 +135,14 @@ PR #107 / `6.4.49-page-analytics-1`.
 - Paid invoices with no explicit payment date show a confirmation warning.
 - Review drafts include Re-read so stored receipt text can be reparsed after parser improvements without another file upload; attached expense receipts are immutable to this action.
 
+## Reporting hub + focused report pages — CANDIDATE
+- Target `6.4.60-report-hub-1`.
+- Reporting now opens a report-centre hub instead of exposing every section in one long page.
+- Nine focused routes: overview, revenue/payments, quotes/conversion, services, staff, feedback, website analytics, Window Cleaning performance and Business Finance.
+- Each report has a stable `?tab=reports&report=...` URL and browser Back support.
+- Existing reporting calculations and live panels are reused, not duplicated.
+- Shared period/refresh/export controls are shown only where relevant.
+
 ## Google Review System — LIVE
 PR #98 / `6.4.43-google-reviews-1` remains live. Owner-controlled fair review requests, one-time reminders, tracked clicks and 30/90/365-day reporting are available, but the official Google Business review URL remains intentionally unconfigured/off.
 

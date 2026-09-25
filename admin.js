@@ -10,8 +10,10 @@
   const analyticsV='6.4.57-analytics-load-lifecycle-1';
   const financeFxV='6.4.59-finance-receipt-stability-1';
   const financeReceiptV='6.4.59-finance-receipt-stability-1';
+  const reportHubV='6.4.60-report-hub-1';
   document.write(`<link rel="stylesheet" href="/admin-inbox-safety.css?v=${v}">`);
   document.write(`<link rel="stylesheet" href="/admin-page-analytics.css?v=${analyticsV}">`);
+  document.write(`<link rel="stylesheet" href="/admin-report-hub.css?v=${reportHubV}">`);
   document.write(`<link rel="stylesheet" href="/admin-modal-layout.css?v=${modalLayoutV}">`);
   document.write(`<link rel="stylesheet" href="/admin-field-incidents.css?v=${fieldOpsV}">`);
   document.write(`<link rel="stylesheet" href="/admin-review-dashboard.css?v=${reviewV}">`);
@@ -37,4 +39,5 @@
   document.write(`<script src="/admin-system-health.js?v=${v}"><\/script>`);
   document.write(`<script src="/admin-newsletter-center.js?v=${v}"><\/script>`);
   document.write(`<script src="/admin-privacy-center.js?v=${v}"><\/script>`);
+  document.write(`<script src="/admin-report-hub.js?v=${reportHubV}"><\/script>`);
 })();
