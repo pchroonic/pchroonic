@@ -3,7 +3,7 @@
 ## CURRENT CHECKPOINT — 26 Sep 2026
 
 ### Production
-- GitHub main: `534f3d48256b2a79e03a481f4ef9a5afdfad4932` (PR #165).
+- GitHub main: `64f172d79321cd78db0c0bc8ace972a4d82931a2` (PR #167).
 - Latest production Vercel deployment is READY on `namdar.co.uk`.
 - PR #162 browser GetAddress domain-token lookup is live.
 - PR #163 admin-only GetAddress subscription/usage diagnostic is live.
@@ -49,13 +49,14 @@ Any replacement provider should support:
 API credentials were visible in screenshots during troubleshooting. Any exposed GetAddress API/domain/admin credentials should be treated as compromised and rotated. Do not paste replacement secrets into chat; store them only in provider/Vercel secret controls.
 
 
-## Accepted quote appointment modal layout — CANDIDATE
+## Accepted quote appointment modal layout — LIVE
 - Fixes the My Namdar accepted-quote appointment dialog overflowing horizontally because the base dialog was capped at 520px while its `.wide` card could be about 940px.
 - Gives the quote-scheduling and booking-change dialogs a viewport-safe 820px desktop width, 16px mobile gutters, full-width inner cards and no horizontal overflow.
 - Keeps the existing appointment, cancellation, statutory-rights and payment-policy logic unchanged.
 - Account stylesheet cache-busted to `6.4.90-booking-modal-layout-1` and regression coverage added to `scripts/booking-cancellation-policy.test.mjs`.
 - No database migration or environment-variable change.
-- Not deployed until this candidate is merged and production is verified.
+- PR #167 merged at `64f172d79321cd78db0c0bc8ace972a4d82931a2`; production deployment `dpl_D2AwJVcDtTiir9FpsvozW7zXWQns` is READY and aliased to `namdar.co.uk`.
+- Release checks: AI handoff/JavaScript, Google Review compatibility and Post-job compatibility all passed; live `/account` serves `styles.css?v=6.4.90-booking-modal-layout-1`; live CSS contains the scoped 820px booking-dialog rule and full-width inner-card rule; `/api/health` returned HTTP 200 / `ok:true`.
 
 
 ## Compact My Namdar notifications — LIVE
