@@ -7,6 +7,7 @@ const require=createRequire(import.meta.url);
 const {normalizePaymentPolicy,providerReadiness,checkoutPlan,headlinePriceWithAllowance}=require('../lib/payment-policy.js');
 const {checkoutIdempotencyKey,verifyStripeSignature,processorDetailsFromBalanceTransaction,readRawBody}=require('../lib/stripe-payments.js');
 const {receiptNumber}=require('../lib/payment-receipts.js');
+const {buildInvoicePdf}=require('../lib/invoice-pdf.js');
 const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
 
 test('payment policy is safely disabled by default and needs both provider secrets',()=>{
@@ -61,6 +62,20 @@ test('Checkout creation is Window-only, live-policy-gated, frozen-policy-aware a
   const api=read('api/create-checkout.js'),key=checkoutIdempotencyKey({invoiceId:'invoice-private-id',net:0,outstanding:100,kind:'deposit',amount:20});
   assert.match(api,/loadPaymentPolicy/);assert.match(api,/!livePolicy\.ready/);assert.match(api,/!livePolicy\.effectiveActive/);assert.match(api,/paymentPolicyFromSnapshot/);assert.match(api,/quote\.service_key!=='windows'/);assert.match(api,/checkoutIdempotencyKey/);assert.match(api,/createCheckoutSession/);
   assert.ok(key.startsWith('namdar_checkout_'));assert.equal(key.includes('invoice-private-id'),false);
+});
+
+test('payment receipt email attaches the same customer invoice PDF available in My Namdar',()=>{
+  const webhook=read('api/stripe-webhook.js'),mailer=read('lib/server-original.js'),route=read('api/billing-document.js');
+  const doc=buildInvoicePdf({invoice:{invoice_number:'NMD-TEST-1',status:'part_paid',total:100,amount_paid:20,issued_at:'2026-09-26T12:00:00Z',due_at:'2026-09-30T12:00:00Z'},booking:{address:'1 Test Street, London',starts_at:'2026-09-30T08:00:00Z'},quote:{customer_name:'Test Customer',email:'test@example.com',service_key:'windows'},payments:[{id:'12345678-9abc-def0-1234-56789abcdef0',direction:'payment',method:'stripe',amount:20,paid_at:'2026-09-26T12:30:00Z'}]});
+  assert.equal(doc.filename,'Namdar-invoice-NMD-TEST-1.pdf');
+  assert.equal(doc.pdf.subarray(0,8).toString('latin1'),'%PDF-1.4');
+  assert.match(route,/buildInvoicePdf/);
+  assert.match(webhook,/buildInvoicePdf/);
+  assert.match(webhook,/attachments=\[\{filename:doc\.filename,content:doc\.pdf,contentType:'application\/pdf'\}\]/);
+  assert.match(webhook,/updated invoice PDF is attached to this email/i);
+  assert.match(mailer,/attachments=null/);
+  assert.match(mailer,/Buffer\.isBuffer\(a\?\.content\)\?a\.content\.toString\('base64'\)/);
+  assert.match(mailer,/item\.content_type/);
 });
 
 test('verified webhook is authoritative, idempotent and records actual processor cost plus Stripe environment',()=>{

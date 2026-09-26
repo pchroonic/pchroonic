@@ -49,6 +49,17 @@ Any replacement provider should support:
 API credentials were visible in screenshots during troubleshooting. Any exposed GetAddress API/domain/admin credentials should be treated as compromised and rotated. Do not paste replacement secrets into chat; store them only in provider/Vercel secret controls.
 
 
+## Invoice PDF attached to payment email — CANDIDATE
+- After a verified Stripe payment is recorded, Namdar now generates the customer's updated invoice PDF and attaches it directly to the payment receipt email.
+- The attachment uses the same shared invoice-PDF generator as the My Namdar Billing download so emailed and portal invoices stay consistent.
+- Resend attachments are sent as base64 PDF content with an explicit `application/pdf` content type.
+- If PDF generation fails, payment recording and the receipt email still continue, with My Namdar kept as the fallback download path.
+- The attached invoice reflects the post-payment state (for example part paid, paid amount and outstanding balance).
+- Changes: `lib/invoice-pdf.js`, `api/billing-document.js`, `api/stripe-webhook.js`, `lib/server-original.js`, and `scripts/stripe-payments.test.mjs`.
+- No database migration or environment-variable change.
+- Not deployed until this candidate is merged and production is verified.
+
+
 ## Required booking payment handoff — LIVE
 - Fixes the accepted-quote flow where a required-payment booking could be created as unpaid and then land in My Bookings without opening Stripe.
 - After a booking is created, any required initial payment greater than £0 immediately opens a secure Stripe Checkout session.

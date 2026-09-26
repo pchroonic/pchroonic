@@ -1,14 +1,15 @@
 const {json,db,env,syncInvoicePaymentState,createStaffNotification,sendEmail,escapeHtml,cancelPendingBusinessNotifications,safeError}=require('../lib/server');
 const {verifyStripeSignature,readRawBody,retrievePaymentIntent,retrievePaymentProcessorDetails,retrieveRefundProcessorDetails}=require('../lib/stripe-payments');
 const {receiptNumber}=require('../lib/payment-receipts');
+const {buildInvoicePdf}=require('../lib/invoice-pdf');
 
 async function contextFromMetadata(meta={}){
   const bookingId=String(meta.booking_id||''),invoiceId=String(meta.invoice_id||''),customerId=String(meta.customer_id||'');
   if(!bookingId||!invoiceId)return null;
-  const booking=(await db(`bookings?id=eq.${encodeURIComponent(bookingId)}&select=id,quote_id,customer_id,status,payment_status&limit=1`))?.[0];
+  const booking=(await db(`bookings?id=eq.${encodeURIComponent(bookingId)}&select=id,quote_id,customer_id,status,payment_status,starts_at,address&limit=1`))?.[0];
   const invoice=(await db(`invoices?id=eq.${encodeURIComponent(invoiceId)}&select=*&limit=1`))?.[0];
   if(!booking||!invoice||invoice.booking_id!==booking.id||String(invoice.customer_id||booking.customer_id||'')!==customerId)return null;
-  const quote=booking.quote_id?(await db(`quotes?id=eq.${encodeURIComponent(booking.quote_id)}&select=id,customer_id,customer_name,email,service_key&limit=1`))?.[0]:null;
+  const quote=booking.quote_id?(await db(`quotes?id=eq.${encodeURIComponent(booking.quote_id)}&select=id,customer_id,customer_name,email,service_key,postcode&limit=1`))?.[0]:null;
   if(!quote||quote.service_key!=='windows'||String(quote.customer_id||'')!==customerId)return null;
   return{booking,invoice,quote};
 }
@@ -28,7 +29,16 @@ async function attachProcessorDetails(providerReference,paymentIntentId,loader){
 async function notifyPayment(ctx,payment,state){
   const amount=Number(payment?.amount||0),receiptNo=receiptNumber(payment),kind=String(payment?.payment_kind||'payment').replaceAll('_',' '),providerReference=String(payment?.provider_reference||'');
   await createStaffNotification({type:'payment_received',title:'Stripe payment received',body:`${ctx.quote.customer_name||ctx.quote.email||'Customer'} · £${amount.toFixed(2)} · ${receiptNo}`,targetPath:'/admin?tab=payments',permissionKey:'payments',entityType:'invoice',entityId:ctx.invoice.id,priority:ctx.booking.status==='cancelled'?'high':'normal',dedupeKey:`stripe-payment:${providerReference}`});
-  if(ctx.quote.email)await sendEmail({to:ctx.quote.email,subject:`Namdar payment receipt ${receiptNo}`,html:`<p>Hi ${escapeHtml(ctx.quote.customer_name||'there')},</p><p>Thank you. We received your secure Stripe payment.</p><p><strong>Receipt number:</strong> ${escapeHtml(receiptNo)}<br><strong>Invoice:</strong> ${escapeHtml(ctx.invoice.invoice_number||'')}<br><strong>Amount:</strong> £${amount.toFixed(2)}<br><strong>Payment type:</strong> ${escapeHtml(kind)}<br><strong>Payment method:</strong> Stripe<br><strong>Date:</strong> ${escapeHtml(new Date(payment.paid_at||Date.now()).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}))}</p><p><strong>Total paid on invoice:</strong> £${Number(state?.net||0).toFixed(2)}<br><strong>Outstanding:</strong> £${Number(state?.outstanding||0).toFixed(2)}</p><p>Your receipt PDF and full payment history are available in <a href="https://namdar.co.uk/account?tab=billing">My Namdar</a>. Please quote <strong>${escapeHtml(receiptNo)}</strong> if you contact us about this payment.</p>`,archiveForCustomer:true,customerId:ctx.quote.customer_id||ctx.invoice.customer_id||null,messageCategory:'billing',targetPath:'/account?tab=billing',messageKey:`stripe-receipt:${providerReference}`});
+  if(ctx.quote.email){
+    let attachments=[],attachmentCopy='Your invoice and receipt PDF remain available in <a href="https://namdar.co.uk/account?tab=billing">My Namdar</a>.';
+    try{
+      const payments=await db(`payment_records?invoice_id=eq.${encodeURIComponent(ctx.invoice.id)}&select=*&order=paid_at.asc`);
+      const doc=buildInvoicePdf({invoice:state?.invoice||ctx.invoice,booking:ctx.booking,quote:ctx.quote,payments});
+      attachments=[{filename:doc.filename,content:doc.pdf,contentType:'application/pdf'}];
+      attachmentCopy='Your updated invoice PDF is attached to this email. Your receipt PDF and full payment history are also available in <a href="https://namdar.co.uk/account?tab=billing">My Namdar</a>.';
+    }catch(e){console.error('Invoice email attachment error:',e.message)}
+    await sendEmail({to:ctx.quote.email,subject:`Namdar payment receipt ${receiptNo}`,html:`<p>Hi ${escapeHtml(ctx.quote.customer_name||'there')},</p><p>Thank you. We received your secure Stripe payment.</p><p><strong>Receipt number:</strong> ${escapeHtml(receiptNo)}<br><strong>Invoice:</strong> ${escapeHtml(ctx.invoice.invoice_number||'')}<br><strong>Amount:</strong> £${amount.toFixed(2)}<br><strong>Payment type:</strong> ${escapeHtml(kind)}<br><strong>Payment method:</strong> Stripe<br><strong>Date:</strong> ${escapeHtml(new Date(payment.paid_at||Date.now()).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}))}</p><p><strong>Total paid on invoice:</strong> £${Number(state?.net||0).toFixed(2)}<br><strong>Outstanding:</strong> £${Number(state?.outstanding||0).toFixed(2)}</p><p>${attachmentCopy} Please quote <strong>${escapeHtml(receiptNo)}</strong> if you contact us about this payment.</p>`,attachments,archiveForCustomer:true,customerId:ctx.quote.customer_id||ctx.invoice.customer_id||null,messageCategory:'billing',targetPath:'/account?tab=billing',messageKey:`stripe-receipt:${providerReference}`});
+  }
 }
 async function processCheckoutSession(session){
   if(!session||session.payment_status!=='paid')return{handled:true,recorded:false,reason:'not_paid'};
