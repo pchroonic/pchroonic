@@ -53,3 +53,21 @@ test('base booking journey does not bypass final-quote acceptance and payment co
   assert.match(loader,/account-payments\.js/);
   assert.match(loader,/account-booking-policy\.js/);
 });
+
+
+test('accepted quote appointment uses a calendar and time buttons without changing the booking submit contract',()=>{
+  const html=read('account.html'),source=read('account-booking-journey.js'),css=read('booking-journey.css'),base=read('account-original.js');
+  assert.match(html,/account-booking-journey\.js\?v=6\.4\.91-booking-calendar-1/);
+  assert.match(html,/id="quoteScheduleSlot"/);
+  assert.match(source,/6\.4\.91-booking-calendar-1/);
+  assert.match(source,/id='quoteSlotPicker'|picker\.id='quoteSlotPicker'/);
+  assert.match(source,/data-schedule-day/);
+  assert.match(source,/data-schedule-slot/);
+  assert.match(source,/Europe\/London/);
+  assert.match(source,/select\.value=slot\.dataset\.scheduleSlot/);
+  assert.match(css,/\.booking-slot-picker\{/);
+  assert.match(css,/\.booking-calendar-grid\{/);
+  assert.match(css,/\.booking-time-slot\.selected/);
+  assert.match(css,/@media\(max-width:760px\)\{\.booking-slot-picker\{grid-template-columns:1fr\}/);
+  assert.match(base,/const raw=\$\('#quoteScheduleSlot'\)\.value/);
+});
