@@ -49,6 +49,15 @@ Any replacement provider should support:
 API credentials were visible in screenshots during troubleshooting. Any exposed GetAddress API/domain/admin credentials should be treated as compromised and rotated. Do not paste replacement secrets into chat; store them only in provider/Vercel secret controls.
 
 
+## Compact My Namdar notifications — CANDIDATE
+- Removes the large inline unread-notification card from My Namdar because the same unread item is already available from the top-right bell/popover.
+- Keeps the bell unread badge, notification popover, filters, Notification Centre and quote journey/status messaging intact.
+- Customer notification data, read/unread actions and polling are unchanged; only the duplicate page-level renderer is removed.
+- Changes: `account.html`, `account-original.js`, `scripts/notification-popover-ui.test.mjs`, plus the existing account regression tests that pin the cache-busted `account-original.js` loader version.
+- No database migration or environment-variable change.
+- Not deployed until this candidate is merged and production is verified.
+
+
 ## GetAddress admin diagnostic — CANDIDATE
 - Adds `/api/admin-getaddress-status` protected by `requireStaff(req,'settings')`.
 - Reads `GETADDRESS_ADMIN_KEY` server-side only.

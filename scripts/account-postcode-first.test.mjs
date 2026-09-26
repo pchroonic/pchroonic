@@ -39,5 +39,5 @@ test('successful postcode lookup remains source of truth for derived location',(
 });
 
 test('postcode-first release is cache-busted',()=>{
-  assert.match(html,/account-original\.js\?v=6\.4\.88-postcode-first/);
+  assert.match(html,/account-original\.js\?v=6\.4\.89-compact-notifications-1/);
 });
