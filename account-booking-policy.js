@@ -1,5 +1,5 @@
 (()=>{
-  const VERSION='6.4.92-compact-booking-terms-1';
+  const VERSION='6.4.93-payment-handoff-1';
   const POLICY_VERSION='2026-09-15-v1';
   const WINDOW_HOURS=48;
   const $=s=>document.querySelector(s);
