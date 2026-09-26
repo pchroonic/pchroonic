@@ -38,6 +38,7 @@ jobs:
           node --test scripts/account-initial-session-event.test.mjs
           node --test scripts/account-nonblocking-supabase.test.mjs
           node --test scripts/account-pop-filter-foreach.test.mjs
+          node --test scripts/account-profile-menu.test.mjs
           node --check account-mfa-guard.js
           node --check account-security-email.js
           node --check account-service-availability.js

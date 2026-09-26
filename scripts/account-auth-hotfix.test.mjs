@@ -71,7 +71,7 @@ test('account HTML loads the account stack directly without the document.write l
   const html=fs.readFileSync(new URL('../account.html',import.meta.url),'utf8');
   assert.doesNotMatch(html,/account\.js\?v=/);
   assert.doesNotMatch(html,/supabase-js@2\.117\.1/);
-  assert.match(html,/account-original\.js\?v=6\.4\.81-nonblocking-supabase/);
+  assert.match(html,/account-original\.js\?v=6\.4\.85-profile-menu/);
   assert.match(html,/account-mfa-guard\.js/);
 });
 
