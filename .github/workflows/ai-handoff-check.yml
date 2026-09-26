@@ -158,6 +158,7 @@ jobs:
           node --check scripts/os-open-data-import.mjs
           node --test scripts/address-harvest-priority.test.mjs
           node --test scripts/address-commercial-foundation.test.mjs
+          node --test scripts/address-browser-domain-token.test.mjs
           node --test scripts/os-open-data-foundation.test.mjs
           node --test scripts/service-catalog.test.mjs
           node --test scripts/window-stage1.test.mjs
