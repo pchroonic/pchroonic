@@ -1,3 +1,7 @@
+# Namdar v6.4.83 — Fix My Namdar pre-init notification crash
+
+Fixes the exact browser exception exposed by the new startup diagnostics: `TypeError: $(...).forEach is not a function` in `account-original.js`. Three notification popover filter handlers incorrectly used the single-element helper `$()` and then called `.forEach()`; they now use the collection helper `$$()`. This crash happened before `init()`, which is why the account page repeatedly remained at `ACCOUNT-BOOT-HTML-READY`. Regression coverage now forbids `.forEach()` on the single-element pop-filter selector. No database, auth protocol, or environment change.
+
 # Namdar v6.4.82 — Account runtime diagnostics
 
 Adds browser-side diagnostics to the existing My Namdar boot watchdog without changing authentication or session behavior. The watchdog now captures JavaScript exceptions, unhandled promise rejections, and failed script/resource loads before the account bootstrap reaches `init()`. If startup still stalls at `ACCOUNT-BOOT-HTML-READY`, the visible error now includes the exact browser diagnostic (for example a failed resource URL or JS exception location) instead of only the phase code. No database, auth protocol, or environment change.
