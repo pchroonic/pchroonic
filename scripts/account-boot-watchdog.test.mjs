@@ -5,18 +5,19 @@ import fs from 'node:fs';
 
 const html=fs.readFileSync(new URL('../account.html',import.meta.url),'utf8');
 const js=fs.readFileSync(new URL('../account-original.js',import.meta.url),'utf8');
+const watchdog=fs.readFileSync(new URL('../account-boot-watchdog.js',import.meta.url),'utf8');
 
-test('account page has an independent boot watchdog before the loader',()=>{
-  const watchdog=html.indexOf("window.__namdarAccountBoot");
-  const loader=html.indexOf("account.js?v=6.4.78-boot-watchdog");
-  assert.ok(watchdog>=0&&loader>watchdog,'watchdog must exist before account loader');
-  assert.match(html,/setTimeout\(function\(\)[\s\S]*?,8000\)/);
+test('account watchdog is external and loads before the account loader',()=>{
+  const wd=html.indexOf('/account-boot-watchdog.js?v=6.4.79-external-watchdog');
+  const loader=html.indexOf('account.js?v=6.4.79-external-watchdog');
+  assert.ok(wd>=0&&loader>wd);
+  assert.doesNotMatch(html,/window\.__namdarAccountBoot=\{phase:'html-ready'/);
 });
 
-test('watchdog cannot leave the restore spinner visible forever',()=>{
-  assert.match(html,/loading\.classList\.add\('hidden'\)/);
-  assert.match(html,/auth\.classList\.remove\('hidden'\)/);
-  assert.match(html,/ACCOUNT-BOOT-/);
+test('external watchdog cannot leave restore spinner visible forever',()=>{
+  assert.match(watchdog,/setTimeout\(.*8000/s);
+  assert.match(watchdog,/loading\.classList\.add\('hidden'\)/);
+  assert.match(watchdog,/ACCOUNT-BOOT-/);
 });
 
 test('bootstrap records concrete startup phases and clears watchdog on ready',()=>{
