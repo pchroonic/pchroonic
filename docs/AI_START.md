@@ -1,5 +1,54 @@
 # Namdar AI fast resume
 
+## CURRENT CHECKPOINT — 26 Sep 2026
+
+### Production
+- GitHub main: `5c06312d3e4b6f5ec04d5c1a8207554e37f7239e` (PR #163).
+- Latest production Vercel deployment is READY on `namdar.co.uk`.
+- PR #162 browser GetAddress domain-token lookup is live.
+- PR #163 admin-only GetAddress subscription/usage diagnostic is live.
+
+### My Namdar / account
+- Account startup regressions from the notification/profile-menu work are fixed and protected by CI.
+- Postcode is now entered before Area/Region and Borough/District.
+- Typing a postcode no longer immediately clears the existing derived location fields.
+- Phone SMS verification is implemented behind `NAMDAR_PHONE_VERIFICATION_ENABLED` and remains OFF by default.
+
+### GetAddress / address lookup — ACTIVE BLOCKER
+The customer address picker is structurally ready, but GetAddress authentication is currently unusable:
+- GetAddress dashboard shows subscription **Active**, free plan **20 lookups/day**, current usage 0.
+- Production server lookup with `GETADDRESS_API_KEY` returns HTTP 401 / Unauthorized.
+- Server retry using `GETADDRESS_DOMAIN_TOKEN` also returns Unauthorized.
+- Admin-only diagnostic using `GETADDRESS_ADMIN_KEY` also reports that GetAddress rejected the Administration Key.
+- The domain-restricted browser lookup from PR #162 is live, but no successful GetAddress lookup has yet been confirmed.
+- Namdar data-rights policy is NOT the blocker: operational human-triggered lookup is allowed; automated/bulk harvesting remains intentionally blocked.
+- Do not loosen the address-data rights/harvest controls to solve this.
+
+### Current GetAddress code protections
+- Unauthorized provider failures are not cached.
+- `/api/address-search` exposes a safe `providerReason` diagnostic.
+- API-key → Domain Token fallback exists.
+- Browser Domain Token flow exists for explicit customer `Find address` actions.
+- Admin diagnostic endpoint: `/api/admin-getaddress-status` (staff/settings protected, never exposes secrets).
+- Full-postcode customer lookup requests the full suggestion set; manual entry remains fallback.
+
+### Next recommended action
+Start the next chat by verifying the live browser-domain-token request in DevTools/network or directly testing the GetAddress browser request from `namdar.co.uk`. If GetAddress still returns Unauthorized for the browser token, stop spending time on Namdar-side auth changes and either:
+1. escalate the GetAddress subscription/credential issue to GetAddress support, or
+2. evaluate and migrate to another UK address-lookup provider.
+
+Any replacement provider should support:
+- full UK postcode → selectable premise/flat/house list;
+- browser-safe or server API authentication;
+- clear commercial/operational rights;
+- low-volume/pay-as-you-go pricing suitable for early Namdar usage;
+- structured address fields and postcode coordinates;
+- caching/reuse terms compatible with Namdar's private customer address cache.
+
+### Security note
+API credentials were visible in screenshots during troubleshooting. Any exposed GetAddress API/domain/admin credentials should be treated as compromised and rotated. Do not paste replacement secrets into chat; store them only in provider/Vercel secret controls.
+
+
 ## GetAddress admin diagnostic — CANDIDATE
 - Adds `/api/admin-getaddress-status` protected by `requireStaff(req,'settings')`.
 - Reads `GETADDRESS_ADMIN_KEY` server-side only.
