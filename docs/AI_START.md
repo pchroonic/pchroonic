@@ -3,7 +3,7 @@
 ## CURRENT CHECKPOINT — 26 Sep 2026
 
 ### Production
-- GitHub main: `64f172d79321cd78db0c0bc8ace972a4d82931a2` (PR #167).
+- GitHub main: `3f9d62c1115aa3457282bd80c749b6c643375818` (PR #169).
 - Latest production Vercel deployment is READY on `namdar.co.uk`.
 - PR #162 browser GetAddress domain-token lookup is live.
 - PR #163 admin-only GetAddress subscription/usage diagnostic is live.
@@ -49,7 +49,7 @@ Any replacement provider should support:
 API credentials were visible in screenshots during troubleshooting. Any exposed GetAddress API/domain/admin credentials should be treated as compromised and rotated. Do not paste replacement secrets into chat; store them only in provider/Vercel secret controls.
 
 
-## Customer booking calendar picker — CANDIDATE
+## Customer booking calendar picker — LIVE
 - Replaces the long accepted-quote appointment dropdown with a calendar-first picker in My Namdar.
 - Step 1 shows only dates with live available windows as selectable calendar days; unavailable dates stay disabled.
 - Step 2 shows the selected day's available time windows as clear buttons, highlights the chosen window and shows a selected-appointment summary.
@@ -58,7 +58,8 @@ API credentials were visible in screenshots during troubleshooting. Any exposed 
 - Customer booking journey asset/cache token: `6.4.91-booking-calendar-1`.
 - Regression coverage: `scripts/customer-booking-journey.test.mjs`.
 - No database migration or environment-variable change.
-- Not deployed until this candidate is merged and production is verified.
+- PR #169 merged at `3f9d62c1115aa3457282bd80c749b6c643375818`; production deployment `dpl_2kqK5jpFN8aMMSXBaBDbjFnsvgzB` is READY and aliased to `namdar.co.uk`.
+- Release checks: AI handoff/JavaScript, Google Review compatibility and Post-job compatibility all passed; live `/account` loads `account-booking-journey.js?v=6.4.91-booking-calendar-1`; live JS contains the calendar/time-button picker and preserves writes into the existing slot select; live CSS contains desktop/mobile calendar rules; `/api/health` returned HTTP 200 / `ok:true`.
 
 
 ## Accepted quote appointment modal layout — LIVE
