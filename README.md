@@ -1,3 +1,7 @@
+# Namdar v6.4.85 — My Namdar profile menu
+
+My Namdar now uses a compact profile/avatar menu in the account header, similar to familiar consumer account menus. My details, Notifications, Security, Back to website, Admin dashboard (when applicable), and Sign out live in the dropdown instead of cluttering the account header/tab strip. The main horizontal navigation remains focused on core customer workflows: Overview, Quotes, Bookings, Billing, Support, Projects & 3D, Subscriptions, and Rewards. The menu uses customer initials, closes on selection/outside click/Escape, and preserves deep-link URL behavior for hidden utility panels. A dedicated regression test is wired into the main JavaScript CI gate. No database, auth protocol, or environment change.
+
 # Namdar v6.4.84 — Enforced My Namdar regression gate
 
 The main JavaScript/AI handoff workflow now executes every My Namdar startup regression test on every pull request and main-branch push: auth hotfix compatibility, boot watchdog, initial-session handling, non-blocking Supabase startup, and the collection-helper `$().forEach()` guard. The collection-helper test is also broadened to fail on any single-element `$()` selector followed by `.forEach()` anywhere in `account-original.js`, not only notification filters. This turns the recent account incident into an enforced CI invariant rather than a one-off fix. No production runtime, database, auth protocol, or environment change.
