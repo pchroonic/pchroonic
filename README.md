@@ -1,3 +1,7 @@
+# Namdar v6.4.90 — GetAddress domain-token fallback
+
+Customer postcode lookup now retries the configured `GETADDRESS_DOMAIN_TOKEN` automatically when `GETADDRESS_API_KEY` is rejected with 401/Unauthorized. The domain-token retry sends Namdar's production Origin/Referer headers so the token's `namdar.co.uk` restriction can be evaluated correctly. This keeps the API key as the primary credential but allows immediate recovery through the domain token without manual variable deletion.
+
 # Namdar v6.4.89 — GetAddress live lookup recovery
 
 Customer postcode lookup now recovers immediately from GetAddress authentication failures instead of caching an Unauthorized response for ten minutes. The address endpoint reports a non-secret provider reason for diagnostics and supports the existing API-key configuration plus an optional domain-token fallback. Human-triggered postcode lookup remains rate-limited and policy-gated; no bulk harvesting is enabled.
