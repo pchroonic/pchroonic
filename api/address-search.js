@@ -54,8 +54,8 @@ async function saveCache(postcode,status,count,lastError='',ttlMs=1000*60*60*24,
   await db('address_lookup_cache?on_conflict=postcode,source_dataset',{method:'POST',prefer:'resolution=merge-duplicates',body:{postcode,source_dataset:sourceDataset,status,result_count:count,checked_at:now.toISOString(),expires_at:new Date(now.getTime()+ttlMs).toISOString(),last_error:lastError||null}}).catch(()=>null);
 }
 async function lookupGetAddress(postcode){
-  const apiKey=env('GETADDRESS_API_KEY','').trim();
-  if(!apiKey)return{attempted:false,available:false,reason:'api_key_missing',rows:[]};
+  const apiKey=env('GETADDRESS_API_KEY','').trim()||env('GETADDRESS_DOMAIN_TOKEN','').trim();
+  if(!apiKey)return{attempted:false,available:false,reason:'credential_missing',rows:[]};
   const policy=await datasetPolicy(GETADDRESS_DATASET);
   if(!policy.active||policy.operationalUseAllowed!==true||policy.humanInputRequired!==true){
     return{attempted:false,available:false,reason:'policy_blocked',rows:[]};
@@ -63,7 +63,7 @@ async function lookupGetAddress(postcode){
   const cached=await cacheState(postcode,GETADDRESS_DATASET);
   if(cached?.expires_at&&new Date(cached.expires_at).getTime()>Date.now()){
     if(cached.status==='ok')return{attempted:false,available:true,reason:'cache_fresh',rows:[]};
-    if(cached.status==='error')return{attempted:false,available:false,reason:'recent_error',rows:[]};
+    if(cached.status==='error'&&!/^auth:/i.test(String(cached.last_error||'')))return{attempted:false,available:false,reason:'recent_error',rows:[]};
   }
   try{
     const result=await autocompletePostcode(postcode,apiKey);
@@ -75,9 +75,10 @@ async function lookupGetAddress(postcode){
     return{attempted:true,available:true,reason:'provider_lookup',rows};
   }catch(error){
     const message=String(error?.message||error).slice(0,240);
+    const authFailure=Number(error?.status)===401||/unauthori[sz]ed|invalid.*key|api.?key/i.test(message);
     console.warn('GetAddress customer postcode lookup:',message);
-    await saveCache(postcode,'error',0,message,1000*60*10,GETADDRESS_DATASET);
-    return{attempted:true,available:false,reason:'provider_error',rows:[]};
+    if(!authFailure)await saveCache(postcode,'error',0,message,1000*60*10,GETADDRESS_DATASET);
+    return{attempted:true,available:false,reason:authFailure?'provider_unauthorized':'provider_error',rows:[]};
   }
 }
 function overpassEndpoints(){
@@ -130,11 +131,12 @@ module.exports=async function handler(req,res){try{
 
   let master=await masterRows(postcode);
   let providerCached=master.some(a=>a.source_dataset===GETADDRESS_DATASET);
-  let providerAttempted=false,providerAvailable=providerCached;
+  let providerAttempted=false,providerAvailable=providerCached,providerReason=providerCached?'cached':'';
   if(!providerCached){
     const provider=await lookupGetAddress(postcode);
     providerAttempted=provider.attempted;
     providerAvailable=provider.available;
+    providerReason=provider.reason||'';
     if(provider.attempted||provider.reason==='cache_fresh')master=await masterRows(postcode);
     providerCached=master.some(a=>a.source_dataset===GETADDRESS_DATASET);
   }
@@ -175,5 +177,5 @@ module.exports=async function handler(req,res){try{
   addresses.sort((a,b)=>a.address.localeCompare(b.address,'en-GB',{numeric:true,sensitivity:'base'}));
   const osmCount=addresses.filter(a=>a.source==='openstreetmap').length;
   const getAddressCount=addresses.filter(a=>a.source==='getaddress').length;
-  return json(res,200,{ok:true,enabled:true,mode:providerCached?'getaddress-cache':'namdar-master',postcode,addresses:addresses.slice(0,200),count:Math.min(addresses.length,200),manualEntryAllowed:true,masterCount:(master||[]).length,getAddressCount,providerCached,providerAttempted,providerAvailable,openDataAttempted,openStreetMapCount:osmCount,attribution:osmCount?'© OpenStreetMap contributors, ODbL':''});
+  return json(res,200,{ok:true,enabled:true,mode:providerCached?'getaddress-cache':'namdar-master',postcode,addresses:addresses.slice(0,200),count:Math.min(addresses.length,200),manualEntryAllowed:true,masterCount:(master||[]).length,getAddressCount,providerCached,providerAttempted,providerAvailable,providerReason,openDataAttempted,openStreetMapCount:osmCount,attribution:osmCount?'© OpenStreetMap contributors, ODbL':''});
 }catch(e){return safeError(res,e)}};
