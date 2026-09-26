@@ -34,6 +34,10 @@ jobs:
           node --check account-captcha-guard.js
           node --check account-auth-hotfix.js
           node --test scripts/account-auth-hotfix.test.mjs
+          node --test scripts/account-boot-watchdog.test.mjs
+          node --test scripts/account-initial-session-event.test.mjs
+          node --test scripts/account-nonblocking-supabase.test.mjs
+          node --test scripts/account-pop-filter-foreach.test.mjs
           node --check account-mfa-guard.js
           node --check account-security-email.js
           node --check account-service-availability.js
