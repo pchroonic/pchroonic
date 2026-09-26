@@ -22,5 +22,5 @@ test('auth state callback defers async portal rendering to avoid callback deadlo
 
 test('initial auth wait is bounded and loader is cache-busted',()=>{
   assert.match(src,/resolveInitial\(null\).*5000/s);
-  assert.match(html,/account-original\.js\?v=6\.4\.85-profile-menu/);
+  assert.match(html,/account-original\.js\?v=6\.4\.87-phone-verification-ready/);
 });
