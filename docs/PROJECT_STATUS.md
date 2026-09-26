@@ -3,7 +3,7 @@
 ## CURRENT CHECKPOINT — 26 Sep 2026
 
 ### Production
-- GitHub main: `e414f7ba9c30a42ecf2bf0e73bce8c9726605341` (PR #171).
+- GitHub main: `49a54f476db0c62be0a1817af6eeb51e4c83b997` (PR #173).
 - Latest production Vercel deployment is READY on `namdar.co.uk`.
 - PR #162 browser GetAddress domain-token lookup is live.
 - PR #163 admin-only GetAddress subscription/usage diagnostic is live.
@@ -49,7 +49,7 @@ Any replacement provider should support:
 API credentials were visible in screenshots during troubleshooting. Any exposed GetAddress API/domain/admin credentials should be treated as compromised and rotated. Do not paste replacement secrets into chat; store them only in provider/Vercel secret controls.
 
 
-## Required booking payment handoff — CANDIDATE
+## Required booking payment handoff — LIVE
 - Fixes the accepted-quote flow where a required-payment booking could be created as unpaid and then land in My Bookings without opening Stripe.
 - After a booking is created, any required initial payment greater than £0 immediately opens a secure Stripe Checkout session.
 - If Checkout cannot open or the customer returns without paying, My Bookings exposes the recorded required amount and shows a clear Pay action on the booking card.
@@ -59,7 +59,9 @@ API credentials were visible in screenshots during troubleshooting. Any exposed 
 - Account/policy/style cache token: `6.4.93-payment-handoff-1`.
 - Regression coverage: `scripts/booking-cancellation-policy.test.mjs` plus updated account cache/version regressions.
 - No database migration or environment-variable change.
-- Not deployed until this candidate is merged and production is verified.
+- PR #173 merged at `49a54f476db0c62be0a1817af6eeb51e4c83b997`; production deployment `dpl_Fa91VMTTDhVpCPiDx4j4FBhqqxQL` is READY and aliased to `namdar.co.uk`.
+- Release checks: AI handoff/JavaScript, Staff operations v3, Google Review compatibility and Post-job compatibility all passed; live `/account` serves the `6.4.93-payment-handoff-1` account/policy/style assets; live booking policy code opens `/api/create-checkout` when a required amount is returned; live account code shows a Payment required recovery action using the booking's recorded deposit amount; `/api/health` returned HTTP 200 / `ok:true` with Stripe and webhook readiness true.
+- Production database verification for booking `76a44d33-f5f0-4e73-879e-092875963752`: status `pending`, payment status `unpaid`, locked required deposit `£0.50`, booking-policy acceptance recorded, early-service acknowledgement true, invoice total `£1.00` and paid amount `£0.00`.
 
 
 ## Compact booking terms review — LIVE
