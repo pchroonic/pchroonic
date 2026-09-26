@@ -49,6 +49,18 @@ Any replacement provider should support:
 API credentials were visible in screenshots during troubleshooting. Any exposed GetAddress API/domain/admin credentials should be treated as compromised and rotated. Do not paste replacement secrets into chat; store them only in provider/Vercel secret controls.
 
 
+## Customer booking calendar picker — CANDIDATE
+- Replaces the long accepted-quote appointment dropdown with a calendar-first picker in My Namdar.
+- Step 1 shows only dates with live available windows as selectable calendar days; unavailable dates stay disabled.
+- Step 2 shows the selected day's available time windows as clear buttons, highlights the chosen window and shows a selected-appointment summary.
+- Supports availability spanning multiple months with previous/next available-month controls and displays times explicitly in Europe/London.
+- Keeps the existing hidden `#quoteScheduleSlot` value as the source for the current booking submit/payment-policy flow, so no booking API or database contract changes.
+- Customer booking journey asset/cache token: `6.4.91-booking-calendar-1`.
+- Regression coverage: `scripts/customer-booking-journey.test.mjs`.
+- No database migration or environment-variable change.
+- Not deployed until this candidate is merged and production is verified.
+
+
 ## Accepted quote appointment modal layout — LIVE
 - Fixes the My Namdar accepted-quote appointment dialog overflowing horizontally because the base dialog was capped at 520px while its `.wide` card could be about 940px.
 - Gives the quote-scheduling and booking-change dialogs a viewport-safe 820px desktop width, 16px mobile gutters, full-width inner cards and no horizontal overflow.
