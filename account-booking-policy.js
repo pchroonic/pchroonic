@@ -88,31 +88,31 @@
   function balanceText(hours){const n=Math.max(0,Number(hours)||0);return n===0?'at completion':`${n} hour${n===1?'':'s'} after the scheduled job end`}
   function renderPaymentCommitment(c){
     const box=$('#bookingPaymentCommitment');if(!box)return;
-    if(!c){box.innerHTML='<strong>Payment terms unavailable</strong><p>Refresh My Namdar before requesting this appointment.</p>';return}
+    if(!c){box.innerHTML='<strong>Payment terms unavailable</strong><p>Refresh My Namdar before requesting this appointment.</p>';quickPaymentSummary(null);updateAcceptanceState();return}
     const revision=Number(c.revision);presentedPaymentRevision=Number.isInteger(revision)?revision:null;
-    if(!c.active){box.innerHTML=`<strong>Payment terms · revision ${presentedPaymentRevision??0}</strong><p><b>No online payment is currently required for this booking.</b> The payment policy recorded when you request the appointment is frozen to this booking, so a later Namdar settings change will not retrospectively increase your deposit.</p>`;return}
+    if(!c.active){box.innerHTML=`<strong>Payment terms · revision ${presentedPaymentRevision??0}</strong><p><b>No online payment is currently required for this booking.</b> The payment policy recorded when you request the appointment is frozen to this booking, so a later Namdar settings change will not retrospectively increase your deposit.</p>`;quickPaymentSummary(c);updateAcceptanceState();return}
     let first='';
     if(c.mode==='full_required')first=`Full payment of <strong>${money(c.initialPaymentAmount)}</strong> is required before Namdar confirms the appointment.`;
     else if(c.mode==='deposit_required')first=`A <strong>${money(c.initialPaymentAmount)}</strong> deposit is required before Namdar confirms the appointment.${c.allowFullPayment?' You may choose to pay the full amount instead.':''}`;
     else first=`Online payment is optional. If you choose an initial deposit, the current amount for this job is <strong>${money(c.depositAmount)}</strong>${c.allowFullPayment?' or you can pay in full':''}.`;
     const hold=Number(c.overdue?.bookingHoldAfterDays??7),review=Number(c.overdue?.finalReviewAfterDays??21);
     box.innerHTML=`<strong>Payment terms · revision ${presentedPaymentRevision??0}</strong><p>${first} The remaining balance is due <strong>${balanceText(c.balanceDueHours)}</strong>.</p><p class="booking-payment-safeguard">If a consumer balance becomes overdue, Namdar may send reminders and may pause another appointment after ${hold} day${hold===1?'':'s'} overdue; a recovery review can follow after ${review} days. <strong>No automatic consumer penalty, compounding fee or interest is added by this policy engine.</strong></p>`;
-    if(!c.onlinePaymentsAvailable)box.insertAdjacentHTML('beforeend','<p class="booking-payment-warning">Secure online payment is temporarily unavailable, so a required-payment booking cannot be completed until it is restored.</p>');
+    if(!c.onlinePaymentsAvailable)box.insertAdjacentHTML('beforeend','<p class="booking-payment-warning">Secure online payment is temporarily unavailable, so a required-payment booking cannot be completed until it is restored.</p>');quickPaymentSummary(c);updateAcceptanceState();
   }
   async function refreshPaymentCommitment(id){
-    const box=$('#bookingPaymentCommitment');presentedPaymentRevision=null;paymentTermsLoading=true;if(box)box.innerHTML='<strong>Payment terms</strong><p>Loading the exact terms for this quote…</p>';
-    try{const d=await api(`/api/customer-quote-action?quoteId=${encodeURIComponent(id)}`);renderPaymentCommitment(d.paymentCommitment||null)}catch(e){if(box)box.innerHTML=`<strong>Payment terms could not be loaded</strong><p>${String(e.message||'Refresh My Namdar and try again.')}</p>`}finally{paymentTermsLoading=false}
+    const box=$('#bookingPaymentCommitment');presentedPaymentRevision=null;paymentTermsLoading=true;if(box)box.innerHTML='<strong>Payment terms</strong><p>Loading the exact terms for this quote…</p>';const quick=$('#bookingTermsQuickSummary');if(quick)quick.textContent='Loading payment terms…';updateAcceptanceState();
+    try{const d=await api(`/api/customer-quote-action?quoteId=${encodeURIComponent(id)}`);renderPaymentCommitment(d.paymentCommitment||null)}catch(e){if(box)box.innerHTML=`<strong>Payment terms could not be loaded</strong><p>${String(e.message||'Refresh My Namdar and try again.')}</p>`;quickPaymentSummary(null)}finally{paymentTermsLoading=false;updateAcceptanceState()}
   }
 
-  function resetConsent(){const a=$('#bookingPolicyAccept'),b=$('#bookingEarlyServiceRequest');if(a)a.checked=false;if(b)b.checked=false;presentedPaymentRevision=null;paymentTermsLoading=false}
+  function resetConsent(){const a=$('#bookingPolicyAccept'),b=$('#bookingEarlyServiceRequest');if(a)a.checked=false;if(b)b.checked=false;presentedPaymentRevision=null;paymentTermsLoading=false;$('#bookingTermsDialog')?.close();updateAcceptanceState()}
 
   async function submitAppointment(){
     const raw=$('#quoteScheduleSlot')?.value||'',idx=raw===''?-1:Number(raw),slot=idx>=0?quoteScheduleSlots[idx]:null,address=$('#quoteScheduleAddress')?.value.trim()||'',btn=$('#submitQuoteSchedule'),status=$('#quoteScheduleStatus'),accepted=$('#bookingPolicyAccept')?.checked===true,earlyRequested=$('#bookingEarlyServiceRequest')?.checked===true;
     if(!slot){status.textContent='Choose an available appointment slot.';return}
     if(!address){status.textContent='Enter the service address.';return}
     if(paymentTermsLoading||!Number.isInteger(presentedPaymentRevision)){status.textContent='Please wait for the current payment terms to load, then review them before requesting the appointment.';return}
-    if(!accepted){status.textContent='Please accept the Terms, cancellation/deposit policy and payment terms before requesting the appointment.';$('#bookingPolicyAccept')?.focus();return}
-    if(!earlyRequested){status.textContent='Please confirm the service-start request for any appointment that may fall within the statutory cancellation period.';$('#bookingEarlyServiceRequest')?.focus();return}
+    if(!accepted){status.textContent='Please review and accept the booking terms before requesting the appointment.';openTermsDialog();setTimeout(()=>$('#bookingPolicyAccept')?.focus(),0);return}
+    if(!earlyRequested){status.textContent='Please confirm the service-start request before requesting the appointment.';openTermsDialog();setTimeout(()=>$('#bookingEarlyServiceRequest')?.focus(),0);return}
     setBusy(btn,true,'Sending request…');
     try{
       const d=await api('/api/booking',{method:'POST',body:JSON.stringify({quoteId:activeQuoteScheduleId,address,startsAt:slot.startsAt,endsAt:slot.endsAt,bookingPolicyAccepted:true,bookingPolicyVersion:POLICY_VERSION,earlyServiceRequested:true,paymentPolicyRevision:presentedPaymentRevision})});
@@ -130,7 +130,7 @@
   }
   function install(){
     if(!$('#quoteScheduleDialog')||!$('#submitQuoteSchedule'))return setTimeout(install,150);
-    injectStyles();policyPanel();cancellationNotice();wrapSchedule();
+    injectStyles();policyPanel();compactPolicyPanel();cancellationNotice();wrapSchedule();
     $('#submitQuoteSchedule').onclick=submitAppointment;
     document.addEventListener('click',e=>{const b=e.target.closest?.('[data-quote-schedule]');if(b?.dataset?.quoteSchedule)setTimeout(()=>refreshPaymentCommitment(b.dataset.quoteSchedule),0)},{capture:true});
     const dlg=$('#quoteScheduleDialog');if(!dlg.dataset.bookingPolicyReset){dlg.dataset.bookingPolicyReset='1';dlg.addEventListener('close',resetConsent)}
