@@ -3,7 +3,7 @@
 ## CURRENT CHECKPOINT — 26 Sep 2026
 
 ### Production
-- GitHub main: `5c06312d3e4b6f5ec04d5c1a8207554e37f7239e` (PR #163).
+- GitHub main: `534f3d48256b2a79e03a481f4ef9a5afdfad4932` (PR #165).
 - Latest production Vercel deployment is READY on `namdar.co.uk`.
 - PR #162 browser GetAddress domain-token lookup is live.
 - PR #163 admin-only GetAddress subscription/usage diagnostic is live.
@@ -49,13 +49,14 @@ Any replacement provider should support:
 API credentials were visible in screenshots during troubleshooting. Any exposed GetAddress API/domain/admin credentials should be treated as compromised and rotated. Do not paste replacement secrets into chat; store them only in provider/Vercel secret controls.
 
 
-## Compact My Namdar notifications — CANDIDATE
+## Compact My Namdar notifications — LIVE
 - Removes the large inline unread-notification card from My Namdar because the same unread item is already available from the top-right bell/popover.
 - Keeps the bell unread badge, notification popover, filters, Notification Centre and quote journey/status messaging intact.
 - Customer notification data, read/unread actions and polling are unchanged; only the duplicate page-level renderer is removed.
 - Changes: `account.html`, `account-original.js`, `scripts/notification-popover-ui.test.mjs`, plus the existing account regression tests that pin the cache-busted `account-original.js` loader version.
 - No database migration or environment-variable change.
-- Not deployed until this candidate is merged and production is verified.
+- PR #165 merged at `534f3d48256b2a79e03a481f4ef9a5afdfad4932`; production deployment `dpl_9n1AQqzMpf5VfQLNyUoM4AM3aXKG` is READY and aliased to `namdar.co.uk`.
+- Release checks: AI handoff/JavaScript, Google Review compatibility and Post-job compatibility all passed; live `/account` contains the bell and `6.4.89-compact-notifications-1` runtime but no `accountNotificationBar`; `/api/health` returned HTTP 200 / `ok:true`.
 
 
 ## GetAddress admin diagnostic — CANDIDATE
