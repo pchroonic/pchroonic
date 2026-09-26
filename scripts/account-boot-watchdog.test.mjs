@@ -7,10 +7,11 @@ const html=fs.readFileSync(new URL('../account.html',import.meta.url),'utf8');
 const js=fs.readFileSync(new URL('../account-original.js',import.meta.url),'utf8');
 const watchdog=fs.readFileSync(new URL('../account-boot-watchdog.js',import.meta.url),'utf8');
 
-test('account watchdog is external and loads before the account loader',()=>{
-  const wd=html.indexOf('/account-boot-watchdog.js?v=6.4.79-external-watchdog');
-  const loader=html.indexOf('account.js?v=6.4.79-external-watchdog');
-  assert.ok(wd>=0&&loader>wd);
+test('account watchdog is external and loads before account-original.js',()=>{
+  const wd=html.indexOf('/account-boot-watchdog.js?v=6.4.82-runtime-diagnostic');
+  const app=html.indexOf('account-original.js?v=6.4.81-nonblocking-supabase');
+  assert.ok(wd>=0&&app>wd);
+  assert.doesNotMatch(html,/src=["']\/?account\.js/);
   assert.doesNotMatch(html,/window\.__namdarAccountBoot=\{phase:'html-ready'/);
 });
 
