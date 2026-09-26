@@ -1,5 +1,5 @@
 (()=>{
-  const VERSION='6.4.35-payment-policy-engine-1';
+  const VERSION='6.4.92-compact-booking-terms-1';
   const POLICY_VERSION='2026-09-15-v1';
   const WINDOW_HOURS=48;
   const $=s=>document.querySelector(s);
@@ -26,6 +26,57 @@
       <label class="consent required-consent booking-policy-consent"><input id="bookingPolicyAccept" type="checkbox"><span>I have read and agree to Namdar's <a href="/terms" target="_blank" rel="noopener">Terms & Conditions</a>, including the ${WINDOW_HOURS}-hour cancellation/deposit policy and the payment terms shown above.</span></label>
       <label class="consent required-consent booking-policy-consent"><input id="bookingEarlyServiceRequest" type="checkbox"><span>If my agreed appointment falls within an applicable 14-day statutory cancellation period, I expressly request Namdar to provide the service on that date. I understand that if the service is fully performed after that request, my statutory cancellation right may end once it is fully performed, and if I cancel after performance has begun I may have to pay a proportionate amount for work already supplied.</span></label>`;
     submit.insertAdjacentElement('beforebegin',panel);return panel;
+  }
+
+
+  function quickPaymentSummary(c){
+    const el=$('#bookingTermsQuickSummary');if(!el)return;
+    if(!c){el.textContent='Payment terms unavailable — refresh My Namdar before continuing.';return}
+    if(!c.active){el.textContent='No online payment is currently required for this booking.';return}
+    if(c.mode==='full_required')el.textContent=`${money(c.initialPaymentAmount)} full payment required before confirmation.`;
+    else if(c.mode==='deposit_required')el.textContent=`${money(c.initialPaymentAmount)} deposit required · balance ${balanceText(c.balanceDueHours)}.`;
+    else el.textContent=`Online payment optional · balance ${balanceText(c.balanceDueHours)}.`;
+  }
+
+  function acceptanceReady(){return $('#bookingPolicyAccept')?.checked===true&&$('#bookingEarlyServiceRequest')?.checked===true}
+  function updateAcceptanceState(){
+    const ready=acceptanceReady(),state=$('#bookingTermsState'),confirm=$('#bookingTermsConfirm');
+    if(state){
+      state.classList.toggle('accepted',ready);state.classList.toggle('pending',!ready);
+      state.innerHTML=ready?'<span aria-hidden="true">✓</span><div><strong>Booking terms accepted</strong><small>You can now request the appointment. Payment, if required, comes afterwards.</small></div>':'<span aria-hidden="true">!</span><div><strong>Review required</strong><small>Accept the booking terms before requesting the appointment or making a payment.</small></div>';
+    }
+    if(confirm)confirm.disabled=!ready||paymentTermsLoading||!Number.isInteger(presentedPaymentRevision);
+  }
+
+  function openTermsDialog(){
+    const dlg=$('#bookingTermsDialog');if(!dlg)return;
+    updateAcceptanceState();
+    if(!dlg.open)dlg.showModal();
+  }
+
+  function compactPolicyPanel(){
+    const panel=$('#bookingPolicyPanel'),submit=$('#submitQuoteSchedule');if(!panel||!submit||$('#bookingTermsCompact'))return;
+    const compact=document.createElement('section');compact.id='bookingTermsCompact';compact.className='booking-terms-compact';
+    compact.innerHTML='<div class="booking-terms-compact-copy"><div class="booking-terms-compact-title"><span aria-hidden="true">§</span><div><strong>Booking terms</strong><small id="bookingTermsQuickSummary">Loading payment terms…</small></div></div><div id="bookingTermsState" class="booking-terms-state pending"><span aria-hidden="true">!</span><div><strong>Review required</strong><small>Accept before requesting the appointment or making a payment.</small></div></div></div><button id="reviewBookingTerms" class="ghost-btn booking-terms-review" type="button">Review & accept terms</button>';
+    panel.insertAdjacentElement('beforebegin',compact);
+
+    const dlg=document.createElement('dialog');dlg.id='bookingTermsDialog';dlg.className='booking-terms-dialog';
+    dlg.innerHTML='<div class="booking-terms-dialog-card"><button class="modal-close" id="bookingTermsClose" type="button" aria-label="Close booking terms">×</button><div class="eyebrow">Before you continue</div><h3>Review & accept booking terms</h3><p class="booking-terms-dialog-intro">Please review the payment, cancellation and statutory service-start terms below. Your acceptance is recorded with the booking before any Stripe payment can be started.</p><div id="bookingTermsMount"></div><p id="bookingTermsDialogStatus" class="booking-terms-dialog-status" role="status" aria-live="polite"></p><div class="booking-terms-dialog-actions"><button id="bookingTermsCancel" class="ghost-btn" type="button">Back to appointment</button><button id="bookingTermsConfirm" class="primary-btn" type="button">Accept & continue</button></div></div>';
+    document.body.appendChild(dlg);dlg.querySelector('#bookingTermsMount').appendChild(panel);
+
+    $('#reviewBookingTerms').onclick=openTermsDialog;
+    $('#bookingTermsClose').onclick=()=>dlg.close();
+    $('#bookingTermsCancel').onclick=()=>dlg.close();
+    $('#bookingTermsConfirm').onclick=()=>{
+      const status=$('#bookingTermsDialogStatus');
+      if(paymentTermsLoading||!Number.isInteger(presentedPaymentRevision)){if(status)status.textContent='Please wait for the current payment terms to finish loading.';return}
+      if(!$('#bookingPolicyAccept')?.checked){if(status)status.textContent='Please accept Namdar’s Terms, cancellation/deposit policy and payment terms.';$('#bookingPolicyAccept')?.focus();return}
+      if(!$('#bookingEarlyServiceRequest')?.checked){if(status)status.textContent='Please confirm the service-start request for an appointment that may fall within the statutory cancellation period.';$('#bookingEarlyServiceRequest')?.focus();return}
+      if(status)status.textContent='';updateAcceptanceState();dlg.close();
+    };
+    $('#bookingPolicyAccept')?.addEventListener('change',updateAcceptanceState);
+    $('#bookingEarlyServiceRequest')?.addEventListener('change',updateAcceptanceState);
+    updateAcceptanceState();
   }
 
   function cancellationNotice(){
