@@ -49,6 +49,19 @@ Any replacement provider should support:
 API credentials were visible in screenshots during troubleshooting. Any exposed GetAddress API/domain/admin credentials should be treated as compromised and rotated. Do not paste replacement secrets into chat; store them only in provider/Vercel secret controls.
 
 
+## Required booking payment handoff — CANDIDATE
+- Fixes the accepted-quote flow where a required-payment booking could be created as unpaid and then land in My Bookings without opening Stripe.
+- After a booking is created, any required initial payment greater than £0 immediately opens a secure Stripe Checkout session.
+- If Checkout cannot open or the customer returns without paying, My Bookings exposes the recorded required amount and shows a clear Pay action on the booking card.
+- Unpaid required-payment bookings use a Payment required status treatment instead of appearing fully settled/scheduled.
+- `api/customer-jobs.js` now returns the booking's recorded `deposit_required` amount so the customer recovery UI uses the locked booking value rather than recalculating current policy.
+- Existing server safeguards remain: Checkout requires recorded booking-policy acceptance and statutory service-start acknowledgement, and accepts pending/confirmed bookings.
+- Account/policy/style cache token: `6.4.93-payment-handoff-1`.
+- Regression coverage: `scripts/booking-cancellation-policy.test.mjs` plus updated account cache/version regressions.
+- No database migration or environment-variable change.
+- Not deployed until this candidate is merged and production is verified.
+
+
 ## Compact booking terms review — LIVE
 - Removes the long booking/cancellation/payment wording from the main accepted-quote appointment screen.
 - The appointment screen now shows a compact Booking terms card with the current payment summary, acceptance status and a Review & accept terms action.

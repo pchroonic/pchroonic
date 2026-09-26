@@ -305,3 +305,5 @@
 :root[data-theme="dark"] .account-profile-menu{background:#15201d;border-color:#30423c}
 :root[data-theme="dark"] .account-profile-menu>a,:root[data-theme="dark"] .account-profile-menu>button{color:#f1f4ef}
 :root[data-theme="dark"] .account-profile-menu>a:hover,:root[data-theme="dark"] .account-profile-menu>button:hover{background:#1d2b27}
+
+.customer-job-status.payment_required{background:#fff2c9;color:#76520d}.customer-booking-payment-required{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-top:16px;padding:15px 16px;border:1px solid #efd16e;border-radius:14px;background:#fff8df}.customer-booking-payment-required>div{display:grid;gap:3px;min-width:0}.customer-booking-payment-required small{font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;font-weight:850;color:#7d641e}.customer-booking-payment-required strong{font-size:.92rem}.customer-booking-payment-required span{font-size:.78rem;color:#6e6654;line-height:1.4}@media(max-width:650px){.customer-booking-payment-required{align-items:stretch;flex-direction:column}.customer-booking-payment-required .primary-btn{width:100%}}

@@ -21,7 +21,7 @@ test('booking schema records durable policy and statutory service-start evidence
 
 test('customer appointment request visibly requires both policy acknowledgements',()=>{
   const ui=read('account-booking-policy.js');
-  assert.match(ui,/6\.4\.92-compact-booking-terms-1/);
+  assert.match(ui,/6\.4\.93-payment-handoff-1/);
   assert.match(ui,/Booking, cancellation & payment terms/);
   assert.match(ui,/bookingPolicyAccept/);
   assert.match(ui,/bookingEarlyServiceRequest/);
@@ -33,7 +33,7 @@ test('customer appointment request visibly requires both policy acknowledgements
 
 test('appointment screen keeps terms compact and requires review before payment',()=>{
   const html=read('account.html'),ui=read('account-booking-policy.js'),css=read('booking-policy.css'),checkout=read('api/create-checkout.js');
-  assert.match(html,/account-booking-policy\.js\?v=6\.4\.92-compact-booking-terms-1/);
+  assert.match(html,/account-booking-policy\.js\?v=6\.4\.93-payment-handoff-1/);
   assert.match(ui,/bookingTermsCompact/);
   assert.match(ui,/Review & accept terms/);
   assert.match(ui,/bookingTermsDialog/);
@@ -48,7 +48,7 @@ test('appointment screen keeps terms compact and requires review before payment'
 
 test('accepted quote and booking-change dialogs stay within the viewport',()=>{
   const html=read('account.html'),css=read('styles.css');
-  assert.match(html,/styles\.css\?v=6\.4\.90-booking-modal-layout-1/);
+  assert.match(html,/styles\.css\?v=6\.4\.93-payment-handoff-1/);
   assert.match(html,/id="quoteScheduleDialog"[\s\S]*?class="modal-card wide"/);
   assert.match(html,/id="bookingChangeDialog"[\s\S]*?class="modal-card wide"/);
   assert.match(css,/#quoteScheduleDialog\.modal,#bookingChangeDialog\.modal\{max-width:820px;width:min\(820px,calc\(100% - 32px\)\);overflow:hidden\}/);
@@ -72,6 +72,21 @@ test('future Stripe checkout cannot proceed without booking policy evidence',()=
   assert.match(api,/!booking\.booking_policy_accepted_at/);
   assert.match(api,/booking\.early_service_acknowledged!==true/);
   assert.match(api,/Review and accept the current booking, cancellation and statutory service-start terms/i);
+});
+
+test('required-payment booking opens Stripe immediately and remains recoverable from My Bookings',()=>{
+  const ui=read('account-booking-policy.js'),jobs=read('api/customer-jobs.js'),account=read('account-original.js'),styles=read('styles.css');
+  assert.match(ui,/openRequiredPayment/);
+  assert.match(ui,/api\('\/api\/create-checkout'/);
+  assert.match(ui,/requiredAmount>.004/);
+  assert.match(ui,/Opening secure payment/);
+  assert.match(ui,/Use the Pay button in My Bookings to continue/);
+  assert.match(jobs,/depositRequired:Number\(b\.deposit_required\|\|0\)/);
+  assert.match(account,/data-booking-pay/);
+  assert.match(account,/Payment required/);
+  assert.match(account,/Pay \$\{money\(depositRequired\)\} deposit/);
+  assert.match(styles,/\.customer-booking-payment-required\{/);
+  assert.match(styles,/\.customer-job-status\.payment_required/);
 });
 
 test('My Namdar loader ships the policy module at the current version',()=>{
