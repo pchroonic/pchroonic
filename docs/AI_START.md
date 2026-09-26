@@ -1,5 +1,13 @@
 # Namdar AI fast resume
 
+## GetAddress domain-token fallback — CANDIDATE
+- API key remains primary for customer postcode lookup.
+- On 401/Unauthorized, automatically retry `GETADDRESS_DOMAIN_TOKEN`.
+- Domain-token retry sends `Origin: https://namdar.co.uk` and matching Referer.
+- Shared GetAddress autocomplete client now accepts request headers.
+- Regression coverage added to `scripts/address-customer-lookup.test.mjs`.
+
+
 ## GetAddress live lookup recovery — CANDIDATE
 - Do not cache GetAddress 401/Unauthorized failures.
 - Return non-secret `providerReason` diagnostics from `/api/address-search`.

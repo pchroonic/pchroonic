@@ -47,3 +47,18 @@ test('GetAddress lookup can use a configured API key or domain token', () => {
   assert.match(source, /GETADDRESS_API_KEY/);
   assert.match(source, /GETADDRESS_DOMAIN_TOKEN/);
 });
+
+test('customer lookup retries a configured domain token after API-key auth failure', () => {
+  const source = fs.readFileSync(new URL('../api/address-search.js', import.meta.url), 'utf8');
+  assert.match(source, /credentials\.push\(\{kind:'api_key'/);
+  assert.match(source, /credentials\.push\(\{kind:'domain_token'/);
+  assert.match(source, /Origin:'https:\/\/namdar\.co\.uk'/);
+  assert.match(source, /Referer:'https:\/\/namdar\.co\.uk\/'/);
+  assert.match(source, /provider_lookup_domain_token/);
+});
+
+test('shared GetAddress client accepts request headers for domain tokens', () => {
+  const source = fs.readFileSync(new URL('../lib/address-harvest.js', import.meta.url), 'utf8');
+  assert.match(source, /autocompletePostcode\(postcode, apiKey, requestOptions=\{\}\)/);
+  assert.match(source, /headers: requestOptions\.headers/);
+});

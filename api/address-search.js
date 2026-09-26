@@ -54,8 +54,9 @@ async function saveCache(postcode,status,count,lastError='',ttlMs=1000*60*60*24,
   await db('address_lookup_cache?on_conflict=postcode,source_dataset',{method:'POST',prefer:'resolution=merge-duplicates',body:{postcode,source_dataset:sourceDataset,status,result_count:count,checked_at:now.toISOString(),expires_at:new Date(now.getTime()+ttlMs).toISOString(),last_error:lastError||null}}).catch(()=>null);
 }
 async function lookupGetAddress(postcode){
-  const apiKey=env('GETADDRESS_API_KEY','').trim()||env('GETADDRESS_DOMAIN_TOKEN','').trim();
-  if(!apiKey)return{attempted:false,available:false,reason:'credential_missing',rows:[]};
+  const apiKey=env('GETADDRESS_API_KEY','').trim();
+  const domainToken=env('GETADDRESS_DOMAIN_TOKEN','').trim();
+  if(!apiKey&&!domainToken)return{attempted:false,available:false,reason:'credential_missing',rows:[]};
   const policy=await datasetPolicy(GETADDRESS_DATASET);
   if(!policy.active||policy.operationalUseAllowed!==true||policy.humanInputRequired!==true){
     return{attempted:false,available:false,reason:'policy_blocked',rows:[]};
@@ -65,21 +66,32 @@ async function lookupGetAddress(postcode){
     if(cached.status==='ok')return{attempted:false,available:true,reason:'cache_fresh',rows:[]};
     if(cached.status==='error'&&!/^auth:/i.test(String(cached.last_error||'')))return{attempted:false,available:false,reason:'recent_error',rows:[]};
   }
-  try{
-    const result=await autocompletePostcode(postcode,apiKey);
-    const rows=result.rows||[];
-    if(rows.length){
-      await db('master_addresses?on_conflict=source_dataset,source_record_id',{method:'POST',prefer:'resolution=merge-duplicates,return=minimal',body:rows});
+  const credentials=[];
+  if(apiKey)credentials.push({kind:'api_key',value:apiKey,headers:undefined});
+  if(domainToken)credentials.push({kind:'domain_token',value:domainToken,headers:{Origin:'https://namdar.co.uk',Referer:'https://namdar.co.uk/'}});
+  let lastError=null;
+  for(const credential of credentials){
+    try{
+      const result=await autocompletePostcode(postcode,credential.value,{headers:credential.headers});
+      const rows=result.rows||[];
+      if(rows.length){
+        await db('master_addresses?on_conflict=source_dataset,source_record_id',{method:'POST',prefer:'resolution=merge-duplicates,return=minimal',body:rows});
+      }
+      await saveCache(postcode,'ok',rows.length,'',rows.length?1000*60*60*24*30:1000*60*60*24,GETADDRESS_DATASET);
+      return{attempted:true,available:true,reason:credential.kind==='domain_token'?'provider_lookup_domain_token':'provider_lookup',rows};
+    }catch(error){
+      lastError=error;
+      const message=String(error?.message||error).slice(0,240);
+      const authFailure=Number(error?.status)===401||/unauthori[sz]ed|invalid.*key|api.?key/i.test(message);
+      console.warn(`GetAddress customer postcode lookup (${credential.kind}):`,message);
+      if(!authFailure){
+        await saveCache(postcode,'error',0,message,1000*60*10,GETADDRESS_DATASET);
+        return{attempted:true,available:false,reason:'provider_error',rows:[]};
+      }
     }
-    await saveCache(postcode,'ok',rows.length,'',rows.length?1000*60*60*24*30:1000*60*60*24,GETADDRESS_DATASET);
-    return{attempted:true,available:true,reason:'provider_lookup',rows};
-  }catch(error){
-    const message=String(error?.message||error).slice(0,240);
-    const authFailure=Number(error?.status)===401||/unauthori[sz]ed|invalid.*key|api.?key/i.test(message);
-    console.warn('GetAddress customer postcode lookup:',message);
-    if(!authFailure)await saveCache(postcode,'error',0,message,1000*60*10,GETADDRESS_DATASET);
-    return{attempted:true,available:false,reason:authFailure?'provider_unauthorized':'provider_error',rows:[]};
   }
+  const message=String(lastError?.message||lastError||'Unauthorized').slice(0,240);
+  return{attempted:true,available:false,reason:'provider_unauthorized',rows:[],detail:message};
 }
 function overpassEndpoints(){
   const configured=env('OVERPASS_API_URL','').trim();
