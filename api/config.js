@@ -15,6 +15,8 @@ module.exports = async function handler(req, res) {
       adsenseClient: env('GOOGLE_ADSENSE_CLIENT'),
       adsenseSlotHome: env('GOOGLE_ADSENSE_SLOT_HOME'),
       turnstileSiteKey: env('TURNSTILE_SITE_KEY'),
+      phoneVerificationEnabled: ['1','true','yes','on'].includes(String(env('NAMDAR_PHONE_VERIFICATION_ENABLED','')).trim().toLowerCase()),
+      phoneVerificationMode: 'supabase_sms',
       addressLookupEnabled: true,
       addressSystem: 'namdar',
       aiEnabled: Boolean(env('OPENAI_API_KEY') && env('OPENAI_MODEL')),
