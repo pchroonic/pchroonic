@@ -31,6 +31,16 @@ test('customer appointment request visibly requires both policy acknowledgements
   assert.match(ui,/earlyServiceRequested:true/);
 });
 
+test('accepted quote and booking-change dialogs stay within the viewport',()=>{
+  const html=read('account.html'),css=read('styles.css');
+  assert.match(html,/styles\.css\?v=6\.4\.90-booking-modal-layout-1/);
+  assert.match(html,/id="quoteScheduleDialog"[\s\S]*?class="modal-card wide"/);
+  assert.match(html,/id="bookingChangeDialog"[\s\S]*?class="modal-card wide"/);
+  assert.match(css,/#quoteScheduleDialog\.modal,#bookingChangeDialog\.modal\{max-width:820px;width:min\(820px,calc\(100% - 32px\)\);overflow:hidden\}/);
+  assert.match(css,/#quoteScheduleDialog \.modal-card\.wide,#bookingChangeDialog \.modal-card\.wide\{width:100%;max-width:none;overflow-x:hidden\}/);
+  assert.match(css,/@media\(max-width:650px\)\{#quoteScheduleDialog\.modal,#bookingChangeDialog\.modal\{width:calc\(100% - 16px\);max-width:calc\(100% - 16px\)\}/);
+});
+
 test('server rejects booking attempts that bypass policy acceptance and records server-side versions',()=>{
   const api=read('api/booking-core.js');
   assert.match(api,/b\.bookingPolicyAccepted!==true/);
