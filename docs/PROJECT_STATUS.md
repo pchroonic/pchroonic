@@ -1,5 +1,13 @@
 # Namdar project status
 
+## Fix My Namdar pre-init notification crash — CANDIDATE
+- Fixes `TypeError: $(...).forEach is not a function` at account startup.
+- Three `[data-pop-filter]` handlers now use `$$()` instead of `$()` before `.forEach()`.
+- The crash occurred before `init()`, causing repeated `ACCOUNT-BOOT-HTML-READY`.
+- Regression: `scripts/account-pop-filter-foreach.test.mjs`.
+- No database migration, auth protocol, or environment-variable change.
+
+
 ## Account runtime diagnostics — CANDIDATE
 - Diagnostic-only change; no auth/session behavior change.
 - External boot watchdog captures JS errors, unhandled rejections, and failed script/resource loads.
