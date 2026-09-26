@@ -1,3 +1,7 @@
+# Namdar v6.4.86 — Fix My Namdar profile-menu runtime typo
+
+Fixes a production startup crash introduced by the profile-menu release: `$$$('[data-portal-tab]')` was an invalid helper reference, causing `ReferenceError: $$$ is not defined` before account initialization completed. The runtime now correctly uses `$$()` for the portal-tab collection. CI now also rejects any `$$$(` token in `account-original.js` so this class of typo cannot merge again. No database, auth protocol, or environment change.
+
 # Namdar v6.4.85 — My Namdar profile menu
 
 My Namdar now uses a compact profile/avatar menu in the account header, similar to familiar consumer account menus. My details, Notifications, Security, Back to website, Admin dashboard (when applicable), and Sign out live in the dropdown instead of cluttering the account header/tab strip. The main horizontal navigation remains focused on core customer workflows: Overview, Quotes, Bookings, Billing, Support, Projects & 3D, Subscriptions, and Rewards. The menu uses customer initials, closes on selection/outside click/Escape, and preserves deep-link URL behavior for hidden utility panels. A dedicated regression test is wired into the main JavaScript CI gate. No database, auth protocol, or environment change.
