@@ -34,5 +34,5 @@ test('disabled UI is honest and does not promise an SMS',()=>{
 });
 
 test('phone verification release is cache-busted',()=>{
-  assert.match(html,/account-original\.js\?v=6\.4\.87-phone-verification-ready/);
+  assert.match(html,/account-original\.js\?v=6\.4\.88-postcode-first/);
 });

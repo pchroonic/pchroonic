@@ -1,5 +1,13 @@
 # Namdar AI fast resume
 
+## Postcode-first customer address flow — CANDIDATE
+- Moves Postcode + Find address above Area/Region and Borough/District in signup and My details.
+- Successful postcode lookup remains the source of truth for Area/Region, Borough/District and Town/City.
+- Editing postcode marks verification stale but no longer erases the current location selections before lookup succeeds.
+- Adds `scripts/account-postcode-first.test.mjs` and wires it into account CI.
+- Account runtime cache-busted to `6.4.88-postcode-first`.
+
+
 ## Phone verification ready, disabled by default — CANDIDATE
 - Adds public config flag `phoneVerificationEnabled` from `NAMDAR_PHONE_VERIFICATION_ENABLED`; default is OFF.
 - Customers can save phone numbers while SMS is off; unverified state does not block account completion until verification is enabled.
