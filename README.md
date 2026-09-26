@@ -1,3 +1,7 @@
+# Namdar current checkpoint — 26 Sep 2026
+
+Production is READY on main `5c06312d3e4b6f5ec04d5c1a8207554e37f7239e` (PR #163). The current blocker is GetAddress authentication, not Namdar postcode UI or address-data rights. GetAddress shows an active 20-lookups/day subscription, but production API-key, Domain Token and Administration Key checks have all returned Unauthorized. Browser-domain-token lookup (PR #162), API-key→domain-token fallback, safe provider diagnostics and the admin subscription diagnostic are already live. See `docs/AI_HANDOFF.md` for the exact next steps. Treat any credentials shown in troubleshooting screenshots as exposed and rotate them.
+
 # Namdar v6.4.91 — GetAddress admin diagnostic
 
 Adds an admin-only server diagnostic for GetAddress subscription and usage. The endpoint is protected by the existing staff/settings permission, reads `GETADDRESS_ADMIN_KEY` only from server environment variables, calls GetAddress subscription and usage APIs, and returns only safe status/limit fields. The Administration Key is never returned to the browser or logged.
