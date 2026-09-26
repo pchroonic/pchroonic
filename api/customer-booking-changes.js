@@ -6,6 +6,7 @@ const WINDOWS={
   '14-17':{start:'14:00',end:'17:00',label:'14:00–17:00'}
 };
 const ACTIVE_STATUSES=new Set(['pending','confirmed']);
+const CANCELLATION_POLICY_VERSION='2026-09-15-v1';
 
 function londonLocalToUtc(dateStr,timeStr){
   const [y,m,d]=String(dateStr||'').split('-').map(Number),[hh,mm]=String(timeStr||'').split(':').map(Number);
@@ -87,14 +88,14 @@ module.exports=async function handler(req,res){
     const bookingId=String(body.bookingId||'').trim(),booking=await ownedBooking(user.id,bookingId);ensureChangeable(booking);
     if(await pendingFor(booking.id))return json(res,409,{ok:false,error:'You already have a booking change request waiting for Namdar review.'});
     const reason=String(body.reason||'').trim().slice(0,2000);let requestType='',starts=null,ends=null;
-    if(action==='request_cancel')requestType='cancel';
+    if(action==='request_cancel'){if(body.cancellationTermsAccepted!==true)return json(res,400,{ok:false,error:'Read and accept the cancellation terms before sending this request.'});requestType='cancel';}
     else if(action==='request_reschedule'){
       requestType='reschedule';const date=String(body.date||''),windowKey=String(body.windowKey||''),w=WINDOWS[windowKey];if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!w)return json(res,400,{ok:false,error:'Choose an available date and time window.'});
       starts=londonLocalToUtc(date,w.start);ends=londonLocalToUtc(date,w.end);if(!starts||!ends||starts<=new Date())return json(res,400,{ok:false,error:'Choose a future booking slot.'});if(starts.toISOString()===new Date(booking.starts_at).toISOString()&&ends.toISOString()===new Date(booking.ends_at).toISOString())return json(res,400,{ok:false,error:'Choose a different time from your current appointment.'});
       const max=londonLocalToUtc(addDays(londonDateString(),20),'23:59');if(starts>max)return json(res,400,{ok:false,error:'Please choose a slot within the next 21 days.'});
       if(await bookingConflicts(booking,starts,ends))return json(res,409,{ok:false,error:'That slot is no longer available. Please choose another one.'});
     }else return json(res,400,{ok:false,error:'Choose whether you want to reschedule or cancel the booking.'});
-    const rows=await db('booking_change_requests',{method:'POST',prefer:'return=representation',body:{booking_id:booking.id,customer_id:user.id,request_type:requestType,requested_starts_at:starts?.toISOString()||null,requested_ends_at:ends?.toISOString()||null,reason:reason||null,status:'pending'}}),request=rows?.[0];if(!request)return json(res,500,{ok:false,error:'Your booking request could not be saved.'});
+    const rows=await db('booking_change_requests',{method:'POST',prefer:'return=representation',body:{booking_id:booking.id,customer_id:user.id,request_type:requestType,requested_starts_at:starts?.toISOString()||null,requested_ends_at:ends?.toISOString()||null,reason:reason||null,status:'pending',cancellation_policy_acknowledged_at:requestType==='cancel'?new Date().toISOString():null,cancellation_policy_version:requestType==='cancel'?CANCELLATION_POLICY_VERSION:null}}),request=rows?.[0];if(!request)return json(res,500,{ok:false,error:'Your booking request could not be saved.'});
     const quote=await quoteFor(booking);await notifyRequest({booking,quote,profile,request,customerId:user.id});await createStaffNotification({type:requestType==='cancel'?'booking_cancel_request':'booking_change_request',title:requestType==='cancel'?'Customer cancellation request':'Customer reschedule request',body:`${quote?.customer_name||profile?.full_name||profile?.email||'Customer'}${starts?` · ${londonDisplay(starts)}`:''}${reason?` · ${reason}`:''}`,targetPath:`/admin?tab=bookings&change=${encodeURIComponent(request.id)}`,permissionKey:'bookings',entityType:'booking_change_request',entityId:request.id,priority:requestType==='cancel'?'high':'normal',dedupeKey:`booking-change:${request.id}`});
     return json(res,201,{ok:true,request:{id:request.id,type:request.request_type,requestedStartsAt:request.requested_starts_at,requestedEndsAt:request.requested_ends_at,status:request.status,createdAt:request.created_at},message:'Your request has been sent to Namdar for review.'});
   }catch(e){return safeError(res,e)}
