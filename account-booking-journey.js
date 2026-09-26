@@ -1,9 +1,9 @@
 (()=>{
-  const VERSION='6.4.91-booking-calendar-1';
+  const VERSION='6.4.94-booking-change-calendar-1';
   const PENDING_KEY='namdar_pending_quote_journey';
   const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
   const params=new URLSearchParams(location.search),quoteId=params.get('quote')||'';
-  let claimInFlight=null,authListenerAttached=false,scheduleDateKey='',scheduleMonthKey='';
+  let claimInFlight=null,authListenerAttached=false,scheduleDateKey='',scheduleMonthKey='',changeDateKey='',changeMonthKey='';
 
   function pending(){try{const d=JSON.parse(sessionStorage.getItem(PENDING_KEY)||'null');return d&&d.quoteId===quoteId?d:null}catch{return null}}
   function masked(email=''){const [name,domain]=String(email).split('@');if(!domain)return'';return `${(name||'').slice(0,2)}•••@${domain}`}
@@ -139,12 +139,58 @@
     select.addEventListener('change',renderSchedulePicker);renderSchedulePicker();
   }
 
+  function changeRows(){
+    const slots=typeof bookingChangeSlots!=='undefined'&&Array.isArray(bookingChangeSlots)?bookingChangeSlots:[];
+    return slots.map(slot=>({slot,value:`${slot.date}|${slot.windowKey}`,dateKey:String(slot.date||'')})).filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x.dateKey));
+  }
+  function renderChangePicker(){
+    const picker=$('#bookingChangeSlotPicker'),select=$('#bookingChangeSlot');if(!picker||!select)return;
+    const rows=changeRows();
+    if(!rows.length){
+      const msg=select.options?.[0]?.textContent||'No available appointment windows found.';
+      picker.innerHTML=`<div class="booking-slot-empty"><span aria-hidden="true">⌁</span><div><strong>Choose a new appointment</strong><small>${safe(msg)}</small></div></div>`;
+      return;
+    }
+    const grouped=new Map();for(const row of rows){if(!grouped.has(row.dateKey))grouped.set(row.dateKey,[]);grouped.get(row.dateKey).push(row)}
+    const months=[...new Set(rows.map(x=>x.dateKey.slice(0,7)))].sort(),selectedRow=rows.find(x=>x.value===select.value)||null;
+    if(selectedRow)changeDateKey=selectedRow.dateKey;
+    if(!changeDateKey||!grouped.has(changeDateKey))changeDateKey=rows[0].dateKey;
+    if(!changeMonthKey||!months.includes(changeMonthKey))changeMonthKey=changeDateKey.slice(0,7);
+    const monthIndex=months.indexOf(changeMonthKey),[year,month]=changeMonthKey.split('-').map(Number),firstOffset=(new Date(Date.UTC(year,month-1,1)).getUTCDay()+6)%7,daysInMonth=new Date(Date.UTC(year,month,0)).getUTCDate(),cells=[];
+    for(let i=0;i<firstOffset;i++)cells.push('<span class="booking-calendar-spacer" aria-hidden="true"></span>');
+    for(let day=1;day<=daysInMonth;day++){
+      const key=`${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`,available=grouped.get(key)||[],active=key===changeDateKey,next=key===rows[0].dateKey;
+      cells.push(`<button type="button" class="booking-calendar-day ${available.length?'available':''} ${active?'selected':''} ${next?'next-available':''}" data-change-day="${key}" ${available.length?'':'disabled'} aria-pressed="${active?'true':'false'}" aria-label="${safe(humanDate(key))}${available.length?`, ${available.length} available time window${available.length===1?'':'s'}`:', unavailable'}"><span>${day}</span>${available.length?'<i aria-hidden="true"></i>':''}</button>`);
+    }
+    const dayRows=grouped.get(changeDateKey)||[],selected=selectedRow&&selectedRow.dateKey===changeDateKey?selectedRow:null;
+    const times=dayRows.map(row=>`<button type="button" class="booking-time-slot ${selected?.value===row.value?'selected':''}" data-change-slot="${safe(row.value)}" aria-pressed="${selected?.value===row.value?'true':'false'}"><span>${safe(row.slot.label||scheduleLabel(row.slot))}</span><small>${row.value===rows[0].value?'Earliest available':'Available'}</small></button>`).join('');
+    const summary=selected?`<div class="booking-slot-summary selected" aria-live="polite"><span aria-hidden="true">✓</span><div><small>Requested new appointment</small><strong>${safe(humanDate(selected.dateKey))} · ${safe(selected.slot.label||scheduleLabel(selected.slot))}</strong></div></div>`:`<div class="booking-slot-summary" aria-live="polite"><span aria-hidden="true">→</span><div><small>Next step</small><strong>Choose a new time window to continue</strong></div></div>`;
+    picker.innerHTML=`<div class="booking-calendar-card"><div class="booking-calendar-head"><div><small>Step 1</small><strong>Select a new day</strong></div><div class="booking-calendar-nav"><button type="button" data-change-month="-1" aria-label="Previous available month" ${monthIndex<=0?'disabled':''}>‹</button><strong>${safe(humanMonth(changeMonthKey))}</strong><button type="button" data-change-month="1" aria-label="Next available month" ${monthIndex>=months.length-1?'disabled':''}>›</button></div></div><div class="booking-calendar-weekdays" aria-hidden="true"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div><div class="booking-calendar-grid">${cells.join('')}</div><div class="booking-calendar-legend"><span><i></i> Available</span><small>Your current appointment stays booked until Namdar approves the change.</small></div></div><div class="booking-slot-times"><div class="booking-slot-times-head"><div><small>Step 2</small><strong>Select a new time</strong></div>${changeDateKey===rows[0].dateKey?'<span>Next available</span>':''}</div><h4>${safe(humanDate(changeDateKey))}</h4><div class="booking-time-grid">${times}</div>${summary}<p class="booking-timezone-note">Times shown in London time.</p></div>`;
+  }
+  function installChangePicker(){
+    const select=$('#bookingChangeSlot');if(!select||$('#bookingChangeSlotPicker'))return;
+    const label=select.closest('label');if(!label)return;
+    label.classList.add('booking-slot-native-label');select.tabIndex=-1;select.setAttribute('aria-hidden','true');
+    const picker=document.createElement('section');picker.id='bookingChangeSlotPicker';picker.className='booking-slot-picker booking-change-slot-picker';picker.setAttribute('aria-label','Choose a new appointment');label.insertAdjacentElement('beforebegin',picker);
+    picker.addEventListener('click',e=>{
+      const day=e.target.closest?.('[data-change-day]');if(day&&!day.disabled){changeDateKey=day.dataset.changeDay;changeMonthKey=changeDateKey.slice(0,7);select.value='';renderChangePicker();return}
+      const nav=e.target.closest?.('[data-change-month]');if(nav&&!nav.disabled){const rows=changeRows(),months=[...new Set(rows.map(x=>x.dateKey.slice(0,7)))].sort(),i=months.indexOf(changeMonthKey),next=months[i+Number(nav.dataset.changeMonth)];if(next){changeMonthKey=next;const first=rows.find(x=>x.dateKey.startsWith(next));if(first)changeDateKey=first.dateKey;select.value='';renderChangePicker()}return}
+      const slot=e.target.closest?.('[data-change-slot]');if(slot){select.value=slot.dataset.changeSlot;select.dispatchEvent(new Event('input',{bubbles:true}));select.dispatchEvent(new Event('change',{bubbles:true}));renderChangePicker()}
+    });
+    select.addEventListener('change',renderChangePicker);renderChangePicker();
+  }
+
   function enhanceScheduling(){
-    installSchedulePicker();
+    installSchedulePicker();installChangePicker();
     if(typeof openQuoteSchedule==='function'&&!openQuoteSchedule.__bookingJourney){
       const base=openQuoteSchedule;
       const wrapped=async id=>{scheduleDateKey='';scheduleMonthKey='';renderSchedulePicker();await base(id);const field=$('#quoteScheduleAddress'),q=(typeof customerQuoteCache!=='undefined'?customerQuoteCache:[]).find(x=>x.id===id),saved=requestedAddress(q);if(field&&!field.value.trim()&&saved)field.value=saved;let note=$('#quoteScheduleJourneyNote');if(!note){note=document.createElement('p');note.id='quoteScheduleJourneyNote';note.className='quote-schedule-journey-note';note.textContent='Your accepted final price stays unchanged unless the job scope changes. The selected slot remains a request until Namdar confirms it.';$('#quoteScheduleDialog .modal-card h3')?.insertAdjacentElement('afterend',note)}renderSchedulePicker()};
       wrapped.__bookingJourney=true;openQuoteSchedule=wrapped;
+    }
+    if(typeof openBookingChangeDialog==='function'&&!openBookingChangeDialog.__bookingJourney){
+      const base=openBookingChangeDialog;
+      const wrapped=async id=>{changeDateKey='';changeMonthKey='';renderChangePicker();await base(id);renderChangePicker()};
+      wrapped.__bookingJourney=true;openBookingChangeDialog=wrapped;
     }
   }
 

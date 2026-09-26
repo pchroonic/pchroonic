@@ -21,7 +21,7 @@ test('booking schema records durable policy and statutory service-start evidence
 
 test('customer appointment request visibly requires both policy acknowledgements',()=>{
   const ui=read('account-booking-policy.js');
-  assert.match(ui,/6\.4\.93-payment-handoff-1/);
+  assert.match(ui,/6\.4\.94-cancellation-ack-1/);
   assert.match(ui,/Booking, cancellation & payment terms/);
   assert.match(ui,/bookingPolicyAccept/);
   assert.match(ui,/bookingEarlyServiceRequest/);
@@ -33,7 +33,7 @@ test('customer appointment request visibly requires both policy acknowledgements
 
 test('appointment screen keeps terms compact and requires review before payment',()=>{
   const html=read('account.html'),ui=read('account-booking-policy.js'),css=read('booking-policy.css'),checkout=read('api/create-checkout.js');
-  assert.match(html,/account-booking-policy\.js\?v=6\.4\.93-payment-handoff-1/);
+  assert.match(html,/account-booking-policy\.js\?v=6\.4\.94-cancellation-ack-1/);
   assert.match(ui,/bookingTermsCompact/);
   assert.match(ui,/Review & accept terms/);
   assert.match(ui,/bookingTermsDialog/);
@@ -93,4 +93,20 @@ test('My Namdar loader ships the policy module at the current version',()=>{
   const account=read('account.js');
   assert.match(account,/6\.4\.35-payment-policy-engine-1/);
   assert.match(account,/account-booking-policy\.js/);
+});
+
+
+test('customer cancellation request requires and records a fresh cancellation acknowledgement',()=>{
+  const ui=read('account-booking-policy.js'),base=read('account-original.js'),api=read('api/customer-booking-changes.js'),sql=read('supabase/migrations/20260926220500_booking_change_cancellation_ack.sql'),css=read('booking-policy.css');
+  assert.match(ui,/bookingCancellationAccept/);
+  assert.match(ui,/I have read and accept the cancellation terms/i);
+  assert.match(base,/cancellationTermsAccepted:true/);
+  assert.match(base,/Please read and accept the cancellation terms/i);
+  assert.match(api,/body\.cancellationTermsAccepted!==true/);
+  assert.match(api,/cancellation_policy_acknowledged_at/);
+  assert.match(api,/cancellation_policy_version/);
+  assert.match(api,/CANCELLATION_POLICY_VERSION='2026-09-15-v1'/);
+  assert.match(sql,/add column if not exists cancellation_policy_acknowledged_at timestamptz/);
+  assert.match(sql,/add column if not exists cancellation_policy_version text/);
+  assert.match(css,/\.booking-cancellation-consent\{/);
 });

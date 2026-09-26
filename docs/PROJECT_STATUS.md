@@ -49,6 +49,19 @@ Any replacement provider should support:
 API credentials were visible in screenshots during troubleshooting. Any exposed GetAddress API/domain/admin credentials should be treated as compromised and rotated. Do not paste replacement secrets into chat; store them only in provider/Vercel secret controls.
 
 
+## Booking change calendar + cancellation acknowledgement — CANDIDATE
+- Replaces the customer reschedule dropdown with the same calendar + time-button picker used for first-time appointment selection.
+- Only dates with live availability are selectable; the chosen replacement time is written into the existing `#bookingChangeSlot` contract, so the current booking-change API remains compatible.
+- Cancellation requests now require an explicit checkbox confirming the customer has read and accepted the cancellation terms and understands the current appointment stays booked until Namdar approves the request.
+- The submit button is disabled in cancellation mode until that acknowledgement is ticked; the API also rejects bypass attempts without `cancellationTermsAccepted:true`.
+- Production schema now records `cancellation_policy_acknowledged_at` and `cancellation_policy_version` on cancellation requests for audit evidence.
+- Migration: `supabase/migrations/20260926220500_booking_change_cancellation_ack.sql` (already applied to `namdar-production` and verified).
+- Account booking journey asset: `6.4.94-booking-change-calendar-1`; booking policy asset: `6.4.94-cancellation-ack-1`.
+- Regression coverage: `scripts/customer-booking-journey.test.mjs`, `scripts/booking-cancellation-policy.test.mjs`, and account runtime version checks.
+- No new environment variable.
+- Not deployed until this candidate is merged and production is verified.
+
+
 ## Invoice PDF attached to payment email — CANDIDATE
 - After a verified Stripe payment is recorded, Namdar now generates the customer's updated invoice PDF and attaches it directly to the payment receipt email.
 - The attachment uses the same shared invoice-PDF generator as the My Namdar Billing download so emailed and portal invoices stay consistent.
