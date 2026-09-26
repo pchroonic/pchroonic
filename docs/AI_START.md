@@ -53,7 +53,7 @@ API credentials were visible in screenshots during troubleshooting. Any exposed 
 - Removes the large inline unread-notification card from My Namdar because the same unread item is already available from the top-right bell/popover.
 - Keeps the bell unread badge, notification popover, filters, Notification Centre and quote journey/status messaging intact.
 - Customer notification data, read/unread actions and polling are unchanged; only the duplicate page-level renderer is removed.
-- Changes: `account.html`, `account-original.js`, `scripts/notification-popover-ui.test.mjs`, and the account runtime cache regression in `scripts/account-auth-hotfix.test.mjs`.
+- Changes: `account.html`, `account-original.js`, `scripts/notification-popover-ui.test.mjs`, plus account cache/watchdog regression expectations in `scripts/account-auth-hotfix.test.mjs` and `scripts/account-boot-watchdog.test.mjs`.
 - No database migration or environment-variable change.
 - Not deployed until this candidate is merged and production is verified.
 
