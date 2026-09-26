@@ -1,5 +1,6 @@
 const { db, authUser, userProfile, queryParam, safeError } = require('../lib/server');
 const { receiptNumber } = require('../lib/payment-receipts');
+const { buildInvoicePdf } = require('../lib/invoice-pdf');
 function ascii(v=''){return String(v??'').normalize('NFKD').replace(/[^\x20-\x7E]/g,'?')}
 function pdfEsc(v=''){return ascii(v).replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)')}
 function money(v){return `GBP ${Number(v||0).toFixed(2)}`}
@@ -34,6 +35,7 @@ module.exports=async function handler(req,res){
     const booking=invoice.booking_id?(await db(`bookings?id=eq.${encodeURIComponent(invoice.booking_id)}&select=id,starts_at,ends_at,address,status,payment_status&limit=1`))?.[0]:null;
     const quote=invoice.quote_id?(await db(`quotes?id=eq.${encodeURIComponent(invoice.quote_id)}&select=id,customer_name,email,phone,postcode,service_key,final_price,automatic_estimate&limit=1`))?.[0]:null;
     const payments=await db(`payment_records?invoice_id=eq.${encodeURIComponent(invoice.id)}&select=*&order=paid_at.asc`);
+    if(!payment){const doc=buildInvoicePdf({invoice,booking,quote,payments});res.statusCode=200;res.setHeader('Content-Type','application/pdf');res.setHeader('Content-Disposition',`attachment; filename="${doc.filename}"`);res.setHeader('Cache-Control','no-store');res.setHeader('Content-Length',String(doc.pdf.length));return res.end(doc.pdf)}
     const service=({windows:'Window cleaning',gutters:'Gutter cleaning',roof:'Roof cleaning',jetwash:'Jet washing',handyman:'Handyman',tour3d:'3D property tour'})[quote?.service_key]||quote?.service_key||'Namdar service';
     const total=Number(invoice.total||0),paid=Number(invoice.amount_paid||0),outstanding=Math.max(0,total-paid);let lines=[];
     lines.push({text:'NAMDAR',x:50,y:792,size:22,bold:true},{text:'Property care services',x:50,y:772,size:10},{text:'namdar.co.uk  |  hello@namdar.co.uk',x:50,y:756,size:9});
