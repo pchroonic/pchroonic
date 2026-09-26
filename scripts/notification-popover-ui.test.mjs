@@ -26,3 +26,9 @@ test('popover keeps a compact anchored layout',()=>{
   assert.match(css,/notification-popover-filters/);
   assert.match(css,/notification-popover-footer/);
 });
+
+test('unread notifications stay in the bell instead of a duplicate page banner',()=>{
+  assert.doesNotMatch(html,/id="accountNotificationBar"/);
+  assert.doesNotMatch(js,/accountNotificationBar/);
+  assert.match(html,/id="notificationBell"/);
+});
