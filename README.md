@@ -1,3 +1,7 @@
+# Namdar v6.4.91 — Browser GetAddress domain-token lookup
+
+Customer postcode lookup now uses the domain-restricted GetAddress token directly from the browser for the explicit Find address action, following GetAddress's documented Domain Token model. Full-postcode queries request `all=true` so customers can choose from all returned addresses, and selected suggestions are resolved through GetAddress's `/get/{id}` endpoint into Namdar's structured House/Flat, Street, Town, Borough, Postcode and coordinate fields. The existing Namdar server lookup remains as fallback only.
+
 # Namdar v6.4.90 — GetAddress domain-token fallback
 
 Customer postcode lookup now retries the configured `GETADDRESS_DOMAIN_TOKEN` automatically when `GETADDRESS_API_KEY` is rejected with 401/Unauthorized. The domain-token retry sends Namdar's production Origin/Referer headers so the token's `namdar.co.uk` restriction can be evaluated correctly. This keeps the API key as the primary credential but allows immediate recovery through the domain token without manual variable deletion.
