@@ -49,6 +49,15 @@ Any replacement provider should support:
 API credentials were visible in screenshots during troubleshooting. Any exposed GetAddress API/domain/admin credentials should be treated as compromised and rotated. Do not paste replacement secrets into chat; store them only in provider/Vercel secret controls.
 
 
+## Accepted quote appointment modal layout — CANDIDATE
+- Fixes the My Namdar accepted-quote appointment dialog overflowing horizontally because the base dialog was capped at 520px while its `.wide` card could be about 940px.
+- Gives the quote-scheduling and booking-change dialogs a viewport-safe 820px desktop width, 16px mobile gutters, full-width inner cards and no horizontal overflow.
+- Keeps the existing appointment, cancellation, statutory-rights and payment-policy logic unchanged.
+- Account stylesheet cache-busted to `6.4.90-booking-modal-layout-1` and regression coverage added to `scripts/booking-cancellation-policy.test.mjs`.
+- No database migration or environment-variable change.
+- Not deployed until this candidate is merged and production is verified.
+
+
 ## Compact My Namdar notifications — LIVE
 - Removes the large inline unread-notification card from My Namdar because the same unread item is already available from the top-right bell/popover.
 - Keeps the bell unread badge, notification popover, filters, Notification Centre and quote journey/status messaging intact.
