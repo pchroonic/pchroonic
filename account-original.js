@@ -149,6 +149,7 @@ function syncMessageControls(){$$('[data-message-view]').forEach(b=>{const on=b.
 function renderCustomerMessages(){
   const inbox=customerMessageCache||[],unread=inbox.filter(x=>!x.readAt).length;
   $('#notificationBadge')?.classList.toggle('hidden',!unread);if($('#notificationBadge'))$('#notificationBadge').textContent=String(unread);
+  $('#profileMenuNotificationBadge')?.classList.toggle('hidden',!unread);if($('#profileMenuNotificationBadge'))$('#profileMenuNotificationBadge').textContent=String(unread);
   $('#messagesTabBadge')?.classList.toggle('hidden',!unread);if($('#messagesTabBadge'))$('#messagesTabBadge').textContent=String(unread);
   const latest=inbox.find(x=>!x.readAt),bar=$('#accountNotificationBar');
   if(bar){bar.classList.toggle('hidden',!latest);bar.innerHTML=latest?`<div class="notification-bar-copy"><span class="message-category-icon ${messageCategoryClass(latest.category)}" aria-hidden="true">${esc(messageCategoryIcon(latest.category))}</span><div><small class="notification-kicker">${esc(messageCategoryLabel(latest.category))} · ${esc(messageRelativeTime(latest.sentAt))}</small><strong>${esc(latest.subject)}</strong><span>${esc(messageExcerpt(latest.bodyText,120))}</span></div></div><div class="admin-actions"><button class="primary-btn small" type="button" data-open-notification="${esc(latest.id)}">Open</button><button class="ghost-btn small" type="button" data-read-notification="${esc(latest.id)}">Mark read</button></div>`:''}
