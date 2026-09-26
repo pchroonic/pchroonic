@@ -1,3 +1,7 @@
+# Namdar v6.4.79 — CSP-safe account boot watchdog
+
+Fixes the v6.4.78 watchdog not running in browsers because Namdar's Content Security Policy blocks inline scripts. The My Namdar boot watchdog now lives in `account-boot-watchdog.js`, loads before `account.js`, and is allowed by the site's `script-src 'self'` policy. The account loader and watchdog are cache-busted together. Regression coverage now requires the watchdog to remain external and verifies that no inline boot script is reintroduced. No database or environment change.
+
 # Namdar v6.4.78 — Account boot watchdog
 
 My Namdar now has an independent startup watchdog embedded directly in `account.html`, before the account JavaScript loader. If any pre-init dependency stalls (config fetch, Supabase library/client setup, initial session, or rendering), the “Restoring your secure session” screen can no longer remain indefinitely. After 8 seconds the loading shell is dismissed and a diagnostic code identifies the last startup phase. `account-original.js` records phases from `html-ready` through `ready` and clears the watchdog on successful render. This is diagnostic/failsafe protection only and does not change authentication semantics. No database or environment change.
