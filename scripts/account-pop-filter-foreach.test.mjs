@@ -22,3 +22,8 @@ test('single-element helper $ is never used with forEach anywhere in account cod
   const bad=[...src.matchAll(/(?<!\$)\$\([^\n;]*?\)\.forEach\s*\(/g)].map(m=>m[0]);
   assert.deepEqual(bad,[],`Use $$() for collections. Invalid $().forEach usage: ${bad.join(' | ')}`);
 });
+
+
+test('triple-dollar helper is never present in account runtime',()=>{
+  assert.doesNotMatch(src,/\$\$\$\s*\(/,'Use $() for one element or $$() for collections; $$$() is invalid.');
+});
