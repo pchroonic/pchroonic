@@ -6,7 +6,7 @@ import fs from 'node:fs';
 const src=fs.readFileSync(new URL('../account-original.js',import.meta.url),'utf8');
 
 test('collection selectors use $$ before forEach',()=>{
-  assert.doesNotMatch(src, /\$\('\[data-pop-filter\]'\)\.forEach/g);
+  assert.doesNotMatch(src, /(?<!\$)\$\('\[data-pop-filter\]'\)\.forEach/g);
   const matches=src.match(/\$\$\('\[data-pop-filter\]'\)\.forEach/g)||[];
   assert.equal(matches.length,3);
 });
@@ -19,6 +19,6 @@ test('account bootstrap still reaches init after notification handlers are wired
 
 
 test('single-element helper $ is never used with forEach anywhere in account code',()=>{
-  const bad=[...src.matchAll(/\$\([^\n;]*?\)\.forEach\s*\(/g)].map(m=>m[0]);
+  const bad=[...src.matchAll(/(?<!\$)\$\([^\n;]*?\)\.forEach\s*\(/g)].map(m=>m[0]);
   assert.deepEqual(bad,[],`Use $$() for collections. Invalid $().forEach usage: ${bad.join(' | ')}`);
 });
