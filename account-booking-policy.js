@@ -1,6 +1,7 @@
 (()=>{
-  const VERSION='6.4.93-payment-handoff-1';
+  const VERSION='6.4.94-cancellation-ack-1';
   const POLICY_VERSION='2026-09-15-v1';
+  window.NAMDAR_BOOKING_POLICY_VERSION=POLICY_VERSION;
   const WINDOW_HOURS=48;
   const $=s=>document.querySelector(s);
   const money=v=>Number(v||0).toLocaleString('en-GB',{style:'currency',currency:'GBP'});
@@ -81,8 +82,11 @@
 
   function cancellationNotice(){
     const panel=$('#bookingCancelPanel');if(!panel||$('#bookingCancellationPolicyNotice'))return;
-    const note=document.createElement('div');note.id='bookingCancellationPolicyNotice';note.className='booking-cancellation-note';note.innerHTML=`<strong>${WINDOW_HOURS}-hour cancellation policy</strong><p>More than ${WINDOW_HOURS} hours before the appointment, a deposit is normally refundable or transferable. Within ${WINDOW_HOURS} hours, or for a no-show/no agreed access, Namdar may retain only the amount reasonably needed to cover the direct loss caused by the cancellation. Statutory rights are unaffected.</p><a href="/terms" target="_blank" rel="noopener">Read the full cancellation terms</a>`;
+    const note=document.createElement('div');note.id='bookingCancellationPolicyNotice';note.className='booking-cancellation-note';note.innerHTML=`<strong>${WINDOW_HOURS}-hour cancellation policy</strong><p>More than ${WINDOW_HOURS} hours before the appointment, a deposit is normally refundable or transferable. Within ${WINDOW_HOURS} hours, or for a no-show/no agreed access, Namdar may retain only the amount reasonably needed to cover the direct loss caused by the cancellation. Statutory rights are unaffected.</p><a href="/terms" target="_blank" rel="noopener">Read the full cancellation terms</a><label class="consent required-consent booking-cancellation-consent"><input id="bookingCancellationAccept" type="checkbox"><span>I have read and accept the cancellation terms above and understand that my current appointment stays booked until Namdar approves this request.</span></label>`;
     panel.appendChild(note);
+    const accept=$('#bookingCancellationAccept'),submit=$('#submitBookingChange');
+    const sync=()=>{if(submit&&typeof bookingChangeMode!=='undefined'&&bookingChangeMode==='cancel')submit.disabled=!accept?.checked};
+    accept?.addEventListener('change',sync);window.NamdarSyncCancellationAcceptance=sync;sync();
   }
 
   function balanceText(hours){const n=Math.max(0,Number(hours)||0);return n===0?'at completion':`${n} hour${n===1?'':'s'} after the scheduled job end`}
