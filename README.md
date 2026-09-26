@@ -1,3 +1,7 @@
+# Namdar v6.4.81 — Non-blocking Supabase account startup
+
+Fixes the remaining `ACCOUNT-BOOT-HTML-READY` state by removing the synchronous Supabase CDN script that loaded before `account-original.js`. My Namdar now starts its own bootstrap first, records `init-start`, and loads Supabase dynamically with a 4.5-second jsDelivr timeout plus an unpkg fallback. A stalled external CDN can no longer prevent the account bootstrap from starting at all. Regression coverage requires that account.html contains no blocking external Supabase script and verifies the bounded primary/fallback loader. No database or environment change.
+
 # Namdar v6.4.80 — Direct My Namdar script loading
 
 My Namdar no longer relies on `account.js` and `document.write(...)` to inject its critical startup scripts. `account.html` now loads the pinned Supabase browser client and every account script directly in a fixed order. This removes the loader layer identified by the `ACCOUNT-BOOT-HTML-READY` diagnostic: HTML and the watchdog were running, but `account-original.js` never reached `init()`. Regression coverage now requires direct script loading and forbids `account.js` from the live account startup path. No database or environment change.

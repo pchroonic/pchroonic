@@ -1,5 +1,14 @@
 # Namdar project status
 
+## Non-blocking Supabase account startup — CANDIDATE
+- Removes the blocking external Supabase script from account.html.
+- account-original.js starts first and then loads Supabase dynamically.
+- Primary jsDelivr load is bounded at 4.5s; unpkg is used as a second bounded fallback.
+- Targets repeated `ACCOUNT-BOOT-HTML-READY`, proving startup was blocked before init().
+- Regression: `scripts/account-nonblocking-supabase.test.mjs`.
+- No database migration or environment-variable change.
+
+
 ## Direct My Namdar script loading — CANDIDATE
 - Removes `account.js` / `document.write(...)` from the live My Namdar startup path.
 - Loads Supabase 2.117.1, `account-original.js`, MFA/security, payment, booking, privacy and post-job scripts directly from `account.html` in fixed order.
