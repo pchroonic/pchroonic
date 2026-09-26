@@ -1,5 +1,13 @@
 # Namdar AI fast resume
 
+## GetAddress admin diagnostic — CANDIDATE
+- Adds `/api/admin-getaddress-status` protected by `requireStaff(req,'settings')`.
+- Reads `GETADDRESS_ADMIN_KEY` server-side only.
+- Checks GetAddress `/v2/subscription` and `/v3/usage`.
+- Returns safe subscription/usage fields only; no secret values.
+- CI covers endpoint syntax and secret-handling expectations.
+
+
 ## Browser GetAddress domain-token lookup — CANDIDATE
 - `/api/config` exposes only the domain-restricted `GETADDRESS_DOMAIN_TOKEN`, never the API key.
 - Customer Find address first calls GetAddress autocomplete from the browser with `all=true`.
