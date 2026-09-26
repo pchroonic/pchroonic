@@ -34,3 +34,16 @@ test('full provider cache suppresses partial OSM rows in customer picker', () =>
   const source = fs.readFileSync(new URL('../api/address-search.js', import.meta.url), 'utf8');
   assert.match(source, /providerCached\?\(master\|\|\[\]\)\.filter\(a=>a\.source_dataset!==['"]osm-postcode-cache['"]\)/);
 });
+
+test('GetAddress authentication failures are never cached and are diagnosable', () => {
+  const source = fs.readFileSync(new URL('../api/address-search.js', import.meta.url), 'utf8');
+  assert.match(source, /provider_unauthorized/);
+  assert.match(source, /!authFailure\)await saveCache/);
+  assert.match(source, /providerReason/);
+});
+
+test('GetAddress lookup can use a configured API key or domain token', () => {
+  const source = fs.readFileSync(new URL('../api/address-search.js', import.meta.url), 'utf8');
+  assert.match(source, /GETADDRESS_API_KEY/);
+  assert.match(source, /GETADDRESS_DOMAIN_TOKEN/);
+});

@@ -1,3 +1,7 @@
+# Namdar v6.4.89 — GetAddress live lookup recovery
+
+Customer postcode lookup now recovers immediately from GetAddress authentication failures instead of caching an Unauthorized response for ten minutes. The address endpoint reports a non-secret provider reason for diagnostics and supports the existing API-key configuration plus an optional domain-token fallback. Human-triggered postcode lookup remains rate-limited and policy-gated; no bulk harvesting is enabled.
+
 # Namdar v6.4.88 — Postcode-first address flow
 
 Customer address entry now starts with the postcode in both signup and My details. A successful postcode lookup automatically sets Area/Region, Borough/District and Town/City. Editing a postcode no longer immediately wipes the current derived location fields; they remain visible until a successful lookup replaces them. This prevents the confusing London/Lambeth disappearing behaviour while keeping the verified postcode lookup as the source of truth.

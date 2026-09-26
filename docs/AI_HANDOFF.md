@@ -1,5 +1,13 @@
 # Namdar AI handoff
 
+## GetAddress live lookup recovery — CANDIDATE
+- Do not cache GetAddress 401/Unauthorized failures.
+- Return non-secret `providerReason` diagnostics from `/api/address-search`.
+- Support `GETADDRESS_API_KEY` with optional `GETADDRESS_DOMAIN_TOKEN` fallback.
+- Keep customer lookup human-triggered, rate-limited and dataset-policy gated.
+- Current production log diagnosis: GetAddress returns `Unauthorized`; credential replacement is required for full house/flat results.
+
+
 ## Postcode-first customer address flow — CANDIDATE
 - Moves Postcode + Find address above Area/Region and Borough/District in signup and My details.
 - Successful postcode lookup remains the source of truth for Area/Region, Borough/District and Town/City.
