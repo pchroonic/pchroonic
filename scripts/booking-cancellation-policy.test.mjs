@@ -21,7 +21,7 @@ test('booking schema records durable policy and statutory service-start evidence
 
 test('customer appointment request visibly requires both policy acknowledgements',()=>{
   const ui=read('account-booking-policy.js');
-  assert.match(ui,/6\.4\.35-payment-policy-engine-1/);
+  assert.match(ui,/6\.4\.92-compact-booking-terms-1/);
   assert.match(ui,/Booking, cancellation & payment terms/);
   assert.match(ui,/bookingPolicyAccept/);
   assert.match(ui,/bookingEarlyServiceRequest/);
@@ -29,6 +29,21 @@ test('customer appointment request visibly requires both policy acknowledgements
   assert.match(ui,/statutory consumer rights/i);
   assert.match(ui,/bookingPolicyAccepted:true/);
   assert.match(ui,/earlyServiceRequested:true/);
+});
+
+test('appointment screen keeps terms compact and requires review before payment',()=>{
+  const html=read('account.html'),ui=read('account-booking-policy.js'),css=read('booking-policy.css'),checkout=read('api/create-checkout.js');
+  assert.match(html,/account-booking-policy\.js\?v=6\.4\.92-compact-booking-terms-1/);
+  assert.match(ui,/bookingTermsCompact/);
+  assert.match(ui,/Review & accept terms/);
+  assert.match(ui,/bookingTermsDialog/);
+  assert.match(ui,/Accept & continue/);
+  assert.match(ui,/before any Stripe payment can be started/i);
+  assert.match(ui,/openTermsDialog\(\)/);
+  assert.match(css,/\.booking-terms-compact\{/);
+  assert.match(css,/\.booking-terms-dialog\{/);
+  assert.match(checkout,/!booking\.booking_policy_accepted_at/);
+  assert.match(checkout,/booking\.early_service_acknowledged!==true/);
 });
 
 test('accepted quote and booking-change dialogs stay within the viewport',()=>{
