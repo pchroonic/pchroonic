@@ -1,3 +1,7 @@
+# Namdar v6.4.80 — Direct My Namdar script loading
+
+My Namdar no longer relies on `account.js` and `document.write(...)` to inject its critical startup scripts. `account.html` now loads the pinned Supabase browser client and every account script directly in a fixed order. This removes the loader layer identified by the `ACCOUNT-BOOT-HTML-READY` diagnostic: HTML and the watchdog were running, but `account-original.js` never reached `init()`. Regression coverage now requires direct script loading and forbids `account.js` from the live account startup path. No database or environment change.
+
 # Namdar v6.4.79 — CSP-safe account boot watchdog
 
 Fixes the v6.4.78 watchdog not running in browsers because Namdar's Content Security Policy blocks inline scripts. The My Namdar boot watchdog now lives in `account-boot-watchdog.js`, loads before `account.js`, and is allowed by the site's `script-src 'self'` policy. The account loader and watchdog are cache-busted together. Regression coverage now requires the watchdog to remain external and verifies that no inline boot script is reintroduced. No database or environment change.
