@@ -3,7 +3,7 @@
 ## CURRENT CHECKPOINT — 26 Sep 2026
 
 ### Production
-- GitHub main: `49a54f476db0c62be0a1817af6eeb51e4c83b997` (PR #173).
+- GitHub main: `09d9089ee281b06b2be90dcd5a48f93aacf71424` (PR #175).
 - Latest production Vercel deployment is READY on `namdar.co.uk`.
 - PR #162 browser GetAddress domain-token lookup is live.
 - PR #163 admin-only GetAddress subscription/usage diagnostic is live.
@@ -49,7 +49,7 @@ Any replacement provider should support:
 API credentials were visible in screenshots during troubleshooting. Any exposed GetAddress API/domain/admin credentials should be treated as compromised and rotated. Do not paste replacement secrets into chat; store them only in provider/Vercel secret controls.
 
 
-## Invoice PDF attached to payment email — CANDIDATE
+## Invoice PDF attached to payment email — LIVE
 - After a verified Stripe payment is recorded, Namdar now generates the customer's updated invoice PDF and attaches it directly to the payment receipt email.
 - The attachment uses the same shared invoice-PDF generator as the My Namdar Billing download so emailed and portal invoices stay consistent.
 - Resend attachments are sent as base64 PDF content with an explicit `application/pdf` content type.
@@ -57,7 +57,9 @@ API credentials were visible in screenshots during troubleshooting. Any exposed 
 - The attached invoice reflects the post-payment state (for example part paid, paid amount and outstanding balance).
 - Changes: `lib/invoice-pdf.js`, `api/billing-document.js`, `api/stripe-webhook.js`, `lib/server-original.js`, and `scripts/stripe-payments.test.mjs`.
 - No database migration or environment-variable change.
-- Not deployed until this candidate is merged and production is verified.
+- PR #175 merged at `09d9089ee281b06b2be90dcd5a48f93aacf71424`; production deployment `dpl_ECw4aGxJXxeqN7xdNuegoHB2aCZj` is READY and aliased to `namdar.co.uk`.
+- Release checks: AI handoff/JavaScript, Stripe live readiness, Google Review compatibility and Post-job compatibility all passed; production `/api/health` returned HTTP 200 / `ok:true` with database, Stripe, Stripe webhook and email readiness true.
+- Verified customer invoice `NMD-2026-001003` remains `part_paid` after the £0.50 deposit, with £0.50 outstanding and booking payment status `deposit_paid`.
 
 
 ## Required booking payment handoff — LIVE
