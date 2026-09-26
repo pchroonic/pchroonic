@@ -1,3 +1,7 @@
+# Namdar v6.4.87 — Phone verification ready, disabled by default
+
+Namdar's SMS mobile-verification flow is now production-ready behind one feature flag without requiring an SMS provider today. Customers can save normalised mobile numbers while verification is off; saved but unverified numbers no longer keep an otherwise complete account stuck in setup. Both My details and Security SMS controls are disabled honestly while the flag is off, and no Supabase phone/SMS request is made. When an SMS provider is configured later, set `NAMDAR_PHONE_VERIFICATION_ENABLED=true` in Vercel and redeploy to activate the existing `updateUser({phone})` + `verifyOtp({type:'phone_change'})` flow. See `docs/PHONE_VERIFICATION.md`. No database migration is required because `profiles.phone_verified` already exists.
+
 # Namdar v6.4.86 — Fix My Namdar profile-menu runtime typo
 
 Fixes a production startup crash introduced by the profile-menu release: `$$$('[data-portal-tab]')` was an invalid helper reference, causing `ReferenceError: $$$ is not defined` before account initialization completed. The runtime now correctly uses `$$()` for the portal-tab collection. CI now also rejects any `$$$(` token in `account-original.js` so this class of typo cannot merge again. No database, auth protocol, or environment change.
