@@ -49,6 +49,18 @@ Any replacement provider should support:
 API credentials were visible in screenshots during troubleshooting. Any exposed GetAddress API/domain/admin credentials should be treated as compromised and rotated. Do not paste replacement secrets into chat; store them only in provider/Vercel secret controls.
 
 
+## Compact booking terms review — CANDIDATE
+- Removes the long booking/cancellation/payment wording from the main accepted-quote appointment screen.
+- The appointment screen now shows a compact Booking terms card with the current payment summary, acceptance status and a Review & accept terms action.
+- Full payment, cancellation, statutory consumer-rights and service-start wording is moved into a dedicated modal review step.
+- Both existing acknowledgements remain mandatory; the booking API still records them and Stripe checkout still rejects bookings without recorded policy acceptance.
+- Acceptance state resets when the appointment dialog closes, preventing stale consent from carrying into another booking.
+- Customer booking policy asset/cache token: `6.4.92-compact-booking-terms-1`.
+- Regression coverage: `scripts/booking-cancellation-policy.test.mjs`.
+- No database migration or environment-variable change.
+- Not deployed until this candidate is merged and production is verified.
+
+
 ## Customer booking calendar picker — LIVE
 - Replaces the long accepted-quote appointment dropdown with a calendar-first picker in My Namdar.
 - Step 1 shows only dates with live available windows as selectable calendar days; unavailable dates stay disabled.
