@@ -19,6 +19,7 @@ module.exports = async function handler(req, res) {
       phoneVerificationMode: 'supabase_sms',
       addressLookupEnabled: true,
       addressSystem: 'namdar',
+      getAddressDomainToken: env('GETADDRESS_DOMAIN_TOKEN',''),
       aiEnabled: Boolean(env('OPENAI_API_KEY') && env('OPENAI_MODEL')),
       companyEmail: env('NAMDAR_COMPANY_EMAIL','hello@namdar.co.uk'),
       supportEmail: env('NAMDAR_SUPPORT_EMAIL','support@namdar.co.uk')
