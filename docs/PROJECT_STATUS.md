@@ -3,7 +3,7 @@
 ## CURRENT CHECKPOINT — 26 Sep 2026
 
 ### Production
-- GitHub main: `3f9d62c1115aa3457282bd80c749b6c643375818` (PR #169).
+- GitHub main: `e414f7ba9c30a42ecf2bf0e73bce8c9726605341` (PR #171).
 - Latest production Vercel deployment is READY on `namdar.co.uk`.
 - PR #162 browser GetAddress domain-token lookup is live.
 - PR #163 admin-only GetAddress subscription/usage diagnostic is live.
@@ -49,7 +49,7 @@ Any replacement provider should support:
 API credentials were visible in screenshots during troubleshooting. Any exposed GetAddress API/domain/admin credentials should be treated as compromised and rotated. Do not paste replacement secrets into chat; store them only in provider/Vercel secret controls.
 
 
-## Compact booking terms review — CANDIDATE
+## Compact booking terms review — LIVE
 - Removes the long booking/cancellation/payment wording from the main accepted-quote appointment screen.
 - The appointment screen now shows a compact Booking terms card with the current payment summary, acceptance status and a Review & accept terms action.
 - Full payment, cancellation, statutory consumer-rights and service-start wording is moved into a dedicated modal review step.
@@ -58,7 +58,8 @@ API credentials were visible in screenshots during troubleshooting. Any exposed 
 - Customer booking policy asset/cache token: `6.4.92-compact-booking-terms-1`.
 - Regression coverage: `scripts/booking-cancellation-policy.test.mjs`.
 - No database migration or environment-variable change.
-- Not deployed until this candidate is merged and production is verified.
+- PR #171 merged at `e414f7ba9c30a42ecf2bf0e73bce8c9726605341`; production deployment `dpl_FXumzq7Q4EW3erwCFZi2nTyaFZiJ` is READY and aliased to `namdar.co.uk`.
+- Release checks: AI handoff/JavaScript, Google Review compatibility and Post-job compatibility all passed; live `/account` loads `account-booking-policy.js?v=6.4.92-compact-booking-terms-1`; live JS contains the compact Booking terms card, required Review & accept terms modal and Stripe-before-payment acceptance wording; live CSS contains desktop/mobile compact terms rules; `/api/health` returned HTTP 200 / `ok:true`.
 
 
 ## Customer booking calendar picker — LIVE
