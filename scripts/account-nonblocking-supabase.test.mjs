@@ -9,7 +9,7 @@ const js=fs.readFileSync(new URL('../account-original.js',import.meta.url),'utf8
 test('account HTML never blocks account startup on an external Supabase script',()=>{
   assert.doesNotMatch(html,/src=["']https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js/);
   assert.doesNotMatch(html,/src=["']https:\/\/unpkg\.com\/@supabase\/supabase-js/);
-  assert.match(html,/account-original\.js\?v=6\.4\.85-profile-menu/);
+  assert.match(html,/account-original\.js\?v=6\.4\.87-phone-verification-ready/);
 });
 
 test('account bootstrap loads Supabase dynamically with bounded primary and fallback attempts',()=>{
