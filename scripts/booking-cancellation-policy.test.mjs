@@ -48,7 +48,7 @@ test('appointment screen keeps terms compact and requires review before payment'
 
 test('accepted quote and booking-change dialogs stay within the viewport',()=>{
   const html=read('account.html'),css=read('styles.css');
-  assert.match(html,/styles\.css\?v=6\.4\.94-cancellation-ack-1/);
+  assert.match(html,/styles\.css\?v=6\.4\.93-payment-handoff-1/);
   assert.match(html,/id="quoteScheduleDialog"[\s\S]*?class="modal-card wide"/);
   assert.match(html,/id="bookingChangeDialog"[\s\S]*?class="modal-card wide"/);
   assert.match(css,/#quoteScheduleDialog\.modal,#bookingChangeDialog\.modal\{max-width:820px;width:min\(820px,calc\(100% - 32px\)\);overflow:hidden\}/);
