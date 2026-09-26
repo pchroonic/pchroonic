@@ -1,5 +1,12 @@
 # Namdar project status
 
+## Fix profile-menu runtime typo — CANDIDATE
+- Fixes `ReferenceError: $$$ is not defined` in `account-original.js`.
+- Portal-tab binding now uses the valid `$$()` collection helper.
+- CI now rejects any `$$$(` token in the account runtime.
+- No database migration, auth protocol, or environment-variable change.
+
+
 ## My Namdar profile menu — CANDIDATE
 - Adds a top-right initials/avatar menu to My Namdar.
 - Moves My details, Notifications, Security, Back to website, Admin dashboard (role-gated), and Sign out into the menu.
