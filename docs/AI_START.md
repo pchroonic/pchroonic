@@ -1,5 +1,15 @@
 # Namdar AI fast resume
 
+## My Namdar profile menu — CANDIDATE
+- Adds a top-right initials/avatar menu to My Namdar.
+- Moves My details, Notifications, Security, Back to website, Admin dashboard (role-gated), and Sign out into the menu.
+- Keeps core workflow tabs visible: Overview, Quotes, Bookings, Billing, Support, Projects & 3D, Subscriptions, Rewards.
+- Utility panels remain deep-linkable and open correctly without horizontal tab buttons.
+- Menu closes on selection, outside click, and Escape.
+- Regression: `scripts/account-profile-menu.test.mjs`, wired into main JS CI.
+- No database migration, auth protocol, or environment-variable change.
+
+
 ## Enforced My Namdar regression gate — CANDIDATE
 - Main JS CI now runs all five `scripts/account-*.test.mjs` regression tests relevant to My Namdar startup.
 - Global guard rejects any `$().forEach()` misuse in `account-original.js`; collections must use `$$()`.
