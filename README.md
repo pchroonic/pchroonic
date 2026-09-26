@@ -1,3 +1,7 @@
+# Namdar v6.4.91 — GetAddress admin diagnostic
+
+Adds an admin-only server diagnostic for GetAddress subscription and usage. The endpoint is protected by the existing staff/settings permission, reads `GETADDRESS_ADMIN_KEY` only from server environment variables, calls GetAddress subscription and usage APIs, and returns only safe status/limit fields. The Administration Key is never returned to the browser or logged.
+
 # Namdar v6.4.91 — Browser GetAddress domain-token lookup
 
 Customer postcode lookup now uses the domain-restricted GetAddress token directly from the browser for the explicit Find address action, following GetAddress's documented Domain Token model. Full-postcode queries request `all=true` so customers can choose from all returned addresses, and selected suggestions are resolved through GetAddress's `/get/{id}` endpoint into Namdar's structured House/Flat, Street, Town, Borough, Postcode and coordinate fields. The existing Namdar server lookup remains as fallback only.
