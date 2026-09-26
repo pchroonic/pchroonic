@@ -1,5 +1,12 @@
 # Namdar project status
 
+## Enforced My Namdar regression gate — CANDIDATE
+- Main JS CI now runs all five `scripts/account-*.test.mjs` regression tests relevant to My Namdar startup.
+- Global guard rejects any `$().forEach()` misuse in `account-original.js`; collections must use `$$()`.
+- Protects against boot-spinner, session-startup, Supabase-load and notification-handler regressions before merge.
+- CI-only safety change; no runtime, database, auth, or environment change.
+
+
 ## Fix My Namdar pre-init notification crash — CANDIDATE
 - Fixes `TypeError: $(...).forEach is not a function` at account startup.
 - Three `[data-pop-filter]` handlers now use `$$()` instead of `$()` before `.forEach()`.
