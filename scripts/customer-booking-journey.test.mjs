@@ -57,9 +57,9 @@ test('base booking journey does not bypass final-quote acceptance and payment co
 
 test('accepted quote appointment uses a calendar and time buttons without changing the booking submit contract',()=>{
   const html=read('account.html'),source=read('account-booking-journey.js'),css=read('booking-journey.css'),base=read('account-original.js');
-  assert.match(html,/account-booking-journey\.js\?v=6\.4\.91-booking-calendar-1/);
+  assert.match(html,/account-booking-journey\.js\?v=6\.4\.94-booking-change-calendar-1/);
   assert.match(html,/id="quoteScheduleSlot"/);
-  assert.match(source,/6\.4\.91-booking-calendar-1/);
+  assert.match(source,/6\.4\.94-booking-change-calendar-1/);
   assert.match(source,/id='quoteSlotPicker'|picker\.id='quoteSlotPicker'/);
   assert.match(source,/data-schedule-day/);
   assert.match(source,/data-schedule-slot/);
@@ -70,4 +70,17 @@ test('accepted quote appointment uses a calendar and time buttons without changi
   assert.match(css,/\.booking-time-slot\.selected/);
   assert.match(css,/@media\(max-width:760px\)\{\.booking-slot-picker\{grid-template-columns:1fr\}/);
   assert.match(base,/const raw=\$\('#quoteScheduleSlot'\)\.value/);
+});
+
+
+test('booking reschedule uses the same calendar and time-button experience',()=>{
+  const html=read('account.html'),source=read('account-booking-journey.js'),base=read('account-original.js');
+  assert.match(html,/account-booking-journey\.js\?v=6\.4\.94-booking-change-calendar-1/);
+  assert.match(source,/bookingChangeSlotPicker/);
+  assert.match(source,/data-change-day/);
+  assert.match(source,/data-change-slot/);
+  assert.match(source,/select\.value=slot\.dataset\.changeSlot/);
+  assert.match(source,/Your current appointment stays booked until Namdar approves the change/);
+  assert.match(base,/id="bookingChangeSlot"|bookingChangeSlot/);
+  assert.match(base,/request_reschedule/);
 });
