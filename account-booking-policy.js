@@ -104,7 +104,7 @@
     try{const d=await api(`/api/customer-quote-action?quoteId=${encodeURIComponent(id)}`);renderPaymentCommitment(d.paymentCommitment||null)}catch(e){if(box)box.innerHTML=`<strong>Payment terms could not be loaded</strong><p>${String(e.message||'Refresh My Namdar and try again.')}</p>`;quickPaymentSummary(null)}finally{paymentTermsLoading=false;updateAcceptanceState()}
   }
 
-  function resetConsent(){const a=$('#bookingPolicyAccept'),b=$('#bookingEarlyServiceRequest');if(a)a.checked=false;if(b)b.checked=false;presentedPaymentRevision=null;paymentTermsLoading=false;$('#bookingTermsDialog')?.close();updateAcceptanceState()}
+  function resetConsent(){const a=$('#bookingPolicyAccept'),b=$('#bookingEarlyServiceRequest'),dlg=$('#bookingTermsDialog');if(a)a.checked=false;if(b)b.checked=false;presentedPaymentRevision=null;paymentTermsLoading=false;if(dlg?.open)dlg.close();updateAcceptanceState()}
 
   async function submitAppointment(){
     const raw=$('#quoteScheduleSlot')?.value||'',idx=raw===''?-1:Number(raw),slot=idx>=0?quoteScheduleSlots[idx]:null,address=$('#quoteScheduleAddress')?.value.trim()||'',btn=$('#submitQuoteSchedule'),status=$('#quoteScheduleStatus'),accepted=$('#bookingPolicyAccept')?.checked===true,earlyRequested=$('#bookingEarlyServiceRequest')?.checked===true;
