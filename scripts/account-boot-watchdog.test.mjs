@@ -9,7 +9,7 @@ const watchdog=fs.readFileSync(new URL('../account-boot-watchdog.js',import.meta
 
 test('account watchdog is external and loads before account-original.js',()=>{
   const wd=html.indexOf('/account-boot-watchdog.js?v=6.4.82-runtime-diagnostic');
-  const app=html.indexOf('account-original.js?v=6.4.88-postcode-first');
+  const app=html.indexOf('account-original.js?v=6.4.89-compact-notifications-1');
   assert.ok(wd>=0&&app>wd);
   assert.doesNotMatch(html,/src=["']\/?account\.js/);
   assert.doesNotMatch(html,/window\.__namdarAccountBoot=\{phase:'html-ready'/);
