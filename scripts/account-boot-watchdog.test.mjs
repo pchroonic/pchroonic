@@ -14,6 +14,14 @@ test('account watchdog is external and loads before the account loader',()=>{
   assert.doesNotMatch(html,/window\.__namdarAccountBoot=\{phase:'html-ready'/);
 });
 
+test('external watchdog captures browser runtime and resource errors',()=>{
+  assert.match(watchdog,/addEventListener\('error'/);
+  assert.match(watchdog,/RESOURCE /);
+  assert.match(watchdog,/JS /);
+  assert.match(watchdog,/unhandledrejection/);
+  assert.match(watchdog,/PROMISE /);
+});
+
 test('external watchdog cannot leave restore spinner visible forever',()=>{
   assert.match(watchdog,/setTimeout\(.*8000/s);
   assert.match(watchdog,/loading\.classList\.add\('hidden'\)/);

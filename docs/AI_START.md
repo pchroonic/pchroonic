@@ -1,5 +1,12 @@
 # Namdar AI fast resume
 
+## Account runtime diagnostics — CANDIDATE
+- Diagnostic-only change; no auth/session behavior change.
+- External boot watchdog captures JS errors, unhandled rejections, and failed script/resource loads.
+- Stalled `ACCOUNT-BOOT-HTML-READY` now includes the browser error detail or `NO-BROWSER-ERROR-CAPTURED`.
+- No database migration or environment-variable change.
+
+
 ## Non-blocking Supabase account startup — CANDIDATE
 - Removes the blocking external Supabase script from account.html.
 - account-original.js starts first and then loads Supabase dynamically.

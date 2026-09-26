@@ -1,3 +1,7 @@
+# Namdar v6.4.82 — Account runtime diagnostics
+
+Adds browser-side diagnostics to the existing My Namdar boot watchdog without changing authentication or session behavior. The watchdog now captures JavaScript exceptions, unhandled promise rejections, and failed script/resource loads before the account bootstrap reaches `init()`. If startup still stalls at `ACCOUNT-BOOT-HTML-READY`, the visible error now includes the exact browser diagnostic (for example a failed resource URL or JS exception location) instead of only the phase code. No database, auth protocol, or environment change.
+
 # Namdar v6.4.81 — Non-blocking Supabase account startup
 
 Fixes the remaining `ACCOUNT-BOOT-HTML-READY` state by removing the synchronous Supabase CDN script that loaded before `account-original.js`. My Namdar now starts its own bootstrap first, records `init-start`, and loads Supabase dynamically with a 4.5-second jsDelivr timeout plus an unpkg fallback. A stalled external CDN can no longer prevent the account bootstrap from starting at all. Regression coverage requires that account.html contains no blocking external Supabase script and verifies the bounded primary/fallback loader. No database or environment change.
