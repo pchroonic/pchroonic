@@ -1,5 +1,13 @@
 # Namdar project status
 
+## Browser GetAddress domain-token lookup — CANDIDATE
+- `/api/config` exposes only the domain-restricted `GETADDRESS_DOMAIN_TOKEN`, never the API key.
+- Customer Find address first calls GetAddress autocomplete from the browser with `all=true`.
+- Selected suggestion resolves through GetAddress `/get/{id}` and maps into structured Namdar address fields.
+- Existing `/api/address-search` remains fallback.
+- Regression: `scripts/address-browser-domain-token.test.mjs` wired into CI.
+
+
 ## GetAddress domain-token fallback — CANDIDATE
 - API key remains primary for customer postcode lookup.
 - On 401/Unauthorized, automatically retry `GETADDRESS_DOMAIN_TOKEN`.
