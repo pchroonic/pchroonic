@@ -1,3 +1,7 @@
+# Namdar v6.4.88 — Postcode-first address flow
+
+Customer address entry now starts with the postcode in both signup and My details. A successful postcode lookup automatically sets Area/Region, Borough/District and Town/City. Editing a postcode no longer immediately wipes the current derived location fields; they remain visible until a successful lookup replaces them. This prevents the confusing London/Lambeth disappearing behaviour while keeping the verified postcode lookup as the source of truth.
+
 # Namdar v6.4.87 — Phone verification ready, disabled by default
 
 Namdar's SMS mobile-verification flow is now production-ready behind one feature flag without requiring an SMS provider today. Customers can save normalised mobile numbers while verification is off; saved but unverified numbers no longer keep an otherwise complete account stuck in setup. Both My details and Security SMS controls are disabled honestly while the flag is off, and no Supabase phone/SMS request is made. When an SMS provider is configured later, set `NAMDAR_PHONE_VERIFICATION_ENABLED=true` in Vercel and redeploy to activate the existing `updateUser({phone})` + `verifyOtp({type:'phone_change'})` flow. See `docs/PHONE_VERIFICATION.md`. No database migration is required because `profiles.phone_verified` already exists.
