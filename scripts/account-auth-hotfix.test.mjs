@@ -69,7 +69,7 @@ function createContext(href='https://namdar.co.uk/account?tab=billing'){
 
 test('account HTML cache-busts the native-session loader and does not preload a second Supabase build',()=>{
   const html=fs.readFileSync(new URL('../account.html',import.meta.url),'utf8');
-  assert.match(html,/account\.js\?v=6\.4\.78-boot-watchdog/);
+  assert.match(html,/account\.js\?v=6\.4\.79-external-watchdog/);
   const matches=html.match(/@supabase\/supabase-js/g)||[];
   assert.equal(matches.length,0,'account.html should not preload a duplicate Supabase script');
 });

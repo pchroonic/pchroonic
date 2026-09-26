@@ -1,5 +1,13 @@
 # Namdar AI fast resume
 
+## CSP-safe account boot watchdog — CANDIDATE
+- Moves the My Namdar watchdog out of inline HTML into `account-boot-watchdog.js`.
+- Fixes CSP blocking of the previous inline watchdog.
+- Loads before account.js and uses same-origin script loading permitted by CSP.
+- Regression fails if the watchdog is moved inline again.
+- No database migration or environment-variable change.
+
+
 ## Account boot watchdog — CANDIDATE
 - Independent 8-second watchdog starts in `account.html` before account.js or external auth dependencies.
 - Prevents an endless “Restoring your secure session” screen if startup never reaches the internal auth timeout.
