@@ -106,6 +106,14 @@
 
   function resetConsent(){const a=$('#bookingPolicyAccept'),b=$('#bookingEarlyServiceRequest'),dlg=$('#bookingTermsDialog');if(a)a.checked=false;if(b)b.checked=false;presentedPaymentRevision=null;paymentTermsLoading=false;if(dlg?.open)dlg.close();updateAcceptanceState()}
 
+  async function openRequiredPayment(bookingId,amount,status,btn){
+    status.textContent=`Appointment request saved. Opening secure payment for ${money(amount)}…`;
+    setBusy(btn,true,'Opening secure payment…');
+    const checkout=await api('/api/create-checkout',{method:'POST',body:JSON.stringify({bookingId})});
+    if(!/^https:\/\/checkout\.stripe\.com\//i.test(String(checkout.url||'')))throw new Error('Stripe did not return a secure checkout link.');
+    location.href=checkout.url;
+  }
+
   async function submitAppointment(){
     const raw=$('#quoteScheduleSlot')?.value||'',idx=raw===''?-1:Number(raw),slot=idx>=0?quoteScheduleSlots[idx]:null,address=$('#quoteScheduleAddress')?.value.trim()||'',btn=$('#submitQuoteSchedule'),status=$('#quoteScheduleStatus'),accepted=$('#bookingPolicyAccept')?.checked===true,earlyRequested=$('#bookingEarlyServiceRequest')?.checked===true;
     if(!slot){status.textContent='Choose an available appointment slot.';return}
@@ -116,10 +124,20 @@
     setBusy(btn,true,'Sending request…');
     try{
       const d=await api('/api/booking',{method:'POST',body:JSON.stringify({quoteId:activeQuoteScheduleId,address,startsAt:slot.startsAt,endsAt:slot.endsAt,bookingPolicyAccepted:true,bookingPolicyVersion:POLICY_VERSION,earlyServiceRequested:true,paymentPolicyRevision:presentedPaymentRevision})});
+      const bookingId=d.booking?.id||'',requiredAmount=Math.max(0,Number(d.booking?.depositRequired||0));
+      window.NamdarAnalytics?.track?.('booking_submitted',{quoteId:activeQuoteScheduleId,bookingId:bookingId||undefined});
+      if(bookingId&&requiredAmount>.004){
+        try{await openRequiredPayment(bookingId,requiredAmount,status,btn);return}
+        catch(paymentError){
+          status.textContent=`Your appointment request is saved, but secure payment did not open. ${String(paymentError.message||'')} Use the Pay button in My Bookings to continue.`.trim();
+          const session=(await sb.auth.getSession()).data.session;if(session)await loadPortal(session);
+          history.replaceState({},'',`/account?tab=bookings&booking=${encodeURIComponent(bookingId)}`);applyAccountDestination();
+          setTimeout(()=>$('#quoteScheduleDialog')?.close(),900);return;
+        }
+      }
       status.textContent='Booking request sent. Namdar will confirm the appointment.';
-      window.NamdarAnalytics?.track?.('booking_submitted',{quoteId:activeQuoteScheduleId,bookingId:d.booking?.id||undefined});
       const session=(await sb.auth.getSession()).data.session;if(session)await loadPortal(session);
-      if(d.booking?.id){history.replaceState({},'',`/account?tab=bookings&booking=${encodeURIComponent(d.booking.id)}`);applyAccountDestination()}
+      if(bookingId){history.replaceState({},'',`/account?tab=bookings&booking=${encodeURIComponent(bookingId)}`);applyAccountDestination()}
       setTimeout(()=>$('#quoteScheduleDialog')?.close(),500);
     }catch(e){status.textContent=e.message}finally{setBusy(btn,false)}
   }
