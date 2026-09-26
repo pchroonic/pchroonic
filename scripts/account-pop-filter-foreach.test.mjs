@@ -16,3 +16,9 @@ test('account bootstrap still reaches init after notification handlers are wired
   const init=src.indexOf("init().catch",handler);
   assert.ok(handler>=0&&init>handler);
 });
+
+
+test('single-element helper $ is never used with forEach anywhere in account code',()=>{
+  const bad=[...src.matchAll(/\$\([^\n;]*?\)\.forEach\s*\(/g)].map(m=>m[0]);
+  assert.deepEqual(bad,[],`Use $$() for collections. Invalid $().forEach usage: ${bad.join(' | ')}`);
+});
