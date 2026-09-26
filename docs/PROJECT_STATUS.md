@@ -1,5 +1,15 @@
 # Namdar project status
 
+## Phone verification ready, disabled by default — CANDIDATE
+- Adds public config flag `phoneVerificationEnabled` from `NAMDAR_PHONE_VERIFICATION_ENABLED`; default is OFF.
+- Customers can save phone numbers while SMS is off; unverified state does not block account completion until verification is enabled.
+- My details and Security SMS actions are guarded and disabled while OFF, so no provider call/cost occurs.
+- Existing Supabase phone-change OTP flow is preserved for future activation.
+- Activation runbook: `docs/PHONE_VERIFICATION.md`.
+- Regression: `scripts/account-phone-verification-ready.test.mjs`, wired into main JS CI.
+- No database migration; `profiles.phone_verified` already exists.
+
+
 ## Fix profile-menu runtime typo — CANDIDATE
 - Fixes `ReferenceError: $$$ is not defined` in `account-original.js`.
 - Portal-tab binding now uses the valid `$$()` collection helper.
