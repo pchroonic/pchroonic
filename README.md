@@ -1,3 +1,7 @@
+# Namdar v6.4.84 — Enforced My Namdar regression gate
+
+The main JavaScript/AI handoff workflow now executes every My Namdar startup regression test on every pull request and main-branch push: auth hotfix compatibility, boot watchdog, initial-session handling, non-blocking Supabase startup, and the collection-helper `$().forEach()` guard. The collection-helper test is also broadened to fail on any single-element `$()` selector followed by `.forEach()` anywhere in `account-original.js`, not only notification filters. This turns the recent account incident into an enforced CI invariant rather than a one-off fix. No production runtime, database, auth protocol, or environment change.
+
 # Namdar v6.4.83 — Fix My Namdar pre-init notification crash
 
 Fixes the exact browser exception exposed by the new startup diagnostics: `TypeError: $(...).forEach is not a function` in `account-original.js`. Three notification popover filter handlers incorrectly used the single-element helper `$()` and then called `.forEach()`; they now use the collection helper `$$()`. This crash happened before `init()`, which is why the account page repeatedly remained at `ACCOUNT-BOOT-HTML-READY`. Regression coverage now forbids `.forEach()` on the single-element pop-filter selector. No database, auth protocol, or environment change.
