@@ -1,5 +1,13 @@
 # Namdar project status
 
+## Direct My Namdar script loading — CANDIDATE
+- Removes `account.js` / `document.write(...)` from the live My Namdar startup path.
+- Loads Supabase 2.117.1, `account-original.js`, MFA/security, payment, booking, privacy and post-job scripts directly from `account.html` in fixed order.
+- Targets diagnostic `ACCOUNT-BOOT-HTML-READY`, which proved account-original.js never reached init().
+- Regression tests forbid reintroducing account.js into live account startup.
+- No database migration or environment-variable change.
+
+
 ## CSP-safe account boot watchdog — CANDIDATE
 - Moves the My Namdar watchdog out of inline HTML into `account-boot-watchdog.js`.
 - Fixes CSP blocking of the previous inline watchdog.

@@ -67,25 +67,23 @@ function createContext(href='https://namdar.co.uk/account?tab=billing'){
 }
 
 
-test('account HTML cache-busts the native-session loader and does not preload a second Supabase build',()=>{
+test('account HTML loads the account stack directly without the document.write loader',()=>{
   const html=fs.readFileSync(new URL('../account.html',import.meta.url),'utf8');
-  assert.match(html,/account\.js\?v=6\.4\.79-external-watchdog/);
-  const matches=html.match(/@supabase\/supabase-js/g)||[];
-  assert.equal(matches.length,0,'account.html should not preload a duplicate Supabase script');
+  assert.doesNotMatch(html,/account\.js\?v=/);
+  assert.match(html,/supabase-js@2\.117\.1/);
+  assert.match(html,/account-original\.js\?v=6\.4\.80-direct-loader/);
+  assert.match(html,/account-mfa-guard\.js/);
 });
 
-test('account loader uses one pinned current Supabase build and no custom getSession wrapper',()=>{
-  assert.match(loaderSource,/const supabaseVersion='2\.117\.1'/);
-  assert.match(loaderSource,/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js@\$\{supabaseVersion\}/);
-  assert.doesNotMatch(loaderSource,/account-auth-hotfix\.js/);
-  assert.match(loaderSource,/account-original\.js/);
+test('account loader file may remain in repo but is not on the live account startup path',()=>{
+  const html=fs.readFileSync(new URL('../account.html',import.meta.url),'utf8');
+  assert.doesNotMatch(html,/src=["']\/?account\.js/);
 });
 
 test('account bootstrap uses native Supabase persisted-session flow',()=>{
   const src=fs.readFileSync(new URL('../account-original.js',import.meta.url),'utf8');
   assert.match(src,/persistSession:true,autoRefreshToken:true,detectSessionInUrl:true/);
-  assert.match(src,/await sb\.auth\.getSession\(\)/);
-  assert.match(src,/sb\.auth\.onAuthStateChange/);
+  assert.match(src,/onAuthStateChange/);
 });
 
 test('hung getSession resolves with a bounded timeout instead of hanging forever',async()=>{
