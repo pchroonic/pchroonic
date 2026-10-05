@@ -5,7 +5,7 @@ import crypto from 'node:crypto';
 import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url);
 const {normalizePaymentPolicy,providerReadiness,checkoutPlan,headlinePriceWithAllowance}=require('../lib/payment-policy.js');
-const {checkoutIdempotencyKey,verifyStripeSignature,processorDetailsFromBalanceTransaction,readRawBody}=require('../lib/stripe-payments.js');
+const {checkoutIdempotencyKey,refundIdempotencyKey,createRefund,verifyStripeSignature,processorDetailsFromBalanceTransaction,readRawBody}=require('../lib/stripe-payments.js');
 const {receiptNumber}=require('../lib/payment-receipts.js');
 const {buildInvoicePdf}=require('../lib/invoice-pdf.js');
 const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
@@ -32,6 +32,18 @@ test('headline payment-cost allowance is part of one normal price, not a checkou
   const quote=read('api/quote-core.js'),admin=read('admin-payment-settings.js');
   assert.match(quote,/headlinePriceWithAllowance/);assert.match(quote,/service==='windows'/);assert.match(admin,/same headline price applies regardless/i);assert.match(admin,/not a card or Stripe surcharge/i);
   assert.doesNotMatch(quote,/card fee|stripe fee/i);
+});
+
+test('Stripe refund creation uses the original PaymentIntent, minor units and idempotency',async()=>{
+  const originalFetch=globalThis.fetch;let request=null;
+  globalThis.fetch=async(url,options)=>{request={url:String(url),options};return new Response(JSON.stringify({id:'re_test_123',status:'succeeded',amount:123,payment_intent:'pi_test_123'}),{status:200,headers:{'content-type':'application/json'}})};
+  try{
+    const key=refundIdempotencyKey({paymentRecordId:'payment-private-id',paymentIntentId:'pi_test_123',amount:1.23,alreadyRefunded:.5});
+    assert.ok(key.startsWith('namdar_refund_'));assert.equal(key.includes('payment-private-id'),false);assert.equal(key.includes('pi_test_123'),false);
+    const refund=await createRefund({secret:'sk_test_x',paymentIntentId:'pi_test_123',amount:1.23,idempotencyKey:key,metadata:{namdar_invoice_id:'invoice_123',source:'admin'}});
+    assert.equal(refund.id,'re_test_123');assert.equal(request.url,'https://api.stripe.com/v1/refunds');assert.equal(request.options.method,'POST');assert.equal(request.options.headers['Idempotency-Key'],key);
+    const body=new URLSearchParams(request.options.body);assert.equal(body.get('payment_intent'),'pi_test_123');assert.equal(body.get('amount'),'123');assert.equal(body.get('metadata[namdar_invoice_id]'),'invoice_123');assert.equal(body.get('metadata[source]'),'admin');
+  }finally{globalThis.fetch=originalFetch}
 });
 
 test('Stripe balance transaction details provide exact internal processor cost',()=>{
@@ -92,9 +104,12 @@ test('customer billing and PDFs never render internal processor cost fields',()=
   for(const field of ['provider_fee','provider_net','provider_balance_transaction','provider_payment_id']){assert.doesNotMatch(billing,new RegExp(field));assert.doesNotMatch(pdf,new RegExp(field))}
 });
 
-test('manual staff payment entry cannot impersonate a Stripe webhook payment',()=>{
-  const adminPayments=read('api/admin-payments.js'),admin=read('admin-payment-settings.js');
-  assert.match(adminPayments,/method===['"]stripe['"]/);assert.match(adminPayments,/recorded automatically from verified Stripe webhooks/i);assert.match(admin,/paymentMethod option\[value=\\?"stripe/);
+test('manual staff payment entry cannot impersonate Stripe, while refunds call Stripe safely',()=>{
+  const adminPayments=read('api/admin-payments.js'),admin=read('admin-payment-settings.js'),adminCore=read('admin-original.js'),adminLoader=read('admin.js'),adminHtml=read('admin.html');
+  assert.match(adminPayments,/direction==='payment'&&method==='stripe'/);assert.match(adminPayments,/recorded automatically from verified Stripe webhooks/i);
+  assert.match(adminPayments,/createRefund/);assert.match(adminPayments,/refundIdempotencyKey/);assert.match(adminPayments,/processRefund/);assert.match(adminPayments,/providerPaymentId/);assert.match(adminPayments,/different Stripe environment/i);
+  assert.match(adminCore,/stripeRefundTarget/);assert.match(adminCore,/Refund .*original Stripe payment/);assert.match(adminCore,/providerPaymentId/);assert.match(adminCore,/Refund via Stripe/);
+  assert.match(adminLoader,/6\.4\.95-stripe-refund-1/);assert.match(adminHtml,/admin\.js\?v=6\.4\.95-stripe-refund-1/);assert.match(admin,/paymentMethod option\[value=\\?"stripe/);
 });
 
 test('required Window payment policy is enforced server-side before booking confirmation',()=>{
