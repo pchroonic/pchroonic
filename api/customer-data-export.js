@@ -17,7 +17,7 @@ module.exports=async function handler(req,res){
       safeRows(`support_tickets?or=(customer_id.eq.${uid},guest_email.eq.${mail})&select=id,ticket_no,guest_email,guest_name,subject,category,priority,status,last_staff_reply_at,last_customer_reply_at,created_at,updated_at,closed_at,source&order=created_at.desc`),
       safeRows(`loyalty_ledger?customer_id=eq.${uid}&select=id,points,reason,reference_type,reference_id,created_at&order=created_at.desc`),
       safeRows(`invoices?customer_id=eq.${uid}&select=id,booking_id,quote_id,invoice_number,currency,total,amount_paid,status,issued_at,due_at,paid_at,notes,payment_policy_revision,payment_policy_snapshot,deposit_required,balance_due_hours,overdue_booking_hold_days,overdue_final_review_days,created_at,updated_at&order=created_at.desc`),
-      safeRows(`payment_records?customer_id=eq.${uid}&select=id,booking_id,invoice_id,direction,payment_kind,method,amount,reference,paid_at,created_at&order=created_at.desc`),
+      safeRows(`payment_records?customer_id=eq.${uid}&select=id,booking_id,invoice_id,direction,payment_kind,method,amount,reference,paid_at,voided_at,void_reason,created_at&order=created_at.desc`),
       safeRows(`newsletter_subscribers?email=eq.${mail}&select=id,status,source,consent_at,confirmed_at,unsubscribed_at,created_at,updated_at,preferences,preferences_updated_at`),
       safeRows(`privacy_requests?customer_id=eq.${uid}&select=id,request_type,details,identity_status,status,source,requested_at,due_at,completed_at,response_summary,created_at,updated_at&order=requested_at.desc`),
       safeRows(`account_deletion_requests?customer_id=eq.${uid}&select=id,status,requested_at,verified_at,delete_after,recovered_at&order=requested_at.desc`),
