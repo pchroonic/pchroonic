@@ -24,7 +24,8 @@ async function listData(){
 module.exports=async function handler(req,res){
   try{
     const staff=await requireStaff(req,'payments');
-    if(req.method==='GET')return json(res,200,{ok:true,records:await listData()});
+    const canCorrectTransactions=staff?.profile?.role==='admin'||staff?.permissions?.all===true;
+    if(req.method==='GET')return json(res,200,{ok:true,canCorrectTransactions,records:await listData()});
     if(req.method!=='POST')return json(res,405,{ok:false,error:'Method not allowed'});
     const b=parseBody(req),action=String(b.action||'').trim();
     if(action==='create_invoice'){
@@ -33,6 +34,23 @@ module.exports=async function handler(req,res){
     }
     const invoiceId=String(b.invoiceId||'').trim();if(!invoiceId)return json(res,400,{ok:false,error:'Invoice ID is required.'});
     const ctx=await invoiceContext(invoiceId);if(!ctx)return json(res,404,{ok:false,error:'Invoice not found.'});
+    if(action==='void_transaction'){
+      if(!canCorrectTransactions)return json(res,403,{ok:false,error:'Only a Namdar administrator can correct a recorded transaction.'});
+      const paymentId=String(b.paymentId||'').trim(),reason=String(b.reason||'').trim().slice(0,500);
+      if(!paymentId)return json(res,400,{ok:false,error:'Transaction ID is required.'});
+      if(!reason)return json(res,400,{ok:false,error:'Add a reason for correcting this transaction.'});
+      const payment=(await db(`payment_records?id=eq.${encodeURIComponent(paymentId)}&select=*&limit=1`))?.[0];
+      if(!payment||payment.invoice_id!==invoiceId)return json(res,404,{ok:false,error:'Transaction not found on this invoice.'});
+      if(payment.voided_at){const state=await syncInvoicePaymentState(invoiceId);return json(res,200,{ok:true,alreadyVoided:true,payment,state});}
+      if(payment.method==='stripe'||payment.provider_reference||payment.provider_payment_id)return json(res,409,{ok:false,error:'Stripe/provider transactions cannot be voided locally. Use the provider refund flow instead.'});
+      const beforeState=await syncInvoicePaymentState(invoiceId),now=new Date().toISOString();
+      const corrected=(await db(`payment_records?id=eq.${encodeURIComponent(paymentId)}&voided_at=is.null`,{method:'PATCH',prefer:'return=representation',body:{voided_at:now,voided_by:staff.user.id,void_reason:reason}}))?.[0];
+      if(!corrected)return json(res,409,{ok:false,error:'This transaction was already corrected. Refresh Payments and try again.'});
+      const state=await syncInvoicePaymentState(invoiceId),receiptNo=receiptNumber(payment),q=ctx.quote,kind=payment.direction==='refund'?'refund':'payment';
+      if(q?.email)await sendEmail({to:q.email,subject:`Correction to Namdar ${kind} receipt ${receiptNo}`,html:`<p>Hi ${escapeHtml(q.customer_name||'there')},</p><p>We corrected a manually recorded ${escapeHtml(kind)} entry of <strong>£${Number(payment.amount||0).toFixed(2)}</strong> on invoice <strong>${escapeHtml(ctx.invoice.invoice_number||'')}</strong>. The entry <strong>${escapeHtml(receiptNo)}</strong> is now marked void and no longer affects your invoice balance.</p><p><strong>Current net paid:</strong> £${state.net.toFixed(2)}<br><strong>Current outstanding:</strong> £${state.outstanding.toFixed(2)}</p><p>This administrative correction does not itself move money through a bank, card processor or Stripe. Your current invoice and active payment history are available in <a href="https://namdar.co.uk/account?tab=billing">My Namdar</a>.</p>`,archiveForCustomer:true,customerId:q.customer_id||ctx.invoice.customer_id||null,messageCategory:'billing',targetPath:'/account?tab=billing',messageKey:`payment-correction:${paymentId}`});
+      await auditLog(req,staff,{action:'payment.transaction_void',entityType:'payment_record',entityId:paymentId,summary:`Corrected manual ${kind} ${receiptNo} · £${Number(payment.amount||0).toFixed(2)}`,before:payment,after:corrected,metadata:{invoiceId,reason,receiptNumber:receiptNo,beforeNet:beforeState.net,afterNet:state.net,beforeOutstanding:beforeState.outstanding,afterOutstanding:state.outstanding}});
+      return json(res,200,{ok:true,payment:{...corrected,receipt_number:receiptNo},state});
+    }
     if(action==='record_payment'||action==='record_refund'){
       if(ctx.invoice.status==='void')return json(res,409,{ok:false,error:'A void invoice cannot accept payments.'});
       const amount=Number(b.amount),method=String(b.method||'other'),direction=action==='record_refund'?'refund':'payment',kind=direction==='refund'?'refund':String(b.kind||'balance');
@@ -45,7 +63,7 @@ module.exports=async function handler(req,res){
       if(direction==='refund'&&method==='stripe'){
         const providerPaymentId=String(b.providerPaymentId||'').trim();
         if(!providerPaymentId)return json(res,400,{ok:false,error:'Choose the Stripe payment to refund.'});
-        const stripeRows=await db(`payment_records?invoice_id=eq.${encodeURIComponent(invoiceId)}&method=eq.stripe&select=*&order=paid_at.desc`);
+        const stripeRows=await db(`payment_records?invoice_id=eq.${encodeURIComponent(invoiceId)}&method=eq.stripe&voided_at=is.null&select=*&order=paid_at.desc`);
         const target=(stripeRows||[]).find(p=>p.direction==='payment'&&String(p.provider_payment_id||'')===providerPaymentId);
         if(!target)return json(res,400,{ok:false,error:'That Stripe payment is not available for this invoice.'});
         const alreadyRefunded=(stripeRows||[]).filter(p=>p.direction==='refund'&&String(p.provider_payment_id||'')===providerPaymentId).reduce((sum,p)=>sum+Number(p.amount||0),0);
