@@ -1,5 +1,7 @@
-const { json, parseBody, db, requireStaff, ensureInvoiceForBooking, syncInvoicePaymentState, sendEmail, escapeHtml, cancelPendingBusinessNotifications, auditLog, safeError } = require('../lib/server');
+const { json, parseBody, db, env, requireStaff, ensureInvoiceForBooking, syncInvoicePaymentState, sendEmail, escapeHtml, cancelPendingBusinessNotifications, auditLog, safeError } = require('../lib/server');
 const { receiptNumber } = require('../lib/payment-receipts');
+const { createRefund, refundIdempotencyKey } = require('../lib/stripe-payments');
+const { processRefund } = require('./stripe-webhook');
 const METHODS=new Set(['cash','bank_transfer','card','other']);
 const KINDS=new Set(['deposit','balance','full','adjustment','refund']);
 async function invoiceContext(invoiceId){
@@ -35,11 +37,38 @@ module.exports=async function handler(req,res){
       if(ctx.invoice.status==='void')return json(res,409,{ok:false,error:'A void invoice cannot accept payments.'});
       const amount=Number(b.amount),method=String(b.method||'other'),direction=action==='record_refund'?'refund':'payment',kind=direction==='refund'?'refund':String(b.kind||'balance');
       if(!Number.isFinite(amount)||amount<=0)return json(res,400,{ok:false,error:'Enter a valid payment amount.'});
-      if(method==='stripe')return json(res,400,{ok:false,error:'Stripe payments are recorded automatically from verified Stripe webhooks and cannot be entered manually.'});
-      if(!METHODS.has(method)||!KINDS.has(kind))return json(res,400,{ok:false,error:'Choose a valid payment method and type.'});
+      if(direction==='payment'&&method==='stripe')return json(res,400,{ok:false,error:'Stripe payments are recorded automatically from verified Stripe webhooks and cannot be entered manually.'});
+      if((method!=='stripe'&&!METHODS.has(method))||!KINDS.has(kind))return json(res,400,{ok:false,error:'Choose a valid payment method and type.'});
       const state=await syncInvoicePaymentState(invoiceId),outstanding=state.outstanding,net=state.net;
       if(direction==='payment'&&amount>outstanding+.005)return json(res,400,{ok:false,error:`Payment cannot exceed the outstanding balance of £${outstanding.toFixed(2)}.`});
       if(direction==='refund'&&amount>net+.005)return json(res,400,{ok:false,error:`Refund cannot exceed the net amount paid of £${net.toFixed(2)}.`});
+      if(direction==='refund'&&method==='stripe'){
+        const providerPaymentId=String(b.providerPaymentId||'').trim();
+        if(!providerPaymentId)return json(res,400,{ok:false,error:'Choose the Stripe payment to refund.'});
+        const stripeRows=await db(`payment_records?invoice_id=eq.${encodeURIComponent(invoiceId)}&method=eq.stripe&select=*&order=paid_at.desc`);
+        const target=(stripeRows||[]).find(p=>p.direction==='payment'&&String(p.provider_payment_id||'')===providerPaymentId);
+        if(!target)return json(res,400,{ok:false,error:'That Stripe payment is not available for this invoice.'});
+        const alreadyRefunded=(stripeRows||[]).filter(p=>p.direction==='refund'&&String(p.provider_payment_id||'')===providerPaymentId).reduce((sum,p)=>sum+Number(p.amount||0),0);
+        const available=Math.max(0,Number(target.amount||0)-alreadyRefunded);
+        if(amount>available+.005)return json(res,400,{ok:false,error:`This Stripe payment has £${available.toFixed(2)} left available to refund.`});
+        const secret=env('STRIPE_SECRET_KEY');if(!secret)return json(res,503,{ok:false,error:'Stripe is not configured.'});
+        const liveSecret=String(secret).startsWith('sk_live_');
+        if(target.provider_livemode!==null&&target.provider_livemode!==undefined&&Boolean(target.provider_livemode)!==liveSecret)return json(res,409,{ok:false,error:'This payment belongs to a different Stripe environment. Switch Namdar to the matching Stripe mode before refunding it.'});
+        const idempotencyKey=refundIdempotencyKey({paymentRecordId:target.id,paymentIntentId:providerPaymentId,amount,alreadyRefunded});
+        const refund=await createRefund({secret,paymentIntentId:providerPaymentId,amount:Number(amount.toFixed(2)),idempotencyKey,metadata:{namdar_invoice_id:invoiceId,namdar_payment_id:target.id,source:'admin'}});
+        let processed={handled:true,recorded:false,reason:`refund_${String(refund.status||'unknown')}`};
+        if(String(refund.status||'')==='succeeded'){
+          try{processed=await processRefund(refund,providerPaymentId)}catch(error){
+            const providerReference=`stripe_refund:${String(refund.id||'')}`;
+            const existing=(await db(`payment_records?provider_reference=eq.${encodeURIComponent(providerReference)}&select=*&limit=1`).catch(()=>[]))?.[0]||null;
+            if(!existing)throw error;
+            processed={handled:true,recorded:false,invoiceId,receiptNumber:receiptNumber(existing),reconciliationPending:true};
+          }
+        }
+        const updated=await syncInvoicePaymentState(invoiceId);
+        await auditLog(req,staff,{action:'payment.stripe_refund',entityType:'invoice',entityId:invoiceId,summary:`Requested Stripe refund of £${amount.toFixed(2)}${processed.receiptNumber?` · ${processed.receiptNumber}`:''}`,before:state.invoice,after:updated.invoice,metadata:{stripeRefundId:refund.id||null,stripeRefundStatus:refund.status||null,providerPaymentId,paymentId:target.id,receiptNumber:processed.receiptNumber||null,amount:Number(amount.toFixed(2)),reconciliationPending:Boolean(processed.reconciliationPending)}});
+        return json(res,200,{ok:true,stripeRefund:{id:refund.id||null,status:refund.status||null,amount:Number(amount.toFixed(2))},receiptNumber:processed.receiptNumber||null,pending:String(refund.status||'')!=='succeeded',reconciliationPending:Boolean(processed.reconciliationPending),state:updated});
+      }
       const rows=await db('payment_records',{method:'POST',prefer:'return=representation',body:{booking_id:ctx.invoice.booking_id,invoice_id:ctx.invoice.id,customer_id:ctx.invoice.customer_id||null,direction,payment_kind:kind,method,amount:Number(amount.toFixed(2)),reference:String(b.reference||'').trim().slice(0,240)||null,paid_at:b.paidAt?new Date(b.paidAt).toISOString():new Date().toISOString(),recorded_by:staff.user.id}});const payment=rows?.[0],receiptNo=receiptNumber(payment);
       const updated=await syncInvoicePaymentState(invoiceId);const q=ctx.quote;
       if(updated.outstanding<.005)await cancelPendingBusinessNotifications('invoice',invoiceId,'invoice_overdue').catch(()=>null);
