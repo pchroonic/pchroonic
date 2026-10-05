@@ -76,7 +76,7 @@ module.exports=async function handler(req,res){try{
     db('quotes?select=id,created_at&order=created_at.asc&limit=10000'),
     db('bookings?select=id,quote_id,status,created_at&order=created_at.asc&limit=10000'),
     db('invoices?select=id,booking_id&limit=10000'),
-    db('payment_records?select=id,booking_id,invoice_id,direction,amount,paid_at&order=paid_at.asc&limit=10000')
+    db('payment_records?voided_at=is.null&select=id,booking_id,invoice_id,direction,amount,paid_at&order=paid_at.asc&limit=10000')
   ]);
 
   const allViews=views||[],selectedViews=allViews.filter(v=>inRange(v.created_at,range.start,range.end)),previousViews=prev?allViews.filter(v=>inRange(v.created_at,prev.start,prev.end)):[];
