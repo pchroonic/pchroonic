@@ -33,7 +33,7 @@ test('admin can correct manual transactions but provider transactions stay autho
 });
 
 test('customer billing, reports and finance exclude corrected transactions',()=>{
-  for(const path of ['api/customer-billing.js','api/admin-reporting.js','api/admin-business-finance.js']){
+  for(const path of ['api/customer-billing.js','api/admin-reporting.js','api/admin-business-finance.js','api/admin-page-analytics.js','api/admin-window-performance.js']){
     assert.match(read(path),/payment_records\?[^'\`]*voided_at=is\.null/);
   }
   assert.match(read('api/payment-status.js'),/voided_at=is\.null/);
@@ -50,4 +50,10 @@ test('billing PDFs distinguish a voided transaction from a valid receipt',()=>{
 test('admin assets are cache-busted for payment transaction corrections',()=>{
   assert.match(read('admin.js'),/6\.4\.96-transaction-corrections-1/);
   assert.match(read('admin.html'),/admin\.js\?v=6\.4\.96-transaction-corrections-1/);
+});
+
+
+test('customer data export preserves correction metadata for transparency',()=>{
+  const dataExport=read('api/customer-data-export.js');
+  assert.match(dataExport,/payment_records\?customer_id=eq\.\$\{uid\}[^\n]*voided_at,void_reason/);
 });
