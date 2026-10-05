@@ -3,20 +3,22 @@
 ## CURRENT CHECKPOINT — 5 Oct 2026
 
 ### Production
-- GitHub main: `d77e4e5c5e9dec31693225b72f1c1b6d8b5ac4ba` (PR #178 continuity update).
-- Latest verified production Vercel deployment: `dpl_FSu3bnXk7BymZvPHR7QuMaDeicY3`, READY on `namdar.co.uk`, from main `d77e4e5c5e9dec31693225b72f1c1b6d8b5ac4ba`.
+- GitHub main: `1e852096dc0e148b813cdc5fb0e6533b2595b23d` (PR #179).ntinuity update).
+- Latest verified production Vercel deployment: `dpl_A6Y7THjZ226yFG2fHY12wHgiFz33`, READY and aliased to `namdar.co.uk`, from main `1e852096dc0e148b813cdc5fb0e6533b2595b23d`.nXk7BymZvPHR7QuMaDeicY3`, READY on `namdar.co.uk`, from main `d77e4e5c5e9dec31693225b72f1c1b6d8b5ac4ba`.
 - PR #162 browser GetAddress domain-token lookup is live.
 - PR #163 admin-only GetAddress subscription/usage diagnostic is live.
 
-## Admin Stripe refund — CANDIDATE
-- Branch: `feature/admin-stripe-refund`.
+## Admin Stripe refund — LIVE
 - Admin → Payments already had a generic Refund action, but Stripe was intentionally blocked from manual ledger entry. The candidate now makes that action perform a real Stripe refund when the invoice has a refundable Stripe transaction.
 - Server flow: validate invoice/net paid → validate the selected original Stripe PaymentIntent and its remaining refundable amount → verify the payment's test/live mode matches the configured secret → create the refund through Stripe using an idempotency key → feed successful refunds through the existing `processRefund` path so payment records, receipt numbers, customer email, staff notification and invoice/payment state remain authoritative and idempotent.
 - Pending provider refunds are not falsely marked complete; the verified webhook remains the confirmation path.
 - UI defaults to Stripe only when a refundable Stripe payment exists, disables Stripe for manual payment entry, requires a confirmation prompt before money is sent back, and retains manual cash/bank/card refund recording.
 - Files: `lib/stripe-payments.js`, `api/admin-payments.js`, `admin-original.js`, `admin.js`, `admin.html`, `scripts/stripe-payments.test.mjs`, Stripe CI workflow.
 - Database impact: none. Environment-variable impact: none; existing `STRIPE_SECRET_KEY` and verified webhook remain the provider controls.
-- Regression coverage includes Stripe refund request payload/idempotency and Admin wiring. Candidate is not production-live until merged and deployment checks pass.
+- Regression coverage includes Stripe refund request payload/idempotency and Admin wiring.
+- PR #179 merged at `1e852096dc0e148b813cdc5fb0e6533b2595b23d`; production deployment `dpl_A6Y7THjZ226yFG2fHY12wHgiFz33` is READY and aliased to `namdar.co.uk`.
+- `AI handoff and JavaScript checks` passed, including Stripe/payment-policy regression tests; Google Review and post-job compatibility checks passed.
+- Live verification confirmed the `6.4.95-stripe-refund-1` admin bundle and refund confirmation/runtime wiring, and `/api/health` returned HTTP 200 with database, Stripe, Stripe webhook and email healthy.
 
 ### My Namdar / account
 - Account startup regressions from the notification/profile-menu work are fixed and protected by CI.
