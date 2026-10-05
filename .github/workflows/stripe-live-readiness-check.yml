@@ -4,6 +4,10 @@ on:
   pull_request:
     paths:
       - 'lib/payment-policy.js'
+      - 'lib/stripe-payments.js'
+      - 'api/admin-payments.js'
+      - 'admin-original.js'
+      - 'admin.html'
       - 'api/admin-payment-settings.js'
       - 'admin-payment-settings.js'
       - 'admin.js'
@@ -15,6 +19,10 @@ on:
     branches: [main]
     paths:
       - 'lib/payment-policy.js'
+      - 'lib/stripe-payments.js'
+      - 'api/admin-payments.js'
+      - 'admin-original.js'
+      - 'admin.html'
       - 'api/admin-payment-settings.js'
       - 'admin-payment-settings.js'
       - 'admin.js'
