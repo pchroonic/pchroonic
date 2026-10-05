@@ -3,18 +3,19 @@
 ## CURRENT CHECKPOINT — 5 Oct 2026
 
 ### Production
-- GitHub main: `d77e4e5c5e9dec31693225b72f1c1b6d8b5ac4ba` (PR #178 continuity update).
-- Latest verified production Vercel deployment: `dpl_FSu3bnXk7BymZvPHR7QuMaDeicY3`, READY on `namdar.co.uk`, from main `d77e4e5c5e9dec31693225b72f1c1b6d8b5ac4ba`.
+- GitHub main: `1e852096dc0e148b813cdc5fb0e6533b2595b23d` (PR #179).ntinuity update).
+- Latest verified production Vercel deployment: `dpl_A6Y7THjZ226yFG2fHY12wHgiFz33`, READY and aliased to `namdar.co.uk`, from main `1e852096dc0e148b813cdc5fb0e6533b2595b23d`.nXk7BymZvPHR7QuMaDeicY3`, READY on `namdar.co.uk`, from main `d77e4e5c5e9dec31693225b72f1c1b6d8b5ac4ba`.
 - PR #162 browser GetAddress domain-token lookup is live.
 - PR #163 admin-only GetAddress subscription/usage diagnostic is live.
 
-### Admin Stripe refund — CANDIDATE
-- Branch: `feature/admin-stripe-refund`.
+### Admin Stripe refund — LIVE
 - Admin Payments keeps manual refunds for cash/bank/card, and now sends Stripe refunds back through Stripe instead of only writing a local refund record.
 - Refunds are tied to the original PaymentIntent, enforce remaining refundable amount, use an idempotency key, block test/live mode mismatches, and require an admin confirmation click.
 - Successful Stripe refunds reuse the existing verified refund-processing path for Namdar receipt/audit/customer email state; pending Stripe refunds wait for the webhook confirmation.
 - No database migration and no new environment variable.
-- Regression coverage added in `scripts/stripe-payments.test.mjs`; not production-live until PR merge and deployment verification.
+- PR #179 merged at `1e852096dc0e148b813cdc5fb0e6533b2595b23d`; production deployment `dpl_A6Y7THjZ226yFG2fHY12wHgiFz33` is READY and aliased to `namdar.co.uk`.
+- `AI handoff and JavaScript checks` passed, including `scripts/stripe-payments.test.mjs` and `scripts/payment-policy-engine.test.mjs`; Google Review and post-job compatibility checks also passed.
+- Live verification: `/admin` serves `admin.js?v=6.4.95-stripe-refund-1`; the loaded admin runtime contains `Refund via Stripe`, the original-payment confirmation, Stripe refund target selection and `providerPaymentId`; `/api/health` returned HTTP 200 with database, Stripe, Stripe webhook and email healthy.
 
 ### My Namdar / account
 - Account startup regressions from the notification/profile-menu work are fixed and protected by CI.
