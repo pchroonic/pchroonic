@@ -1,5 +1,6 @@
 (()=>{
   const v='6.4.37-admin-website-crash-fix-1';
+  const adminCoreV='6.4.95-stripe-refund-1';
   const modalLayoutV='6.4.38-admin-wide-modal-fix-1';
   const roleV='6.4.39-access-roles-1';
   const fieldOpsV='6.4.41-staff-operations-v3-1';
@@ -18,7 +19,7 @@
   document.write(`<link rel="stylesheet" href="/admin-field-incidents.css?v=${fieldOpsV}">`);
   document.write(`<link rel="stylesheet" href="/admin-review-dashboard.css?v=${reviewV}">`);
   document.write(`<script src="/privileged-login-captcha.js?v=${v}"><\/script>`);
-  document.write(`<script src="/admin-original.js?v=${v}"><\/script>`);
+  document.write(`<script src="/admin-original.js?v=${adminCoreV}"><\/script>`);
   document.write(`<script src="/admin-brand-assets.js?v=${v}"><\/script>`);
   document.write(`<script src="/admin-mfa-guard.js?v=${v}"><\/script>`);
   document.write(`<script src="/admin-security-hardening.js?v=${v}"><\/script>`);

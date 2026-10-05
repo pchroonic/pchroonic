@@ -1,12 +1,20 @@
 # Namdar AI fast resume
 
-## CURRENT CHECKPOINT — 26 Sep 2026
+## CURRENT CHECKPOINT — 5 Oct 2026
 
 ### Production
-- GitHub main: `144e178634e25be5ef8303a42be8da6a52064130` (PR #177).
-- Latest production Vercel deployment is READY on `namdar.co.uk`.
+- GitHub main: `d77e4e5c5e9dec31693225b72f1c1b6d8b5ac4ba` (PR #178 continuity update).
+- Latest verified production Vercel deployment: `dpl_FSu3bnXk7BymZvPHR7QuMaDeicY3`, READY on `namdar.co.uk`, from main `d77e4e5c5e9dec31693225b72f1c1b6d8b5ac4ba`.
 - PR #162 browser GetAddress domain-token lookup is live.
 - PR #163 admin-only GetAddress subscription/usage diagnostic is live.
+
+### Admin Stripe refund — CANDIDATE
+- Branch: `feature/admin-stripe-refund`.
+- Admin Payments keeps manual refunds for cash/bank/card, and now sends Stripe refunds back through Stripe instead of only writing a local refund record.
+- Refunds are tied to the original PaymentIntent, enforce remaining refundable amount, use an idempotency key, block test/live mode mismatches, and require an admin confirmation click.
+- Successful Stripe refunds reuse the existing verified refund-processing path for Namdar receipt/audit/customer email state; pending Stripe refunds wait for the webhook confirmation.
+- No database migration and no new environment variable.
+- Regression coverage added in `scripts/stripe-payments.test.mjs`; not production-live until PR merge and deployment verification.
 
 ### My Namdar / account
 - Account startup regressions from the notification/profile-menu work are fixed and protected by CI.
