@@ -3,8 +3,8 @@
 ## CURRENT CHECKPOINT — 5 Oct 2026
 
 ### Production
-- GitHub main: `1e852096dc0e148b813cdc5fb0e6533b2595b23d` (PR #179).ntinuity update).
-- Latest verified production Vercel deployment: `dpl_A6Y7THjZ226yFG2fHY12wHgiFz33`, READY and aliased to `namdar.co.uk`, from main `1e852096dc0e148b813cdc5fb0e6533b2595b23d`.nXk7BymZvPHR7QuMaDeicY3`, READY on `namdar.co.uk`, from main `d77e4e5c5e9dec31693225b72f1c1b6d8b5ac4ba`.
+- GitHub main: `6eb990ea21e490d873bf85d51e17bf57513c3186` (PR #180 continuity update).
+- Latest verified production Vercel deployment: `dpl_5rrREowaNaZgqPVgdrWsq1mpNZ2x`, READY and aliased to `namdar.co.uk`, from main `6eb990ea21e490d873bf85d51e17bf57513c3186`.
 - PR #162 browser GetAddress domain-token lookup is live.
 - PR #163 admin-only GetAddress subscription/usage diagnostic is live.
 
@@ -16,6 +16,18 @@
 - PR #179 merged at `1e852096dc0e148b813cdc5fb0e6533b2595b23d`; production deployment `dpl_A6Y7THjZ226yFG2fHY12wHgiFz33` is READY and aliased to `namdar.co.uk`.
 - `AI handoff and JavaScript checks` passed, including `scripts/stripe-payments.test.mjs` and `scripts/payment-policy-engine.test.mjs`; Google Review and post-job compatibility checks also passed.
 - Live verification: `/admin` serves `admin.js?v=6.4.95-stripe-refund-1`; the loaded admin runtime contains `Refund via Stripe`, the original-payment confirmation, Stripe refund target selection and `providerPaymentId`; `/api/health` returned HTTP 200 with database, Stripe, Stripe webhook and email healthy.
+
+### Manual payment transaction correction — CANDIDATE
+- Adds an admin-only **Void / correct** action for manually recorded cash, bank-transfer, card and other payment/refund rows. It never deletes the original financial record.
+- Correction metadata is stored on `payment_records` as `voided_at`, `voided_by` and `void_reason`; the original receipt number and transaction remain available to Admin as an audit record.
+- Voided transactions are excluded from invoice/payment state, My Namdar Billing, customer invoice payment history, reporting, Business Finance and payment-status calculations.
+- Opening a corrected receipt PDF shows **VOIDED TRANSACTION** with the correction reason instead of presenting it as a valid payment/refund receipt.
+- Stripe/provider-backed rows cannot be voided locally; provider refunds remain authoritative through the real Stripe refund flow.
+- Correcting a manual transaction sends the customer a billing correction notice explaining the updated net paid/outstanding balance and that the correction itself does not move money.
+- Migration: `supabase/migrations/20261005193000_payment_transaction_corrections.sql`. No new environment variable.
+- Regression: `scripts/payment-transaction-corrections.test.mjs`; Admin asset token `6.4.96-transaction-corrections-1`.
+- Known cleanup after deployment: the mistaken manual £0.50 card-refund entry on the live £1 verification invoice should be voided/corrected before any real Stripe refund is issued.
+- Candidate only: migration not yet applied to production and the feature is not live until PR/deployment verification completes.
 
 ### My Namdar / account
 - Account startup regressions from the notification/profile-menu work are fixed and protected by CI.
