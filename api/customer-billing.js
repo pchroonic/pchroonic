@@ -10,7 +10,7 @@ module.exports=async function handler(req,res){
     const invoices=await db(`invoices?customer_id=eq.${encodeURIComponent(user.id)}&select=*&order=created_at.desc&limit=300`);
     const invoiceIds=(invoices||[]).map(x=>x.id),bookingIds=[...new Set((invoices||[]).map(x=>x.booking_id).filter(Boolean))],quoteIds=[...new Set((invoices||[]).map(x=>x.quote_id).filter(Boolean))];
     let payments=[],bookings=[],quotes=[];
-    if(invoiceIds.length)payments=await db(`payment_records?invoice_id=in.(${invoiceIds.map(x=>encodeURIComponent(x)).join(',')})&select=id,invoice_id,booking_id,direction,payment_kind,method,amount,reference,paid_at,created_at&order=paid_at.desc`);
+    if(invoiceIds.length)payments=await db(`payment_records?invoice_id=in.(${invoiceIds.map(x=>encodeURIComponent(x)).join(',')})&voided_at=is.null&select=id,invoice_id,booking_id,direction,payment_kind,method,amount,reference,paid_at,created_at&order=paid_at.desc`);
     if(bookingIds.length)bookings=await db(`bookings?id=in.(${bookingIds.map(x=>encodeURIComponent(x)).join(',')})&select=id,starts_at,ends_at,address,status,payment_status,payment_policy_revision,payment_policy_snapshot,deposit_required`);
     if(quoteIds.length)quotes=await db(`quotes?id=in.(${quoteIds.map(x=>encodeURIComponent(x)).join(',')})&select=id,service_key,customer_name,postcode`);
     const bmap=Object.fromEntries(bookings.map(x=>[x.id,x])),qmap=Object.fromEntries(quotes.map(x=>[x.id,x])),pmap={};for(const p of payments){(pmap[p.invoice_id]??=[]).push(p)}
