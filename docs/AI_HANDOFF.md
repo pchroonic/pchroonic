@@ -56,10 +56,10 @@
 ), so Receipt and **Void / correct** controls initialise correctly.
 - Refund UI now disables manual methods that have no active amount received on that invoice, preventing a Stripe payment from being accidentally labelled as a manual card/cash/bank refund through the normal Admin flow.
 - Correcting a manual transaction sends the customer a billing correction notice explaining the updated net paid/outstanding balance and that the correction itself does not move money.
-- Migration: `supabase/migrations/20261005193000_payment_transaction_corrections.sql`. No new environment variable.
+- Database: the transaction-correction schema is already applied in production as Supabase migration `20261005194238 payment_transaction_corrections`; the supporting `payment_records_voided_by_idx` index was applied on 6 Oct 2026. No new environment variable.
 - Regression: `scripts/payment-transaction-corrections.test.mjs`; Admin asset token `6.4.97-transaction-corrections-fix-1`.
 - Known cleanup after deployment: the mistaken manual £0.50 card-refund entry on the live £1 verification invoice should be voided/corrected before any real Stripe refund is issued.
-- Candidate only: migration not yet applied to production and the feature is not live until PR/deployment verification completes.
+- Candidate only: the database support is present, but the feature is not live on `namdar.co.uk` until PR/deployment verification completes.
 
 ### My Namdar / account
 - Account startup regressions from the notification/profile-menu work are fixed and protected by CI.
