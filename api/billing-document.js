@@ -28,13 +28,13 @@ module.exports=async function handler(req,res){
     if(req.method!=='GET'){res.statusCode=405;return res.end('Method not allowed')}
     const user=await authUser(req);if(!user?.id){res.statusCode=401;return res.end('Please sign in.')};const profile=await userProfile(user.id);
     const paymentId=String(queryParam(req,'payment_id')||'').trim(),invoiceIdInput=String(queryParam(req,'invoice_id')||'').trim();
-    let payment=null,invoiceId=invoiceIdInput;if(paymentId){payment=(await db(`payment_records?id=eq.${encodeURIComponent(paymentId)}&select=*&limit=1`))?.[0];if(!payment){res.statusCode=404;return res.end('Payment not found.')}invoiceId=payment.invoice_id}
+    let payment=null,invoiceId=invoiceIdInput;if(paymentId){payment=(await db(`payment_records?id=eq.${encodeURIComponent(paymentId)}&voided_at=is.null&select=*&limit=1`))?.[0];if(!payment){res.statusCode=404;return res.end('Payment not found.')}invoiceId=payment.invoice_id}
     if(!invoiceId){res.statusCode=400;return res.end('Invoice is required.')}
     const invoice=(await db(`invoices?id=eq.${encodeURIComponent(invoiceId)}&select=*&limit=1`))?.[0];if(!invoice){res.statusCode=404;return res.end('Invoice not found.')}
     if(!(await canView(user,profile,invoice))){res.statusCode=403;return res.end('You do not have access to this document.')}
     const booking=invoice.booking_id?(await db(`bookings?id=eq.${encodeURIComponent(invoice.booking_id)}&select=id,starts_at,ends_at,address,status,payment_status&limit=1`))?.[0]:null;
     const quote=invoice.quote_id?(await db(`quotes?id=eq.${encodeURIComponent(invoice.quote_id)}&select=id,customer_name,email,phone,postcode,service_key,final_price,automatic_estimate&limit=1`))?.[0]:null;
-    const payments=await db(`payment_records?invoice_id=eq.${encodeURIComponent(invoice.id)}&select=*&order=paid_at.asc`);
+    const payments=await db(`payment_records?invoice_id=eq.${encodeURIComponent(invoice.id)}&voided_at=is.null&select=*&order=paid_at.asc`);
     if(!payment){const doc=buildInvoicePdf({invoice,booking,quote,payments});res.statusCode=200;res.setHeader('Content-Type','application/pdf');res.setHeader('Content-Disposition',`attachment; filename="${doc.filename}"`);res.setHeader('Cache-Control','no-store');res.setHeader('Content-Length',String(doc.pdf.length));return res.end(doc.pdf)}
     const service=({windows:'Window cleaning',gutters:'Gutter cleaning',roof:'Roof cleaning',jetwash:'Jet washing',handyman:'Handyman',tour3d:'3D property tour'})[quote?.service_key]||quote?.service_key||'Namdar service';
     const total=Number(invoice.total||0),paid=Number(invoice.amount_paid||0),outstanding=Math.max(0,total-paid);let lines=[];
