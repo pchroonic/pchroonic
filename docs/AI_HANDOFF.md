@@ -8,6 +8,16 @@
 - PR #162 browser GetAddress domain-token lookup is live.
 - PR #163 admin-only GetAddress subscription/usage diagnostic is live.
 
+## Refund reconciliation safeguard — CANDIDATE
+- Production diagnosis on 6 Oct 2026: invoice `NMD-2026-001003` contains a genuine £0.50 live Stripe payment, but the 5 Oct refund entry was recorded locally as method `card` with no Stripe provider reference. The local invoice therefore became `refunded` even though no matching Stripe refund was recorded.
+- Root cause: the generic manual-refund path allowed staff to choose a refund method that had not actually received money on that invoice; invoice synchronisation then treated the manual ledger entry as if money had genuinely been returned.
+- Candidate safeguard: a manual refund cannot exceed the active amount actually received by that same method. Stripe payments must be refunded through the Stripe path.
+- Admin transaction history can explicitly **Undo refund record** for a mistaken non-Stripe refund. This voids only the Namdar ledger entry, requires a reason and confirmation, and is audit logged. It never charges the customer and never sends or reverses money through Stripe, a bank or card system.
+- Voided payment records are excluded from invoice/payment synchronisation, My Namdar billing, downloadable/emailed invoice histories and Business Finance totals.
+- The existing live Stripe refund path remains provider-backed, idempotent and test/live protected. No real refund is sent automatically by this recovery patch.
+- No database migration or new environment variable is required because `payment_records.voided_at`, `voided_by` and `void_reason` already exist.
+- The currently mistaken production refund row is deliberately left unchanged until an authorised staff user explicitly chooses the recovery action after confirming no money was returned outside Stripe.
+
 ## Admin Stripe refund — LIVE
 - Admin → Payments already had a generic Refund action, but Stripe was intentionally blocked from manual ledger entry. The candidate now makes that action perform a real Stripe refund when the invoice has a refundable Stripe transaction.
 - Server flow: validate invoice/net paid → validate the selected original Stripe PaymentIntent and its remaining refundable amount → verify the payment's test/live mode matches the configured secret → create the refund through Stripe using an idempotency key → feed successful refunds through the existing `processRefund` path so payment records, receipt numbers, customer email, staff notification and invoice/payment state remain authoritative and idempotent.
