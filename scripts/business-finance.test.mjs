@@ -25,6 +25,7 @@ test('finance API uses real cash ledger, private expenses and explicit estimate 
   assert.match(source,/provider_livemode/);
   assert.match(source,/row\?\.method!=='stripe'\|\|row\?\.provider_livemode===true/);
   assert.match(source,/excludedSandboxStripeRows/);
+  assert.match(source,/activePayments=\(payments\|\|\[\]\)\.filter\(x=>!x\.voided_at\)/);
   assert.match(source,/Management estimate only, not an HMRC assessment/);
 });
 
