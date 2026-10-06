@@ -108,8 +108,18 @@ test('manual staff payment entry cannot impersonate Stripe, while refunds call S
   const adminPayments=read('api/admin-payments.js'),admin=read('admin-payment-settings.js'),adminCore=read('admin-original.js'),adminLoader=read('admin.js'),adminHtml=read('admin.html');
   assert.match(adminPayments,/direction==='payment'&&method==='stripe'/);assert.match(adminPayments,/recorded automatically from verified Stripe webhooks/i);
   assert.match(adminPayments,/createRefund/);assert.match(adminPayments,/refundIdempotencyKey/);assert.match(adminPayments,/processRefund/);assert.match(adminPayments,/providerPaymentId/);assert.match(adminPayments,/different Stripe environment/i);
+  assert.match(adminPayments,/void_payment_record/);assert.match(adminPayments,/actually received by that method/i);assert.match(adminPayments,/voided_at=is\.null/);
   assert.match(adminCore,/stripeRefundTarget/);assert.match(adminCore,/Refund .*original Stripe payment/);assert.match(adminCore,/providerPaymentId/);assert.match(adminCore,/Refund via Stripe/);
-  assert.match(adminLoader,/6\.4\.95-stripe-refund-1/);assert.match(adminHtml,/admin\.js\?v=6\.4\.95-stripe-refund-1/);assert.match(admin,/paymentMethod option\[value=\\?"stripe/);
+  assert.match(adminCore,/refundAvailableByMethod/);assert.match(adminCore,/Undo refund record/);assert.match(adminCore,/internal ledger/i);
+  assert.match(adminLoader,/6\.4\.96-refund-reconciliation-1/);assert.match(adminHtml,/admin\.js\?v=6\.4\.96-refund-reconciliation-1/);assert.match(admin,/paymentMethod option\[value=\\?"stripe/);
+});
+
+test('voided ledger corrections cannot affect invoices, customer billing or billing documents',()=>{
+  const server=read('lib/server-original.js'),billing=read('api/customer-billing.js'),document=read('api/billing-document.js'),webhook=read('api/stripe-webhook.js');
+  assert.match(server,/activePayments=\(payments\|\|\[\]\)\.filter\(p=>!p\.voided_at\)/);
+  assert.match(billing,/voided_at=is\.null/);
+  assert.match(document,/voided_at=is\.null/);
+  assert.match(webhook,/voided_at=is\.null/);
 });
 
 test('required Window payment policy is enforced server-side before booking confirmation',()=>{
