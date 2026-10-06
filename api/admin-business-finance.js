@@ -17,14 +17,15 @@ module.exports=async function handler(req,res){
     const bounds=taxYearBounds(taxYear),rules=rulesFor(taxYear);
     const [settingsRows,payments,invoices,expenses,jobCosts]=await Promise.all([
       db('site_settings?key=eq.finance_private&select=key,value,updated_at&limit=1').catch(()=>[]),
-      db('payment_records?select=id,booking_id,invoice_id,direction,payment_kind,method,amount,provider_fee,provider_fee_currency,provider_livemode,paid_at,created_at&order=paid_at.asc&limit=10000'),
+      db('payment_records?select=id,booking_id,invoice_id,direction,payment_kind,method,amount,provider_fee,provider_fee_currency,provider_livemode,paid_at,created_at,voided_at&order=paid_at.asc&limit=10000'),
       db('invoices?select=id,booking_id,total,amount_paid,status,issued_at,due_at,created_at&order=created_at.asc&limit=10000'),
       db('business_expenses?select=id,expense_date,category,description,supplier,amount,vat_amount,business_use_percent,tax_treatment,payment_method,booking_id,reference,receipt_reference,notes,source,created_at,updated_at&order=expense_date.asc,created_at.asc&limit=10000').catch(()=>[]),
       db('booking_job_costs?select=booking_id,consumables_cost,parking_cost,travel_cost,other_cost,updated_at&limit=10000').catch(()=>[])
     ]);
     const settings=settingsFrom(settingsRows?.[0]);
-    const excludedSandboxStripeRows=(payments||[]).filter(x=>x.method==='stripe'&&x.provider_livemode!==true).length;
-    const financePayments=(payments||[]).filter(isRealFinancePayment);
+    const activePayments=(payments||[]).filter(x=>!x.voided_at);
+    const excludedSandboxStripeRows=activePayments.filter(x=>x.method==='stripe'&&x.provider_livemode!==true).length;
+    const financePayments=activePayments.filter(isRealFinancePayment);
     const yearPayments=financePayments.filter(x=>inRange(x.paid_at||x.created_at,bounds.start,bounds.end));
     const grossReceipts=round(yearPayments.filter(x=>x.direction==='payment').reduce((a,x)=>a+n(x.amount),0));
     const refunds=round(yearPayments.filter(x=>x.direction==='refund').reduce((a,x)=>a+n(x.amount),0));
