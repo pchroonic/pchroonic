@@ -30,6 +30,9 @@ test('admin can correct manual transactions but provider transactions stay autho
   assert.match(ui,/data-void-transaction/);
   assert.match(ui,/Void \/ correct/);
   assert.match(ui,/No money is moved by this correction/);
+  assert.match(ui,/\$\$\('\[data-admin-receipt\]'\)\.forEach/);
+  assert.match(ui,/\$\$\('\[data-void-transaction\]'\)\.forEach/);
+  assert.match(ui,/refundAvailableByMethod/);
 });
 
 test('customer billing, reports and finance exclude corrected transactions',()=>{
@@ -48,8 +51,8 @@ test('billing PDFs distinguish a voided transaction from a valid receipt',()=>{
 });
 
 test('admin assets are cache-busted for payment transaction corrections',()=>{
-  assert.match(read('admin.js'),/6\.4\.96-transaction-corrections-1/);
-  assert.match(read('admin.html'),/admin\.js\?v=6\.4\.96-transaction-corrections-1/);
+  assert.match(read('admin.js'),/6\.4\.97-transaction-corrections-fix-1/);
+  assert.match(read('admin.html'),/admin\.js\?v=6\.4\.97-transaction-corrections-fix-1/);
 });
 
 
