@@ -140,6 +140,12 @@ async function voidPaymentTransaction(invoiceId,paymentId,btn){
   try{await api('/api/admin-payments',{method:'POST',body:JSON.stringify({action:'void_transaction',invoiceId,paymentId,reason:reason.trim()})});await Promise.all([paymentsTools(),bookingTable()]);}
   catch(e){alert(e.message)}finally{setBusy(btn,false)}
 }
+function refundAvailableByMethod(record,method){
+  const rows=(record?.payments||[]).filter(p=>!p.voided_at);
+  const paid=rows.filter(p=>p.direction==='payment'&&p.method===method).reduce((sum,p)=>sum+Number(p.amount||0),0);
+  const refunded=rows.filter(p=>p.direction==='refund'&&p.method===method).reduce((sum,p)=>sum+Number(p.amount||0),0);
+  return Math.max(0,Number((paid-refunded).toFixed(2)));
+}
 function stripeRefundTarget(record){
   const rows=(record?.payments||[]).filter(p=>!p.voided_at),refunded={};
   for(const p of rows){if(p.direction==='refund'&&p.method==='stripe'&&p.provider_payment_id)refunded[p.provider_payment_id]=(refunded[p.provider_payment_id]||0)+Number(p.amount||0)}
@@ -156,11 +162,13 @@ function openPaymentEditor(invoiceId,direction='payment'){
   $('#paymentEditorContext').innerHTML=`<strong>${esc(i.invoice_number)}</strong> · ${esc(q.customer_name||'Customer')} · ${adminMoney(i.total)} total<br><small>${adminMoney(i.amount_paid)} paid · ${adminMoney(outstanding)} outstanding</small>${refund&&stripeTarget?`<br><small>Stripe refundable on ${esc(stripeTarget.payment.receipt_number||'this payment')}: ${adminMoney(stripeTarget.remaining)}</small>`:''}`;
   const refundAmount=refund?(stripeTarget?Math.min(Number(i.amount_paid||0),stripeTarget.remaining):Number(i.amount_paid||0)):outstanding;
   $('#paymentAmount').value=refundAmount.toFixed(2);$('#paymentKind').value=refund?'refund':(Number(i.amount_paid||0)>0?'balance':'deposit');$('#paymentKind').disabled=refund;
-  const stripeOption=$('#paymentMethod')?.querySelector('option[value="stripe"]');if(stripeOption)stripeOption.disabled=!refund||!stripeTarget;
-  $('#paymentMethod').value=refund&&stripeTarget?'stripe':'bank_transfer';$('#paymentPaidAt').value=adminLocalDateTime();$('#paymentReference').value='';$('#paymentReference').placeholder=refund&&stripeTarget?'Optional internal refund note':'Bank reference, cash receipt note, etc.';$('#paymentEditorStatus').textContent='';$('#savePaymentRecord').textContent=refund&&stripeTarget?'Refund via Stripe':refund?'Record refund':'Record payment';$('#paymentEditor').showModal();
+  const methodSelect=$('#paymentMethod');for(const option of methodSelect?.options||[]){const value=option.value;option.disabled=refund?(value==='stripe'?!stripeTarget:refundAvailableByMethod(r,value)<=.004):value==='stripe'}
+  const manualRefundOption=refund?[...(methodSelect?.options||[])].find(o=>!o.disabled&&o.value!=='stripe')?.value:null;
+  methodSelect.value=refund&&stripeTarget?'stripe':refund&&manualRefundOption?manualRefundOption:'bank_transfer';$('#paymentPaidAt').value=adminLocalDateTime();$('#paymentReference').value='';$('#paymentReference').placeholder=refund&&stripeTarget?'Optional internal refund note':'Bank reference, cash receipt note, etc.';$('#paymentEditorStatus').textContent=refund&&!stripeTarget&&!manualRefundOption?'No refundable payment method is available. Correct any mistaken transaction first.':'';$('#savePaymentRecord').disabled=refund&&!stripeTarget&&!manualRefundOption;$('#savePaymentRecord').textContent=refund&&stripeTarget?'Refund via Stripe':refund?'Record refund':'Record payment';$('#paymentEditor').showModal();
 }
 async function savePaymentRecord(){
   const btn=$('#savePaymentRecord'),refund=$('#paymentDirection').value==='refund',method=$('#paymentMethod').value,amount=Number($('#paymentAmount').value),stripeRefund=refund&&method==='stripe';
+  if(btn.disabled)return;
   if(stripeRefund&&!confirm(`Refund ${adminMoney(amount)} to the customer's original Stripe payment? This sends money back through Stripe.`))return;
   setBusy(btn,true,stripeRefund?'Refunding via Stripe…':refund?'Recording refund…':'Recording payment…');
   try{
