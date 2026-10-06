@@ -33,6 +33,20 @@ module.exports=async function handler(req,res){
     }
     const invoiceId=String(b.invoiceId||'').trim();if(!invoiceId)return json(res,400,{ok:false,error:'Invoice ID is required.'});
     const ctx=await invoiceContext(invoiceId);if(!ctx)return json(res,404,{ok:false,error:'Invoice not found.'});
+    if(action==='void_payment_record'){
+      const paymentId=String(b.paymentId||'').trim(),reason=String(b.reason||'').trim().slice(0,500);
+      if(!paymentId)return json(res,400,{ok:false,error:'Payment record ID is required.'});
+      if(reason.length<3)return json(res,400,{ok:false,error:'Add a short reason for correcting this refund record.'});
+      const payment=(await db(`payment_records?id=eq.${encodeURIComponent(paymentId)}&invoice_id=eq.${encodeURIComponent(invoiceId)}&select=*&limit=1`))?.[0];
+      if(!payment)return json(res,404,{ok:false,error:'Payment record not found.'});
+      if(payment.voided_at)return json(res,409,{ok:false,error:'This payment record has already been voided.'});
+      if(payment.direction!=='refund'||payment.method==='stripe'||payment.provider_reference)return json(res,400,{ok:false,error:'Only manual refund records can be undone here. Stripe refunds must remain reconciled to Stripe.'});
+      const beforeState=await syncInvoicePaymentState(invoiceId),voidedAt=new Date().toISOString();
+      const voided=(await db(`payment_records?id=eq.${encodeURIComponent(paymentId)}`,{method:'PATCH',prefer:'return=representation',body:{voided_at:voidedAt,voided_by:staff.user.id,void_reason:reason}}))?.[0]||payment;
+      const updated=await syncInvoicePaymentState(invoiceId);
+      await auditLog(req,staff,{action:'payment.refund_void',entityType:'invoice',entityId:invoiceId,summary:`Voided mistaken manual refund ${receiptNumber(payment)}`,before:payment,after:voided,metadata:{paymentId,receiptNumber:receiptNumber(payment),reason,invoiceBefore:beforeState.invoice,invoiceAfter:updated.invoice}});
+      return json(res,200,{ok:true,voidedPayment:{id:paymentId,receiptNumber:receiptNumber(payment),voidedAt},state:updated});
+    }
     if(action==='record_payment'||action==='record_refund'){
       if(ctx.invoice.status==='void')return json(res,409,{ok:false,error:'A void invoice cannot accept payments.'});
       const amount=Number(b.amount),method=String(b.method||'other'),direction=action==='record_refund'?'refund':'payment',kind=direction==='refund'?'refund':String(b.kind||'balance');
@@ -45,7 +59,7 @@ module.exports=async function handler(req,res){
       if(direction==='refund'&&method==='stripe'){
         const providerPaymentId=String(b.providerPaymentId||'').trim();
         if(!providerPaymentId)return json(res,400,{ok:false,error:'Choose the Stripe payment to refund.'});
-        const stripeRows=await db(`payment_records?invoice_id=eq.${encodeURIComponent(invoiceId)}&method=eq.stripe&select=*&order=paid_at.desc`);
+        const stripeRows=await db(`payment_records?invoice_id=eq.${encodeURIComponent(invoiceId)}&method=eq.stripe&voided_at=is.null&select=*&order=paid_at.desc`);
         const target=(stripeRows||[]).find(p=>p.direction==='payment'&&String(p.provider_payment_id||'')===providerPaymentId);
         if(!target)return json(res,400,{ok:false,error:'That Stripe payment is not available for this invoice.'});
         const alreadyRefunded=(stripeRows||[]).filter(p=>p.direction==='refund'&&String(p.provider_payment_id||'')===providerPaymentId).reduce((sum,p)=>sum+Number(p.amount||0),0);
@@ -68,6 +82,13 @@ module.exports=async function handler(req,res){
         const updated=await syncInvoicePaymentState(invoiceId);
         await auditLog(req,staff,{action:'payment.stripe_refund',entityType:'invoice',entityId:invoiceId,summary:`Requested Stripe refund of £${amount.toFixed(2)}${processed.receiptNumber?` · ${processed.receiptNumber}`:''}`,before:state.invoice,after:updated.invoice,metadata:{stripeRefundId:refund.id||null,stripeRefundStatus:refund.status||null,providerPaymentId,paymentId:target.id,receiptNumber:processed.receiptNumber||null,amount:Number(amount.toFixed(2)),reconciliationPending:Boolean(processed.reconciliationPending)}});
         return json(res,200,{ok:true,stripeRefund:{id:refund.id||null,status:refund.status||null,amount:Number(amount.toFixed(2))},receiptNumber:processed.receiptNumber||null,pending:String(refund.status||'')!=='succeeded',reconciliationPending:Boolean(processed.reconciliationPending),state:updated});
+      }
+      if(direction==='refund'){
+        const methodRows=await db(`payment_records?invoice_id=eq.${encodeURIComponent(invoiceId)}&method=eq.${encodeURIComponent(method)}&voided_at=is.null&select=direction,amount`);
+        const methodPaid=(methodRows||[]).filter(p=>p.direction==='payment').reduce((sum,p)=>sum+Number(p.amount||0),0);
+        const methodRefunded=(methodRows||[]).filter(p=>p.direction==='refund').reduce((sum,p)=>sum+Number(p.amount||0),0);
+        const methodAvailable=Math.max(0,Number((methodPaid-methodRefunded).toFixed(2)));
+        if(amount>methodAvailable+.005)return json(res,400,{ok:false,error:`A ${String(method).replaceAll('_',' ')} refund cannot exceed the £${methodAvailable.toFixed(2)} actually received by that method. Refund the original payment method instead.`});
       }
       const rows=await db('payment_records',{method:'POST',prefer:'return=representation',body:{booking_id:ctx.invoice.booking_id,invoice_id:ctx.invoice.id,customer_id:ctx.invoice.customer_id||null,direction,payment_kind:kind,method,amount:Number(amount.toFixed(2)),reference:String(b.reference||'').trim().slice(0,240)||null,paid_at:b.paidAt?new Date(b.paidAt).toISOString():new Date().toISOString(),recorded_by:staff.user.id}});const payment=rows?.[0],receiptNo=receiptNumber(payment);
       const updated=await syncInvoicePaymentState(invoiceId);const q=ctx.quote;
