@@ -49,7 +49,7 @@ module.exports=async function handler(req,res){try{
     db('quotes?select=id,customer_id,customer_name,service_key,status,automatic_estimate,final_price,created_at,updated_at&order=created_at.asc&limit=5000'),
     db('bookings?select=id,quote_id,customer_id,starts_at,ends_at,status,payment_status,assigned_staff_id,work_status,completed_at,created_at&order=starts_at.asc&limit=5000'),
     db('invoices?select=id,booking_id,quote_id,total,amount_paid,status,issued_at,due_at,paid_at,created_at&order=created_at.asc&limit=5000'),
-    db('payment_records?select=id,booking_id,invoice_id,direction,payment_kind,method,amount,paid_at&order=paid_at.asc&limit=5000'),
+    db('payment_records?voided_at=is.null&select=id,booking_id,invoice_id,direction,payment_kind,method,amount,paid_at&order=paid_at.asc&limit=5000'),
     db('booking_feedback?rating=not.is.null&select=id,booking_id,quote_id,rating,status,submitted_at,public_review_clicked_at&order=submitted_at.asc&limit=5000'),
     db('profiles?role=in.(admin,staff)&select=id,full_name,email,role,account_status&order=full_name.asc&limit=500')
   ]);

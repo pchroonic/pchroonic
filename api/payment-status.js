@@ -13,7 +13,7 @@ module.exports=async function handler(req,res){
     if(!booking||booking.customer_id!==user.id)return json(res,403,{ok:false,error:'This payment does not belong to your account.'});
     const quote=booking.quote_id?(await db(`quotes?id=eq.${encodeURIComponent(booking.quote_id)}&select=service_key&limit=1`))?.[0]:null;
     if(!quote||quote.service_key!=='windows')return json(res,409,{ok:false,error:'This payment is not a Window Cleaning payment.'});
-    const recorded=(await db(`payment_records?provider_reference=eq.${encodeURIComponent(session.id)}&direction=eq.payment&method=eq.stripe&select=id,amount,payment_kind,paid_at&limit=1`))?.[0]||null;
+    const recorded=(await db(`payment_records?provider_reference=eq.${encodeURIComponent(session.id)}&direction=eq.payment&method=eq.stripe&voided_at=is.null&select=id,amount,payment_kind,paid_at&limit=1`))?.[0]||null;
     const state=await syncInvoicePaymentState(invoiceId);
     return json(res,200,{ok:true,paid:Boolean(recorded),recorded:Boolean(recorded),stripePaymentStatus:String(session.payment_status||''),pendingWebhook:session.payment_status==='paid'&&!recorded,paymentStatus:state.invoice.status,bookingId,invoiceId,amountPaid:state.net,outstanding:state.outstanding});
   }catch(e){return safeError(res,e)}

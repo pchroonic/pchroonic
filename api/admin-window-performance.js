@@ -22,7 +22,7 @@ module.exports=async function handler(req,res){
       db('quotes?service_key=eq.windows&select=id,customer_name,postcode,status,automatic_estimate,final_price,created_at,sent_at,customer_response,customer_responded_at&order=created_at.asc&limit=5000'),
       db('bookings?select=id,quote_id,status,work_status,starts_at,ends_at,started_at,completed_at,created_at&order=created_at.asc&limit=5000'),
       db('invoices?select=id,booking_id,quote_id,total,status,created_at&limit=5000'),
-      db('payment_records?select=id,booking_id,invoice_id,direction,method,amount,provider_fee,provider_fee_currency,paid_at&limit=5000'),
+      db('payment_records?voided_at=is.null&select=id,booking_id,invoice_id,direction,method,amount,provider_fee,provider_fee_currency,paid_at&limit=5000'),
       db('booking_job_costs?select=booking_id,consumables_cost,parking_cost,travel_cost,other_cost,travel_minutes,travel_miles,notes,updated_at&limit=5000')
     ]);
     const firstCovered=new Map();

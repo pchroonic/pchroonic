@@ -17,7 +17,7 @@ module.exports=async function handler(req,res){
     const bounds=taxYearBounds(taxYear),rules=rulesFor(taxYear);
     const [settingsRows,payments,invoices,expenses,jobCosts]=await Promise.all([
       db('site_settings?key=eq.finance_private&select=key,value,updated_at&limit=1').catch(()=>[]),
-      db('payment_records?select=id,booking_id,invoice_id,direction,payment_kind,method,amount,provider_fee,provider_fee_currency,provider_livemode,paid_at,created_at&order=paid_at.asc&limit=10000'),
+      db('payment_records?voided_at=is.null&select=id,booking_id,invoice_id,direction,payment_kind,method,amount,provider_fee,provider_fee_currency,provider_livemode,paid_at,created_at&order=paid_at.asc&limit=10000'),
       db('invoices?select=id,booking_id,total,amount_paid,status,issued_at,due_at,created_at&order=created_at.asc&limit=10000'),
       db('business_expenses?select=id,expense_date,category,description,supplier,amount,vat_amount,business_use_percent,tax_treatment,payment_method,booking_id,reference,receipt_reference,notes,source,created_at,updated_at&order=expense_date.asc,created_at.asc&limit=10000').catch(()=>[]),
       db('booking_job_costs?select=booking_id,consumables_cost,parking_cost,travel_cost,other_cost,updated_at&limit=10000').catch(()=>[])

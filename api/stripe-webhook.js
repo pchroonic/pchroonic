@@ -32,7 +32,7 @@ async function notifyPayment(ctx,payment,state){
   if(ctx.quote.email){
     let attachments=[],attachmentCopy='Your invoice and receipt PDF remain available in <a href="https://namdar.co.uk/account?tab=billing">My Namdar</a>.';
     try{
-      const payments=await db(`payment_records?invoice_id=eq.${encodeURIComponent(ctx.invoice.id)}&select=*&order=paid_at.asc`);
+      const payments=await db(`payment_records?invoice_id=eq.${encodeURIComponent(ctx.invoice.id)}&voided_at=is.null&select=*&order=paid_at.asc`);
       const doc=buildInvoicePdf({invoice:state?.invoice||ctx.invoice,booking:ctx.booking,quote:ctx.quote,payments});
       attachments=[{filename:doc.filename,content:doc.pdf,contentType:'application/pdf'}];
       attachmentCopy='Your updated invoice PDF is attached to this email. Your receipt PDF and full payment history are also available in <a href="https://namdar.co.uk/account?tab=billing">My Namdar</a>.';
