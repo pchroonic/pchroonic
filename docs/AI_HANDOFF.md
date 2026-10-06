@@ -26,9 +26,38 @@
 - Voided transactions are excluded from invoice/payment state, My Namdar Billing, customer invoice payment history, reporting, Business Finance and payment-status calculations.
 - Opening a corrected receipt PDF shows **VOIDED TRANSACTION** with the correction reason instead of presenting it as a valid payment/refund receipt.
 - Stripe/provider-backed rows cannot be voided locally; provider refunds remain authoritative through the real Stripe refund flow.
+- Runtime fix: Admin transaction buttons now bind with the list selector (`$`) rather than the single-element selector (`# Namdar AI handoff
+
+## CURRENT CHECKPOINT — 5 Oct 2026
+
+### Production
+- GitHub main: `6eb990ea21e490d873bf85d51e17bf57513c3186` (PR #180 continuity update).
+- Latest verified production Vercel deployment: `dpl_5rrREowaNaZgqPVgdrWsq1mpNZ2x`, READY and aliased to `namdar.co.uk`, from main `6eb990ea21e490d873bf85d51e17bf57513c3186`.
+- PR #162 browser GetAddress domain-token lookup is live.
+- PR #163 admin-only GetAddress subscription/usage diagnostic is live.
+
+## Admin Stripe refund — LIVE
+- Admin → Payments already had a generic Refund action, but Stripe was intentionally blocked from manual ledger entry. The candidate now makes that action perform a real Stripe refund when the invoice has a refundable Stripe transaction.
+- Server flow: validate invoice/net paid → validate the selected original Stripe PaymentIntent and its remaining refundable amount → verify the payment's test/live mode matches the configured secret → create the refund through Stripe using an idempotency key → feed successful refunds through the existing `processRefund` path so payment records, receipt numbers, customer email, staff notification and invoice/payment state remain authoritative and idempotent.
+- Pending provider refunds are not falsely marked complete; the verified webhook remains the confirmation path.
+- UI defaults to Stripe only when a refundable Stripe payment exists, disables Stripe for manual payment entry, requires a confirmation prompt before money is sent back, and retains manual cash/bank/card refund recording.
+- Files: `lib/stripe-payments.js`, `api/admin-payments.js`, `admin-original.js`, `admin.js`, `admin.html`, `scripts/stripe-payments.test.mjs`, Stripe CI workflow.
+- Database impact: none. Environment-variable impact: none; existing `STRIPE_SECRET_KEY` and verified webhook remain the provider controls.
+- Regression coverage includes Stripe refund request payload/idempotency and Admin wiring.
+- PR #179 merged at `1e852096dc0e148b813cdc5fb0e6533b2595b23d`; production deployment `dpl_A6Y7THjZ226yFG2fHY12wHgiFz33` is READY and aliased to `namdar.co.uk`.
+- `AI handoff and JavaScript checks` passed, including Stripe/payment-policy regression tests; Google Review and post-job compatibility checks passed.
+- Live verification confirmed the `6.4.95-stripe-refund-1` admin bundle and refund confirmation/runtime wiring, and `/api/health` returned HTTP 200 with database, Stripe, Stripe webhook and email healthy.
+
+## Manual payment transaction correction — CANDIDATE
+- Adds an admin-only **Void / correct** action for manually recorded cash, bank-transfer, card and other payment/refund rows. It never deletes the original financial record.
+- Correction metadata is stored on `payment_records` as `voided_at`, `voided_by` and `void_reason`; the original receipt number and transaction remain available to Admin as an audit record.
+- Voided transactions are excluded from invoice/payment state, My Namdar Billing, customer invoice payment history, reporting, Business Finance and payment-status calculations.
+- Opening a corrected receipt PDF shows **VOIDED TRANSACTION** with the correction reason instead of presenting it as a valid payment/refund receipt.
+), so Receipt and **Void / correct** controls initialise correctly.
+- Refund UI now disables manual methods that have no active amount received on that invoice, preventing a Stripe payment from being accidentally labelled as a manual card/cash/bank refund through the normal Admin flow.
 - Correcting a manual transaction sends the customer a billing correction notice explaining the updated net paid/outstanding balance and that the correction itself does not move money.
 - Migration: `supabase/migrations/20261005193000_payment_transaction_corrections.sql`. No new environment variable.
-- Regression: `scripts/payment-transaction-corrections.test.mjs`; Admin asset token `6.4.96-transaction-corrections-1`.
+- Regression: `scripts/payment-transaction-corrections.test.mjs`; Admin asset token `6.4.97-transaction-corrections-fix-1`.
 - Known cleanup after deployment: the mistaken manual £0.50 card-refund entry on the live £1 verification invoice should be voided/corrected before any real Stripe refund is issued.
 - Candidate only: migration not yet applied to production and the feature is not live until PR/deployment verification completes.
 
