@@ -1,5 +1,12 @@
 # Namdar project status
 
+## 7 Oct 2026 — Google indexing requests submitted
+- Google Search Console reported 7 sitemap URLs as `Discovered - currently not indexed`; all had `Last crawled: N/A`. The four commercially important SEO pages were live-tested successfully and Google reported `URL is available to Google` / `Page can be indexed`.
+- Manual indexing requests were submitted for `/services/window-cleaning`, `/areas/lewisham`, `/areas/south-london`, and `/areas/london`. Do not repeatedly resubmit; wait for Google to crawl them and recheck Search Console after about 7 days.
+- The separate `Page with redirect` example is only `http://namdar.co.uk/` redirecting to HTTPS, which is intentional and requires no fix.
+- Live robots.txt allows public pages and advertises `https://namdar.co.uk/sitemap.xml`; the four SEO pages return HTTP 200, use self-referencing canonicals and valid breadcrumb structured data.
+- Sitemap `lastmod` dates were verified against Git history. The homepage was last changed 25 Sep 2026 and the Window Cleaning / London / South London / Lewisham SEO pages were also last changed 25 Sep 2026. Keep those dates until page content genuinely changes; do not bump `lastmod` merely because Vercel redeploys.
+
 ## 7 Oct 2026 — Customer VAT engine — LIVE
 - Upgrades the existing bookkeeping-only Business Finance VAT flag into a future customer-pricing control while keeping VAT OFF unless Namdar deliberately enables it.
 - Admin → Reporting → Business Finance now stores VAT registered status, effective registration date, VAT registration number and VAT rate (default 20%). Customer VAT becomes effective only when the switch is on, date + number are present, and the registration date has arrived.
