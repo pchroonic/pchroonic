@@ -37,15 +37,16 @@ module.exports=async function handler(req,res){
     const payments=await db(`payment_records?invoice_id=eq.${encodeURIComponent(invoice.id)}&select=*&order=paid_at.asc`);
     if(!payment){const doc=buildInvoicePdf({invoice,booking,quote,payments});res.statusCode=200;res.setHeader('Content-Type','application/pdf');res.setHeader('Content-Disposition',`attachment; filename="${doc.filename}"`);res.setHeader('Cache-Control','no-store');res.setHeader('Content-Length',String(doc.pdf.length));return res.end(doc.pdf)}
     const service=({windows:'Window cleaning',gutters:'Gutter cleaning',roof:'Roof cleaning',jetwash:'Jet washing',handyman:'Handyman',tour3d:'3D property tour'})[quote?.service_key]||quote?.service_key||'Namdar service';
-    const total=Number(invoice.total||0),paid=Number(invoice.amount_paid||0),outstanding=Math.max(0,total-paid);let lines=[];
+    const total=Number(invoice.total||0),paid=Number(invoice.amount_paid||0),outstanding=Math.max(0,total-paid),vat=invoice?.payment_policy_snapshot?.salesVat?.active===true?invoice.payment_policy_snapshot.salesVat:null;let lines=[];
     lines.push({text:'NAMDAR',x:50,y:792,size:22,bold:true},{text:'Property care services',x:50,y:772,size:10},{text:'namdar.co.uk  |  hello@namdar.co.uk',x:50,y:756,size:9});
+    if(vat?.registrationNumber)lines.push({text:`VAT registration: ${vat.registrationNumber}`,x:50,y:742,size:9});
     if(payment){
       const receiptNo=receiptNumber(payment);
       lines.push({text:'PAYMENT RECEIPT',x:365,y:792,size:18,bold:true},{text:`Receipt: ${receiptNo}`,x:365,y:770,size:9},{text:`Invoice: ${invoice.invoice_number}`,x:365,y:756,size:9});
       lines.push({text:'Received from',x:50,y:710,size:10,bold:true},{text:quote?.customer_name||'Namdar customer',x:50,y:694,size:10},{text:quote?.email||'',x:50,y:678,size:9});
       lines.push({text:'Payment details',x:50,y:635,size:12,bold:true},{text:`Date: ${datetime(payment.paid_at)}`,x:50,y:613,size:10},{text:`Type: ${payment.direction==='refund'?'Refund':payment.payment_kind}`,x:50,y:596,size:10},{text:`Method: ${String(payment.method||'other').replaceAll('_',' ')}`,x:50,y:579,size:10},{text:`Amount: ${money(payment.amount)}`,x:50,y:552,size:15,bold:true});
       if(payment.reference)lines.push({text:`Payment reference: ${payment.reference}`,x:50,y:529,size:9});
-      lines.push({text:`Invoice total: ${money(total)}`,x:335,y:613,size:10},{text:`Net paid: ${money(paid)}`,x:335,y:596,size:10},{text:`Outstanding: ${money(outstanding)}`,x:335,y:579,size:10,bold:true});
+      lines.push({text:`Invoice total: ${money(total)}`,x:335,y:613,size:10},{text:`Net paid: ${money(paid)}`,x:335,y:596,size:10},{text:`Outstanding: ${money(outstanding)}`,x:335,y:579,size:10,bold:true});if(vat)lines.push({text:`Invoice VAT @ ${Number(vat.ratePercent||0).toFixed(2).replace(/\\.00$/,'')}%: ${money(vat.vatAmount)} included`,x:335,y:562,size:9});
       lines.push({text:`Quote ${receiptNo} if you contact Namdar about this transaction.`,x:50,y:480,size:9,bold:true},{text:'Thank you. This receipt records the transaction shown above.',x:50,y:460,size:9});
     }else{
       lines.push({text:'INVOICE',x:420,y:792,size:20,bold:true},{text:invoice.invoice_number,x:420,y:770,size:9},{text:`Status: ${String(invoice.status||'').replaceAll('_',' ')}`,x:420,y:756,size:9});
