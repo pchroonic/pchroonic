@@ -5,7 +5,7 @@
   const roleV='6.4.39-access-roles-1';
   const fieldOpsV='6.4.41-staff-operations-v3-1';
   const reviewV='6.4.43-google-reviews-1';
-  const paymentV='6.4.44-stripe-live-readiness-1';
+  const paymentV='6.4.96-stripe-refund-method-fix-1';
   const receiptV='6.4.45-payment-receipts-1';
   const inboxV='6.4.48-inbox-workflow-polish-fix-1';
   const analyticsV='6.4.57-analytics-load-lifecycle-1';
