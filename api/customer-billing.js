@@ -15,12 +15,12 @@ module.exports=async function handler(req,res){
     if(quoteIds.length)quotes=await db(`quotes?id=in.(${quoteIds.map(x=>encodeURIComponent(x)).join(',')})&select=id,service_key,customer_name,postcode`);
     const bmap=Object.fromEntries(bookings.map(x=>[x.id,x])),qmap=Object.fromEntries(quotes.map(x=>[x.id,x])),pmap={};for(const p of payments){(pmap[p.invoice_id]??=[]).push(p)}
     const rows=(invoices||[]).map(i=>{const b=bmap[i.booking_id]||{},q=qmap[i.quote_id]||{},paid=Number(i.amount_paid||0),total=Number(i.total||0),outstanding=Number(Math.max(0,total-paid).toFixed(2));
-      const snapshot=i.payment_policy_snapshot||b.payment_policy_snapshot||null,contractPolicy=paymentPolicyFromSnapshot(policy,snapshot),overdue=overdueStage({dueAt:i.due_at,snapshot});
+      const snapshot=i.payment_policy_snapshot||b.payment_policy_snapshot||null,vat=snapshot?.salesVat?.active===true?snapshot.salesVat:null,contractPolicy=paymentPolicyFromSnapshot(policy,snapshot),overdue=overdueStage({dueAt:i.due_at,snapshot});
       const eligible=policy.effectiveActive&&q.service_key==='windows'&&['pending','confirmed','completed'].includes(b.status)&&i.status!=='void'&&outstanding>.004;
       const forceBalance=b.status==='completed'||overdue.overdue===true;
       const plan=eligible?checkoutPlan({policy:contractPolicy,total,net:paid,outstanding,preferFull:contractPolicy.legacyBooking===true,forceBalance}):null;
       return{
-        id:i.id,invoiceNumber:i.invoice_number,status:i.status,currency:i.currency,total,amountPaid:paid,outstanding,issuedAt:i.issued_at,dueAt:i.due_at,paidAt:i.paid_at,notes:i.notes||'',
+        id:i.id,invoiceNumber:i.invoice_number,status:i.status,currency:i.currency,total,amountPaid:paid,outstanding,issuedAt:i.issued_at,dueAt:i.due_at,paidAt:i.paid_at,notes:i.notes||'',vat:vat?{active:true,ratePercent:Number(vat.ratePercent||0),netAmount:Number(vat.netAmount||0),vatAmount:Number(vat.vatAmount||0),grossAmount:Number(vat.grossAmount||total),registrationNumber:String(vat.registrationNumber||'')}:null,
         booking:{id:i.booking_id,startsAt:b.starts_at||null,endsAt:b.ends_at||null,address:b.address||'',status:b.status||'',paymentStatus:b.payment_status||''},
         serviceKey:q.service_key||'',serviceLabel:SERVICE_LABELS[q.service_key]||q.service_key||'Namdar service',customerName:q.customer_name||'',postcode:q.postcode||'',
         paymentTerms:{revision:i.payment_policy_revision??b.payment_policy_revision??snapshot?.revision??null,depositRequired:Number(i.deposit_required??b.deposit_required??0),balanceDueHours:i.balance_due_hours??snapshot?.balanceDueHours??null,legacy:contractPolicy.legacyBooking===true,consumerMonetaryLateFees:false},
