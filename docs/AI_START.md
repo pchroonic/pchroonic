@@ -1,5 +1,22 @@
 # Namdar AI fast resume
 
+## 7 Oct 2026 — Customer VAT engine — CANDIDATE
+- Upgrades the existing bookkeeping-only Business Finance VAT flag into a future customer-pricing control while keeping VAT OFF unless Namdar deliberately enables it.
+- Admin → Reporting → Business Finance now stores VAT registered status, effective registration date, VAT registration number and VAT rate (default 20%). Customer VAT becomes effective only when the switch is on, date + number are present, and the registration date has arrived.
+- New quotes lock a VAT snapshot in `quotes.inputs.salesVat`; accepted bookings carry it in `payment_policy_snapshot.salesVat`; invoices preserve the same snapshot. Later VAT-setting changes do not silently rewrite existing customer agreements.
+- Customer quote totals are VAT-inclusive when active. Admin quote review shows net/VAT/gross context; My Namdar quote and Billing views show VAT included; invoice PDFs show subtotal, VAT rate/amount, gross total and VAT registration number; payment receipts show invoice VAT context.
+- The Window Cleaning headline processing-cost allowance remains part of the ordinary service price, not a card surcharge. Its percentage gross-up now accounts for Stripe charging its percentage against the VAT-inclusive card total, and quote allowance arithmetic retains pennies instead of rounding back to whole pounds.
+- Business Finance excludes output VAT collected on VAT-active invoice payments from its management trading-profit receipt estimate and uses net taxable invoice value for the VAT-threshold turnover monitor. VAT-return/input-VAT recovery remains explicitly outside this estimator.
+- Production safety at implementation start: `finance_private` has no saved row, so customer VAT is OFF. Deployment must not create/enable a VAT setting. Current payment policy revision 2 has the 1.5% + £0.20 headline allowance ON.
+- Database schema impact: none; existing JSON settings/snapshot columns are reused. Environment-variable impact: none.
+- Release asset target: `6.4.97-sales-vat-1`. Regression: `scripts/sales-vat.test.mjs` plus existing payment-policy/JavaScript CI.
+- Branch: `feature/sales-vat-engine-20261007`. Not production-ready until CI, preview, production health/assets and production VAT-OFF state are verified.
+
+## 7 Oct 2026 — live £0.50 Stripe refund verified
+- Invoice `NMD-2026-001003` was successfully refunded through Stripe after the Admin selector fix. Stripe refund `re_3UK2UcCu9tojH31y0qLRDGcz` is `succeeded`; Namdar invoice and booking are both `refunded` with £0.00 paid balance.
+- The original £0.50 charge had a £0.21 Stripe processing fee and £0.29 net; the £0.50 refund had no extra refund fee, leaving the Stripe balance at -£0.21 because Stripe retained the original processing fee.
+
+
 ## 7 Oct 2026 — Admin Stripe refund selector fix
 - Root cause confirmed from production: `admin-payment-settings.js` removed the `Stripe` option from `#paymentMethod` during boot. This overrode the PR #179 refund UI, so a refundable Stripe payment was detected but the modal fell back to Bank transfer.
 - Removed that conflicting DOM mutation. Stripe remains blocked for manual payment entry by the server/UI, but stays available for genuine refunds tied to an original Stripe PaymentIntent.
