@@ -1,5 +1,12 @@
 # Namdar AI fast resume
 
+## 7 Oct 2026 — legacy £0.50 refund test data repaired
+- Production test invoice `NMD-2026-001003` had a genuine £0.50 Stripe deposit plus an incorrect £0.50 manual `card` refund row created on 5 Oct 2026 before the live Admin Stripe refund fix.
+- The incorrect manual refund row was removed from `namdar-production`; invoice state was restored to `part_paid` / £0.50 paid and the linked booking to `deposit_paid`.
+- Verification after repair: one Stripe payment row, zero refund rows, ledger net £0.50. No Stripe refund was sent by this repair.
+- Production already runs the PR #179 Stripe-refund flow; Admin → Payments should now expose the normal `Refund via Stripe` action for this invoice. The actual refund still requires the Admin confirmation click.
+- An audit entry `payment.refund_repair` records the correction.
+
 ## CURRENT CHECKPOINT — 5 Oct 2026
 
 ### Production
