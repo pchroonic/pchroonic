@@ -109,7 +109,7 @@ test('manual staff payment entry cannot impersonate Stripe, while refunds call S
   assert.match(adminPayments,/direction==='payment'&&method==='stripe'/);assert.match(adminPayments,/recorded automatically from verified Stripe webhooks/i);
   assert.match(adminPayments,/createRefund/);assert.match(adminPayments,/refundIdempotencyKey/);assert.match(adminPayments,/processRefund/);assert.match(adminPayments,/providerPaymentId/);assert.match(adminPayments,/different Stripe environment/i);
   assert.match(adminCore,/stripeRefundTarget/);assert.match(adminCore,/Refund .*original Stripe payment/);assert.match(adminCore,/providerPaymentId/);assert.match(adminCore,/Refund via Stripe/);
-  assert.match(adminLoader,/6\\.4\\.96-stripe-refund-method-fix-1/);assert.match(adminHtml,/admin\\.js\\?v=6\\.4\\.96-stripe-refund-method-fix-1/);assert.doesNotMatch(admin,/paymentMethod option\\[value=\\\\?"stripe.*remove\\(/);
+  assert.match(adminLoader,/6\.4\.96-stripe-refund-method-fix-1/);assert.match(adminHtml,/admin\.js\?v=6\.4\.96-stripe-refund-method-fix-1/);assert.doesNotMatch(admin,/paymentMethod.*remove\(\)/);
 });
 
 test('required Window payment policy is enforced server-side before booking confirmation',()=>{
