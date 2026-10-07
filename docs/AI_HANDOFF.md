@@ -7,6 +7,13 @@
 - The accidental £0.50 bank-transfer refund row created while reproducing the bug on invoice `NMD-2026-001003` was removed; the invoice is restored to `part_paid` / £0.50 paid and the linked booking to `deposit_paid`. No Stripe refund was sent by that repair.
 - Database schema impact: none. Environment-variable impact: none.
 
+### Production verification
+- PR #184 merged at `ff680e1ce57490dd10535d5c45deb3fc58cc699a`.
+- Vercel production deployment `dpl_26fPDE7aNY4TC61YfronpLDjHNW5` is READY and aliased to `namdar.co.uk`.
+- Live `/admin.js` serves payment asset `6.4.96-stripe-refund-method-fix-1`; live `/admin-payment-settings.js` no longer removes the Stripe method option.
+- `/api/health` returned HTTP 200 / `ok:true` with database, Stripe, webhook and email healthy.
+- Production invoice `NMD-2026-001003` verified after repair: `part_paid`, £0.50 paid, booking `deposit_paid`, one Stripe payment, zero refund rows, one refundable Stripe target.
+
 ## 7 Oct 2026 — legacy £0.50 refund test data repaired
 - Production test invoice `NMD-2026-001003` had a genuine £0.50 Stripe deposit plus an incorrect £0.50 manual `card` refund row created on 5 Oct 2026 before the live Admin Stripe refund fix.
 - The incorrect manual refund row was removed from `namdar-production`; invoice state was restored to `part_paid` / £0.50 paid and the linked booking to `deposit_paid`.
