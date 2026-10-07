@@ -1,5 +1,12 @@
 # Namdar AI fast resume
 
+## 7 Oct 2026 — Admin Stripe refund selector fix
+- Root cause confirmed from production: `admin-payment-settings.js` removed the `Stripe` option from `#paymentMethod` during boot. This overrode the PR #179 refund UI, so a refundable Stripe payment was detected but the modal fell back to Bank transfer.
+- Removed that conflicting DOM mutation. Stripe remains blocked for manual payment entry by the server/UI, but stays available for genuine refunds tied to an original Stripe PaymentIntent.
+- Cache tokens updated to `6.4.96-stripe-refund-method-fix-1` and regression coverage now fails if the payment-settings extension removes the Stripe refund option again.
+- The accidental £0.50 bank-transfer refund row created while reproducing the bug on invoice `NMD-2026-001003` was removed; the invoice is restored to `part_paid` / £0.50 paid and the linked booking to `deposit_paid`. No Stripe refund was sent by that repair.
+- Database schema impact: none. Environment-variable impact: none.
+
 ## 7 Oct 2026 — legacy £0.50 refund test data repaired
 - Production test invoice `NMD-2026-001003` had a genuine £0.50 Stripe deposit plus an incorrect £0.50 manual `card` refund row created on 5 Oct 2026 before the live Admin Stripe refund fix.
 - The incorrect manual refund row was removed from `namdar-production`; invoice state was restored to `part_paid` / £0.50 paid and the linked booking to `deposit_paid`.

@@ -38,5 +38,5 @@ test('Admin payment controls surface mode and use the provider activation block 
   const api=read('api/admin-payment-settings.js'),ui=read('admin-payment-settings.js'),loader=read('admin.js');
   assert.match(api,/stripeMode:provider\.stripeMode/);assert.match(api,/activationBlockReason:provider\.activationBlockReason/);assert.match(api,/provider\.activationBlockReason\|\|/);
   assert.match(ui,/Stripe mode:/);assert.match(ui,/TEST only/);assert.match(ui,/Production live-ready:/);assert.match(ui,/Production activation requires a recognised Stripe LIVE secret key/);
-  assert.match(loader,/6\.4\.44-stripe-live-readiness-1/);assert.match(loader,/admin-payment-settings\.js\?v=\$\{paymentV\}/);
+  assert.match(loader,/6\.4\.96-stripe-refund-method-fix-1/);assert.match(loader,/admin-payment-settings\.js\?v=\$\{paymentV\}/);
 });
