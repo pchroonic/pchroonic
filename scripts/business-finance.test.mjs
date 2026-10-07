@@ -34,15 +34,20 @@ test('finance UI warns that operational job-cost estimates are not tax expenses'
   assert.match(source,/not automatically treated as tax expenses/);
 });
 
-test('finance setup polish hides premature tax timeline and irrelevant dates',()=>{
-  const source=read('admin-business-finance-polish.js');
+test('finance setup polish hides premature tax timeline but leaves future VAT setup available',()=>{
+  const source=read('admin-business-finance-polish.js'),finance=read('admin-business-finance.js');
   assert.match(source,/Finish finance setup/);
   assert.match(source,/Tax timeline not activated yet/);
   assert.match(source,/financeIncorporationDate/);
   assert.match(source,/limited_company/);
-  assert.match(source,/financeVatDate/);
-  assert.match(source,/financeVatRegistered/);
+  assert.doesNotMatch(source,/financeVatDate/);
+  assert.doesNotMatch(source,/financeVatRegistered/);
   assert.match(source,/defaultValue/);
+  assert.match(finance,/financeVatRegistered/);
+  assert.match(finance,/financeVatDate/);
+  assert.match(finance,/financeVatNumber/);
+  assert.match(finance,/financeVatRate/);
+  assert.match(finance,/only new quotes use the active VAT settings/i);
 });
 
 test('expense mutations require settings permission, reads require analytics and validation returns 400',()=>{

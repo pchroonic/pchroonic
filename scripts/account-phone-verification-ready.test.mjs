@@ -34,5 +34,5 @@ test('disabled UI is honest and does not promise an SMS',()=>{
 });
 
 test('phone verification release is cache-busted',()=>{
-  assert.match(html,/account-original\.js\?v=6\.4\.94-booking-change-calendar-1/);
+  assert.match(html,/account-original\.js\?v=6\.4\.97-sales-vat-1/);
 });

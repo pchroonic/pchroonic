@@ -144,6 +144,7 @@ jobs:
           node --check lib/business-followup-batched.js
           node --check lib/notification-cron-resilience.js
           node --check lib/payment-policy.js
+          node --check lib/sales-vat.js
           node --check lib/stripe-payments.js
           node --check lib/brand-logo.js
           node --check lib/uk-tax.js
@@ -172,6 +173,7 @@ jobs:
           node --test scripts/booking-notification-resilience.test.mjs
           node --test scripts/stripe-payments.test.mjs
           node --test scripts/payment-policy-engine.test.mjs
+          node --test scripts/sales-vat.test.mjs
           node --test scripts/brand-logo.test.mjs
           node --test scripts/uk-tax.test.mjs
           node --test scripts/business-finance.test.mjs

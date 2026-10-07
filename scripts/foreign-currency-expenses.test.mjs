@@ -63,5 +63,5 @@ test('foreign currency migration is additive and keeps an audit trail',()=>{
 
 test('Admin loader pins the FX release assets',()=>{
   const loader=read('admin.js');
-  assert.match(loader,/6\.4\.62-ecb-save-refresh-1/);
+  assert.match(loader,/const financeFxV='6\.4\.97-sales-vat-1'/);
 });
