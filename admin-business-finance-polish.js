@@ -12,14 +12,8 @@
     const businessType=document.getElementById('financeBusinessType');
     const startDate=document.getElementById('financeStartDate');
     const incorporationDate=document.getElementById('financeIncorporationDate');
-    const vatRegistered=document.getElementById('financeVatRegistered');
-    const vatDate=document.getElementById('financeVatDate');
-
     const incorporationLabel=labelFor('financeIncorporationDate');
     if(incorporationLabel)incorporationLabel.hidden=businessType?.value!=='limited_company';
-
-    const vatDateLabel=labelFor('financeVatDate');
-    if(vatDateLabel)vatDateLabel.hidden=!vatRegistered?.checked;
 
     const soleTraderNeedsStart=businessType?.value==='sole_trader'&&!savedValue(startDate);
     const notice=document.getElementById('businessFinanceNotice');
@@ -42,7 +36,7 @@
       banner.remove();
     }
 
-    for(const el of [businessType,vatRegistered]){
+    for(const el of [businessType]){
       if(el&&!el.dataset.financePolishBound){
         el.dataset.financePolishBound='1';
         el.addEventListener('change',()=>queueMicrotask(apply));
