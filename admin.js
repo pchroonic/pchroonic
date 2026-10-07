@@ -1,6 +1,6 @@
 (()=>{
   const v='6.4.37-admin-website-crash-fix-1';
-  const adminCoreV='6.4.95-stripe-refund-1';
+  const adminCoreV='6.4.97-sales-vat-1';
   const modalLayoutV='6.4.38-admin-wide-modal-fix-1';
   const roleV='6.4.39-access-roles-1';
   const fieldOpsV='6.4.41-staff-operations-v3-1';
@@ -9,7 +9,7 @@
   const receiptV='6.4.45-payment-receipts-1';
   const inboxV='6.4.48-inbox-workflow-polish-fix-1';
   const analyticsV='6.4.57-analytics-load-lifecycle-1';
-  const financeFxV='6.4.62-ecb-save-refresh-1';
+  const financeFxV='6.4.97-sales-vat-1';
   const financeReceiptV='6.4.59-finance-receipt-stability-1';
   const reportHubV='6.4.60-report-hub-1';
   document.write(`<link rel="stylesheet" href="/admin-inbox-safety.css?v=${v}">`);
@@ -35,7 +35,7 @@
   document.write(`<script src="/admin-payment-receipts.js?v=${receiptV}"><\/script>`);
   document.write(`<script src="/admin-window-performance.js?v=${v}"><\/script>`);
   document.write(`<script src="/admin-business-finance.js?v=${financeFxV}"><\/script>`);
-  document.write(`<script src="/admin-business-finance-polish.js?v=${v}"><\/script>`);
+  document.write(`<script src="/admin-business-finance-polish.js?v=${financeFxV}"><\/script>`);
   document.write(`<script src="/admin-finance-receipts.js?v=${financeReceiptV}"><\/script>`);
   document.write(`<script src="/admin-system-health.js?v=${v}"><\/script>`);
   document.write(`<script src="/admin-newsletter-center.js?v=${v}"><\/script>`);
