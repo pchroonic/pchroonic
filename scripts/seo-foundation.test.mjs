@@ -75,7 +75,7 @@ test('Google Business contact details stay consistent across visible UI and sche
 test('indexable SEO pages carry the public business phone without inventing an address',()=>{
   for(const path of ['services/window-cleaning.html','areas/london.html','areas/south-london.html','areas/lewisham.html','areas/southwark.html','areas/lambeth.html','areas/wandsworth.html','areas/greenwich.html']){
     const html=read(path);
-    assert.match(html,/"telephone":"\\+447946679694"/);
+    assert.match(html,/"telephone":"\+447946679694"/);
     assert.match(html,/"contactPoint":\{"@type":"ContactPoint"/);
     assert.doesNotMatch(html,/"streetAddress":/);
   }
