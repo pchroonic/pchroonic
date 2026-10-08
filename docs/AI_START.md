@@ -1,5 +1,11 @@
 # Namdar AI fast resume
 
+## Future SEO follow-up — local citations + Apple Business
+- Apple Business setup is intentionally paused for now. Domain verification was started, but the full managed-organisation flow requires a second verification method/document that Namdar does not currently have. Do not invent or upload unsupported documents.
+- Future local citation work: create consistent Namdar listings on reputable UK directories, starting with Cylex UK and FreeIndex, using the same business name, phone, website, hours and service areas as Google/Bing. Preserve the service-area/no-public-address model wherever the directory supports hidden addresses.
+- Defer Yell until its address-publication behaviour is verified for service-area businesses.
+- This work is intentionally deferred; Google Business Profile, Google Search Console, Bing Places, Bing Webmaster Tools, sitemap and IndexNow are already the higher-priority completed foundations.
+
 ## 8 Oct 2026 — IndexNow integration — LIVE
 - Bing Webmaster Tools is verified for `https://namdar.co.uk/` via the root `BingSiteAuth.xml` file.
 - IndexNow owner key supplied by Bing: `9b012fe757f449ddaf8832421f580676`; candidate root file: `https://namdar.co.uk/9b012fe757f449ddaf8832421f580676.txt`. Keep this file deployed while IndexNow is in use.
