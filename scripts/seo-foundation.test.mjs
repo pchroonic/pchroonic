@@ -80,30 +80,20 @@ test('rendered homepage keeps local SEO and future services hidden until launch'
 
 test('borough SEO pages are distinct, canonical and tied to postcode verification',()=>{
   const boroughs={
-    lewisham:'Check your exact postcode before the quote moves forward.',
-    southwark:'Tell us about the property before we confirm the job.',
-    lambeth:'A quote that accounts for the actual property and access.',
-    wandsworth:'Property details matter more than a one-size-fits-all price.',
-    greenwich:'Check the property first, then confirm the final price.'
+    lewisham:['Lewisham','Check your exact postcode before the quote moves forward.'],
+    southwark:['Southwark','Tell us about the property before we confirm the job.'],
+    lambeth:['Lambeth','A quote that accounts for the actual property and access.'],
+    wandsworth:['Wandsworth','Property details matter more than a one-size-fits-all price.'],
+    greenwich:['Greenwich','Check the property first, then confirm the final price.']
   };
-  const names={lewisham:'Lewisham',southwark:'Southwark',lambeth:'Lambeth',wandsworth:'Wandsworth',greenwich:'Greenwich'};
   const home=read('index.html');
-  for(const [slug,uniqueCopy] of Object.entries(boroughs)){
-    const name=names[slug],html=read(`areas/${slug}.html`);
-    assert.match(home,new RegExp(`href="/areas/${slug}"`));
-    assert.match(html,new RegExp(`<title>Window Cleaning in ${name} \\| Namdar<\\/title>`));
-    assert.match(html,new RegExp(`<link rel="canonical" href="https://namdar.co.uk/areas/${slug}">`));
-    assert.match(html,new RegExp(`"areaServed":\\{"@type":"AdministrativeArea","name":"${name}"\\}`));
-    assert.match(html,new RegExp(uniqueCopy.replace(/[.*+?^${}()|[\]\\]/g,'\\test('SEO uses the production borough coverage without creating doorway pages',()=>{
-  const home=read('index.html'),south=read('areas/south-london.html'),london=read('areas/london.html');
-  for(const borough of ['Lewisham','Southwark','Lambeth','Wandsworth','Greenwich']){
-    assert.match(home,new RegExp(borough));
-    assert.match(south,new RegExp(borough));
-    assert.match(london,new RegExp(borough));
-  }
-  assert.doesNotMatch(home,/Window Cleaning in Southwark<\/a>/);
-  assert.doesNotMatch(home,/Window Cleaning in Lambeth<\/a>/);
-});')));
+  for(const [slug,[name,uniqueCopy]] of Object.entries(boroughs)){
+    const html=read(`areas/${slug}.html`);
+    assert.ok(home.includes(`href="/areas/${slug}"`));
+    assert.ok(html.includes(`<title>Window Cleaning in ${name} | Namdar</title>`));
+    assert.ok(html.includes(`<link rel="canonical" href="https://namdar.co.uk/areas/${slug}">`));
+    assert.ok(html.includes(`"areaServed":{"@type":"AdministrativeArea","name":"${name}"}`));
+    assert.ok(html.includes(uniqueCopy));
     assert.match(html,/postcode/i);
   }
   const bodies=Object.keys(boroughs).map(slug=>read(`areas/${slug}.html`));
