@@ -1,5 +1,13 @@
 # Namdar AI handoff
 
+## 8 Oct 2026 — Free organic growth: borough conversion SEO — CANDIDATE
+- User chose the **free traffic** path rather than paid ads. Goal is qualified local quote requests/jobs, not raw page-view volume.
+- Strengthened the five live borough landing pages: Lewisham, Southwark, Lambeth, Wandsworth and Greenwich.
+- Each page now includes a natural high-intent `window cleaner in <borough>` section, at least four genuinely relevant borough-specific customer questions, and a strong direct quote CTA after the answers.
+- Meta descriptions now reflect `window cleaner` search intent while preserving the truthful exterior Window Cleaning offer, postcode check and reviewed final quote model.
+- No fake reviews, fake job counts, invented prices, unsupported availability promises or thin doorway-page duplication were added. FAQ content is visible HTML only; no `FAQPage` rich-result markup is used.
+- Existing homepage/service internal links to all five borough pages remain in place. Next free-growth leverage after this release is genuine completed-work pages + real customer reviews/photos, followed later by the deferred UK citation work.
+
 ## Future SEO follow-up — local citations + Apple Business
 - Apple Business setup is intentionally paused for now. Domain verification was started, but the full managed-organisation flow requires a second verification method/document that Namdar does not currently have. Do not invent or upload unsupported documents.
 - Future local citation work: create consistent Namdar listings on reputable UK directories, starting with Cylex UK and FreeIndex, using the same business name, phone, website, hours and service areas as Google/Bing. Preserve the service-area/no-public-address model wherever the directory supports hidden addresses.
