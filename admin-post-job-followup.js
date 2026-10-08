@@ -1,5 +1,5 @@
 (()=>{
-  const VERSION='6.4.43-google-reviews-1';
+  const VERSION='6.4.99-real-work-reviews-1';
   let client=null,editable=false,currentDays=90;
   const esc=(v='')=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const date=v=>v?new Date(v).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'—';
@@ -19,7 +19,7 @@
         <label class="review-toggle"><input id="reviewRemindersEnabled" type="checkbox"><span><strong>One reminder</strong><small>Only if the customer has not submitted private feedback or clicked Google review.</small></span></label>
         <label>Reminder timing<select id="reviewReminderDays"><option value="3">3 days</option><option value="5">5 days</option><option value="7">7 days</option><option value="10">10 days</option><option value="14">14 days</option></select></label>
       </div>
-      <p class="muted">Paste the official review-request link from your Google Business Profile. Leave the link blank, or switch public requests off, to keep Google review requests disabled.</p>
+      <p class="muted">Paste the official review-request link from your Google Business Profile. To get it: open Namdar on Google while signed in → Ask for reviews → copy the review link → paste it here. Leave it blank to keep Google review requests safely disabled.</p>
       <div id="reviewDisabledNote" class="review-disabled-note hidden">Google review requests are currently off. Private post-job feedback still remains available.</div>
       <div class="review-preview"><strong>Customer message preview</strong><p>“Thank you for choosing Namdar. We welcome honest feedback from every completed customer. You can tell Namdar privately, or share your experience publicly on Google.”</p><p id="reviewReminderPreview">The optional reminder is off.</p></div>
       <div class="admin-actions"><button id="reviewSettingsSave" class="primary-btn small" type="button">Save review settings</button><small id="reviewSettingsStatus" class="review-settings-status"></small></div>
