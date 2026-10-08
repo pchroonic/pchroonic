@@ -98,11 +98,11 @@ test('public work can only publish from a consented genuine completed booking',(
 });
 
 test('Google review flow remains honest and disabled until the official link is configured',()=>{
-  const admin=read('admin-post-job-followup.js'),feedback=read('feedback.js');
+  const admin=read('admin-post-job-followup.js'),feedback=read('feedback.js'),feedbackPage=read('feedback.html');
   assert.match(admin,/Invite every completed customer to leave honest feedback/);
   assert.match(admin,/Ask for reviews/);
   assert.match(admin,/Leave it blank to keep Google review requests safely disabled/);
-  assert.match(feedback,/same optional public-review choice is available whatever rating/);
+  assert.match(feedbackPage,/same optional public-review choice is available whatever rating/);
   assert.match(feedback,/Leave an honest Google review/);
 });
 test('robots advertises the sitemap and leaves public pages crawlable',()=>{
