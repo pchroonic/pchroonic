@@ -8,7 +8,7 @@ test('homepage targets the live Window Cleaning offer',()=>{
   const html=read('index.html');
   assert.match(html,/<title>Window Cleaning in South London & Lewisham \| Namdar<\/title>/);
   assert.match(html,/Window cleaning, quoted online/);
-  assert.match(html,/Window Cleaning in Lewisham/);
+  for(const borough of ['Lewisham','Southwark','Lambeth','Wandsworth','Greenwich']) assert.match(html,new RegExp(`Window Cleaning in ${borough}`));
   assert.match(html,/Window Cleaning in South London/);
   assert.match(html,/"serviceType":"Exterior window cleaning"/);
   assert.doesNotMatch(html,/Get a guide estimate for window, gutter and roof cleaning/);
@@ -25,7 +25,7 @@ test('live Window Cleaning service has local schema and internal area links',()=
 });
 
 test('local landing pages describe only the live Window Cleaning service',()=>{
-  for(const path of ['areas/london.html','areas/south-london.html','areas/lewisham.html']){
+  for(const path of ['areas/london.html','areas/south-london.html','areas/lewisham.html','areas/southwark.html','areas/lambeth.html','areas/wandsworth.html','areas/greenwich.html']){
     const html=read(path);
     assert.match(html,/<h1>Window Cleaning in /);
     assert.match(html,/"serviceType":"Exterior window cleaning"/);
@@ -49,8 +49,12 @@ test('sitemap contains only live service catalog entries and SEO lastmod signals
   assert.match(src,/\/areas\/london/);
   assert.match(src,/\/areas\/south-london/);
   assert.match(src,/\/areas\/lewisham/);
+  assert.match(src,/\/areas\/southwark/);
+  assert.match(src,/\/areas\/lambeth/);
+  assert.match(src,/\/areas\/wandsworth/);
+  assert.match(src,/\/areas\/greenwich/);
   assert.match(src,/<lastmod>/);
-  assert.match(src,/PAGE_LASTMOD=Object\.freeze\(\{'window-cleaning':'2026-09-25'\}\)/);
+  assert.match(src,/PAGE_LASTMOD=Object\.freeze\(\{'window-cleaning':'2026-10-08'\}\)/);
   assert.match(src,/const publicJobs=\(jobs\|\|\[\]\)\.filter\(j=>liveKeys\.has\(j\.service_key\)\)/);
   assert.match(src,/publicJobs\.length\?\[\{path:'\/work'/);
   assert.doesNotMatch(src,/\/services\/gutter-cleaning/);
@@ -74,7 +78,23 @@ test('rendered homepage keeps local SEO and future services hidden until launch'
   assert.doesNotMatch(runtime,/Namdar \| Window Cleaning in London — Quote Online/);
 });
 
-test('SEO uses the production borough coverage without creating doorway pages',()=>{
+test('borough SEO pages are distinct, canonical and tied to postcode verification',()=>{
+  const boroughs={
+    lewisham:'Check your exact postcode before the quote moves forward.',
+    southwark:'Tell us about the property before we confirm the job.',
+    lambeth:'A quote that accounts for the actual property and access.',
+    wandsworth:'Property details matter more than a one-size-fits-all price.',
+    greenwich:'Check the property first, then confirm the final price.'
+  };
+  const names={lewisham:'Lewisham',southwark:'Southwark',lambeth:'Lambeth',wandsworth:'Wandsworth',greenwich:'Greenwich'};
+  const home=read('index.html');
+  for(const [slug,uniqueCopy] of Object.entries(boroughs)){
+    const name=names[slug],html=read(`areas/${slug}.html`);
+    assert.match(home,new RegExp(`href="/areas/${slug}"`));
+    assert.match(html,new RegExp(`<title>Window Cleaning in ${name} \\| Namdar<\\/title>`));
+    assert.match(html,new RegExp(`<link rel="canonical" href="https://namdar.co.uk/areas/${slug}">`));
+    assert.match(html,new RegExp(`"areaServed":\\{"@type":"AdministrativeArea","name":"${name}"\\}`));
+    assert.match(html,new RegExp(uniqueCopy.replace(/[.*+?^${}()|[\]\\]/g,'\\test('SEO uses the production borough coverage without creating doorway pages',()=>{
   const home=read('index.html'),south=read('areas/south-london.html'),london=read('areas/london.html');
   for(const borough of ['Lewisham','Southwark','Lambeth','Wandsworth','Greenwich']){
     assert.match(home,new RegExp(borough));
@@ -83,6 +103,11 @@ test('SEO uses the production borough coverage without creating doorway pages',(
   }
   assert.doesNotMatch(home,/Window Cleaning in Southwark<\/a>/);
   assert.doesNotMatch(home,/Window Cleaning in Lambeth<\/a>/);
+});')));
+    assert.match(html,/postcode/i);
+  }
+  const bodies=Object.keys(boroughs).map(slug=>read(`areas/${slug}.html`));
+  assert.equal(new Set(bodies).size,bodies.length,'borough pages must not be duplicated templates');
 });
 
 
@@ -106,7 +131,7 @@ test('portfolio SEO fails closed until genuine live-service work is published',(
 });
 
 test('indexable SEO pages hide portfolio links in raw HTML until public work exists',()=>{
-  for(const path of ['services/window-cleaning.html','areas/london.html','areas/south-london.html','areas/lewisham.html']){
+  for(const path of ['services/window-cleaning.html','areas/london.html','areas/south-london.html','areas/lewisham.html','areas/southwark.html','areas/lambeth.html','areas/wandsworth.html','areas/greenwich.html']){
     const html=read(path);
     assert.match(html,/data-real-work-link hidden href="\/work">Our work<\/a>/);
   }
