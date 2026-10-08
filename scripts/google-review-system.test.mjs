@@ -72,7 +72,7 @@ test('admin review dashboard reports requests clicks feedback reminders and atte
   assert.match(admin,/Google reviews & post-job feedback/);
   assert.match(admin,/Customer message preview/);
   assert.match(admin,/Recent completed-job review history/);
-  assert.match(loader,/6\.4\.43-google-reviews-1/);
+  assert.match(loader,/6\.4\.99-real-work-reviews-1/);
   assert.doesNotMatch(api,/rating\s*[><=]+\s*4/);
 });
 

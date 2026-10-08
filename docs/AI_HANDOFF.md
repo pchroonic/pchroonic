@@ -1,5 +1,13 @@
 # Namdar AI handoff
 
+## 8 Oct 2026 — Real completed-work portfolio + review flow — CANDIDATE
+- The existing public `/work` and `/work/{id}` pages already fail closed when there is no published genuine work. Production currently has **0 portfolio jobs** and the only completed booking is explicitly a **TEST JOB**, so nothing fake is being published.
+- Added a verified portfolio workflow: Admin → Offers & jobs now sources case studies only from eligible completed Window Cleaning bookings, excludes obvious test/demo bookings, requires a borough-only public location, blocks customer name/address/email/phone/postcode leakage, validates up to 8 real work photos, and requires publication permission before an item can go live.
+- Added `portfolio_jobs.source_booking_id`, `publication_consent_at`, `publication_consent_by`, and `published_at`. Database constraint `portfolio_jobs_publish_integrity_chk` prevents a published case study unless it has a source booking, recorded permission, and at least one public image. A partial unique index prevents duplicate case studies from the same booking.
+- Private quote photos are never copied into the public portfolio automatically. Staff must deliberately upload the public work photos they are permitted to publish.
+- The Google review system was already non-gated: the optional public review choice is available regardless of the private 1–5 rating, while 1–3 star feedback still routes privately to support. Review requests remain disabled until the official Google Business Profile **Ask for reviews** URL is pasted into Admin → Bookings → Google reviews & post-job feedback.
+- Admin review guidance now explains how to copy the official Google review link. Do not invent or derive a review URL from the Business Profile ID.
+
 ## 8 Oct 2026 — Google Business Profile / local trust readiness — LIVE
 - Namdar should be configured as a **service-area business** if customers are not served at a staffed, signed customer-facing premises. Google specifically treats cleaning services as service-area businesses; in that setup the business address should be hidden from customers rather than using a virtual office.
 - Use one profile for the current Namdar operation. Business name: `Namdar`. Website: `https://namdar.co.uk`. Service areas: `Lewisham`, `Southwark`, `Lambeth`, `Wandsworth`, `Greenwich`. Google allows up to 20 named service areas; keep them specific rather than using a radius.
