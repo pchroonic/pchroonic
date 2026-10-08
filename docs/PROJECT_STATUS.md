@@ -1,12 +1,14 @@
 # Namdar project status
 
-## 8 Oct 2026 — Free organic growth: borough conversion SEO — CANDIDATE
+## 8 Oct 2026 — Free organic growth: borough conversion SEO — LIVE
 - User chose the **free traffic** path rather than paid ads. Goal is qualified local quote requests/jobs, not raw page-view volume.
 - Strengthened the five live borough landing pages: Lewisham, Southwark, Lambeth, Wandsworth and Greenwich.
 - Each page now includes a natural high-intent `window cleaner in <borough>` section, at least four genuinely relevant borough-specific customer questions, and a strong direct quote CTA after the answers.
 - Meta descriptions now reflect `window cleaner` search intent while preserving the truthful exterior Window Cleaning offer, postcode check and reviewed final quote model.
 - No fake reviews, fake job counts, invented prices, unsupported availability promises or thin doorway-page duplication were added. FAQ content is visible HTML only; no `FAQPage` rich-result markup is used.
 - Existing homepage/service internal links to all five borough pages remain in place. Next free-growth leverage after this release is genuine completed-work pages + real customer reviews/photos, followed later by the deferred UK citation work.
+- PR #203 merged as `83c3d8b5985cba29d33b952cafbae4c95354a90e`. Production deployment `dpl_3NsEApzT4g6bX8p5h5JTeWkdNok4` is READY on `namdar.co.uk`. Live verification confirmed the new Lewisham high-intent section, FAQ block and quote CTA; the preview verified the same structure across all five borough pages before merge.
+- After production release, IndexNow was notified for the five materially updated borough URLs (Lewisham, Southwark, Lambeth, Wandsworth, Greenwich) and returned HTTP 200. The temporary preview-only refresh endpoint was removed immediately afterward and was never merged to production.
 
 ## Future SEO follow-up — local citations + Apple Business
 - Apple Business setup is intentionally paused for now. Domain verification was started, but the full managed-organisation flow requires a second verification method/document that Namdar does not currently have. Do not invent or upload unsupported documents.
