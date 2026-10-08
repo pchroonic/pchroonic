@@ -1,5 +1,11 @@
 # Namdar AI fast resume
 
+## 8 Oct 2026 — Google Business Profile review link — LIVE
+- Official Google Business Profile **Ask for reviews** URL configured in production: `https://g.page/r/CSGKgJbnDkHYEBM/review`.
+- `site_settings.reviews.review_requests_enabled=true`, so future completed-job follow-up emails can include the same optional honest Google-review link for every customer regardless of private rating.
+- Automatic Google-review reminders remain OFF (`review_reminders_enabled=false`; stored delay 7 days) until deliberately enabled later.
+- Safety verification before enabling: the only completed booking is the explicit TEST JOB; its follow-up had already been sent on 25 Sep 2026 before the review link existed, and there were 0 pending/sending `review_reminder` notifications, so enabling the URL did not trigger a retroactive review email.
+
 ## 8 Oct 2026 — Real completed-work portfolio + review flow — LIVE
 - The existing public `/work` and `/work/{id}` pages already fail closed when there is no published genuine work. Production currently has **0 portfolio jobs** and the only completed booking is explicitly a **TEST JOB**, so nothing fake is being published.
 - Added a verified portfolio workflow: Admin → Offers & jobs now sources case studies only from eligible completed Window Cleaning bookings, excludes obvious test/demo bookings, requires a borough-only public location, blocks customer name/address/email/phone/postcode leakage, validates up to 8 real work photos, and requires publication permission before an item can go live.
