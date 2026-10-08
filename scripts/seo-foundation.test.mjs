@@ -80,6 +80,31 @@ test('indexable SEO pages carry the public business phone without inventing an a
     assert.doesNotMatch(html,/"streetAddress":/);
   }
 });
+test('public work can only publish from a consented genuine completed booking',()=>{
+  const api=read('api/admin-portfolio.js'),admin=read('admin.html'),core=read('admin-original.js'),migration=read('supabase/migrations/20261008162500_portfolio_real_work_publication_guard.sql');
+  assert.match(api,/Only completed bookings can become public work/);
+  assert.match(api,/Test\/demo bookings cannot be published as real work/);
+  assert.match(api,/Confirm publication permission before publishing/);
+  assert.match(api,/Remove the customer name, address, email, phone or postcode/);
+  assert.match(api,/Attach at least one genuine work photo before publishing/);
+  assert.match(admin,/id="jobBooking"/);
+  assert.match(admin,/id="jobConsent"/);
+  assert.match(admin,/Private quote photos are never copied automatically/);
+  assert.match(core,/\/api\/admin-portfolio/);
+  assert.match(core,/No eligible real completed jobs yet/);
+  assert.match(migration,/portfolio_jobs_publish_integrity_chk/);
+  assert.match(migration,/publication_consent_at is not null/);
+  assert.match(migration,/jsonb_array_length\(image_urls\) > 0/);
+});
+
+test('Google review flow remains honest and disabled until the official link is configured',()=>{
+  const admin=read('admin-post-job-followup.js'),feedback=read('feedback.js');
+  assert.match(admin,/Invite every completed customer to leave honest feedback/);
+  assert.match(admin,/Ask for reviews/);
+  assert.match(admin,/Leave it blank to keep Google review requests safely disabled/);
+  assert.match(feedback,/same optional public-review choice is available whatever rating/);
+  assert.match(feedback,/Leave an honest Google review/);
+});
 test('robots advertises the sitemap and leaves public pages crawlable',()=>{
   const robots=read('robots.txt');
   assert.match(robots,/User-agent: \*/);
