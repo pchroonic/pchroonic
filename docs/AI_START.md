@@ -1,14 +1,15 @@
 # Namdar AI fast resume
 
-## 8 Oct 2026 — Local borough SEO expansion — CANDIDATE
+## 8 Oct 2026 — Local borough SEO expansion — LIVE
 - Added dedicated, indexable Window Cleaning pages for `/areas/southwark`, `/areas/lambeth`, `/areas/wandsworth`, and `/areas/greenwich` so all five live boroughs now have their own local landing page.
 - Each new page has unique borough-specific copy, a self-referencing canonical, `Service` + `BreadcrumbList` structured data, links to the other live borough pages, and repeated wording that the exact postcode remains the final availability check. The pages do not promise blanket borough-wide booking.
 - Homepage, live Window Cleaning service page, London/South London coverage pages and Lewisham page now link the complete five-borough set. This replaces the old anti-doorway guardrail with regression checks that require unique copy/canonicals/local schema instead of forbidding borough links.
 - `api/sitemap.js` now includes all four new borough URLs. Homepage, Window Cleaning and area `lastmod` values move to `2026-10-08` because those pages genuinely changed in this release; do not bump them on future redeploys without content changes.
-- Semrush is connected but the account currently has no API units, so keyword-volume / difficulty validation is pending and must not block the structurally correct local-page release.
+- Semrush is connected but the account currently has no API units, so keyword-volume / difficulty validation is pending and did not block the structurally correct local-page release.
+- PR #189 merged as `6ad10b0a29b2afb5d38799e74b82ab66c9dc5818`. Production deployment `dpl_Fe8r1MmN41fn7usrMZ4C3fwTkTaS` is READY and aliased to `namdar.co.uk`. Live verification confirmed HTTP 200 for Southwark, Lambeth, Wandsworth and Greenwich pages plus all four entries in `/sitemap.xml`.
 
 ### SEO improvement roadmap
-1. **Borough landing pages** — current candidate: complete the five-borough local landing-page set and internal-link graph without thin doorway pages.
+1. **Borough landing pages** — LIVE: all five boroughs now have dedicated local pages and a complete internal-link graph, protected by anti-duplication/SEO regressions.
 2. **Google Business Profile** — strengthen service areas, hours, photos, reviews and ongoing profile activity once the profile/business details are ready.
 3. **Real completed-work pages** — publish customer-approved before/after jobs through the existing `/work` system with no private address exposure.
 4. **Original photography** — replace generic/interface-only trust with genuine Namdar equipment, team and completed-work images as they become available.
