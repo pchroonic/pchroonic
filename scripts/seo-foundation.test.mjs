@@ -60,6 +60,14 @@ test('sitemap contains only live service catalog entries and SEO lastmod signals
   assert.doesNotMatch(src,/\/services\/gutter-cleaning/);
 });
 
+test('local-business contact fallbacks stay credible and match live borough coverage',()=>{
+  const home=read('index.html'),runtime=read('app.js');
+  assert.doesNotMatch(home,/Business phone coming soon/);
+  assert.match(home,/<span class="hidden" id="publicPhone"><\/span>/);
+  assert.match(home,/Lewisham, Southwark, Lambeth, Wandsworth &amp; Greenwich/);
+  assert.match(runtime,/phone\.classList\.add\('hidden'\)/);
+  assert.match(runtime,/Lewisham, Southwark, Lambeth, Wandsworth & Greenwich/);
+});
 test('robots advertises the sitemap and leaves public pages crawlable',()=>{
   const robots=read('robots.txt');
   assert.match(robots,/User-agent: \*/);
