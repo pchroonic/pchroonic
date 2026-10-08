@@ -1,6 +1,6 @@
 # Namdar AI fast resume
 
-## 8 Oct 2026 — Google Business Profile / local trust readiness — CANDIDATE
+## 8 Oct 2026 — Google Business Profile / local trust readiness — LIVE
 - Namdar should be configured as a **service-area business** if customers are not served at a staffed, signed customer-facing premises. Google specifically treats cleaning services as service-area businesses; in that setup the business address should be hidden from customers rather than using a virtual office.
 - Use one profile for the current Namdar operation. Business name: `Namdar`. Website: `https://namdar.co.uk`. Service areas: `Lewisham`, `Southwark`, `Lambeth`, `Wandsworth`, `Greenwich`. Google allows up to 20 named service areas; keep them specific rather than using a radius.
 - Primary category target: choose the most specific category Google currently offers for the core business, expected to be `Window cleaning service` if that category is available in the live category picker. Do not add categories merely as SEO keywords.
@@ -8,7 +8,8 @@
 - Production `site_settings.contact.service_area_text` was corrected from the generic `London and surrounding areas` to `Lewisham, Southwark, Lambeth, Wandsworth & Greenwich` so the public site and future Google profile use the same coverage wording.
 - Production currently has no public business phone, no saved opening hours and no uploaded brand logo URL. Do not invent these values. The homepage candidate now hides the unfinished `Business phone coming soon` row until a real phone number is configured, and its static service-area fallback uses the exact five boroughs.
 - Once a real Google Business Profile exists and is verified, add its canonical profile URL to Namdar's public entity signals (`sameAs`) and add the genuine Google review link/CTA only after the URL is known. Do not create fake reviews or self-written customer reviews.
-- Direct Google Business Profile management from ChatGPT requires a connected integration; Windsor.ai is the available connector that can work with Google Business Profile posts/reviews after the user's account is connected. Profile creation/verification itself may still require Google's own verification flow.
+- Windsor.ai connection was skipped because the user could not connect it. This does not block the website-side local SEO work. Google Business Profile creation/verification and direct profile edits remain manual unless a working profile integration is connected later.
+- PR #191 merged as `a4b0a70861d489fc19858d06f299c8fecb6414e8`. Production deployment `dpl_BZqQAXSnUuWEBPWeTFGXmcpUxtWW` is READY and aliased to `namdar.co.uk`. Live verification confirmed the exact five-borough public service-area text and the removal of the unfinished public phone placeholder.
 
 ## 8 Oct 2026 — Local borough SEO expansion — LIVE
 - Added dedicated, indexable Window Cleaning pages for `/areas/southwark`, `/areas/lambeth`, `/areas/wandsworth`, and `/areas/greenwich` so all five live boroughs now have their own local landing page.
