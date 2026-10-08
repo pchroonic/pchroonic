@@ -1,5 +1,22 @@
 # Namdar AI handoff
 
+## 8 Oct 2026 — Local borough SEO expansion — CANDIDATE
+- Added dedicated, indexable Window Cleaning pages for `/areas/southwark`, `/areas/lambeth`, `/areas/wandsworth`, and `/areas/greenwich` so all five live boroughs now have their own local landing page.
+- Each new page has unique borough-specific copy, a self-referencing canonical, `Service` + `BreadcrumbList` structured data, links to the other live borough pages, and repeated wording that the exact postcode remains the final availability check. The pages do not promise blanket borough-wide booking.
+- Homepage, live Window Cleaning service page, London/South London coverage pages and Lewisham page now link the complete five-borough set. This replaces the old anti-doorway guardrail with regression checks that require unique copy/canonicals/local schema instead of forbidding borough links.
+- `api/sitemap.js` now includes all four new borough URLs. Homepage, Window Cleaning and area `lastmod` values move to `2026-10-08` because those pages genuinely changed in this release; do not bump them on future redeploys without content changes.
+- Semrush is connected but the account currently has no API units, so keyword-volume / difficulty validation is pending and must not block the structurally correct local-page release.
+
+### SEO improvement roadmap
+1. **Borough landing pages** — current candidate: complete the five-borough local landing-page set and internal-link graph without thin doorway pages.
+2. **Google Business Profile** — strengthen service areas, hours, photos, reviews and ongoing profile activity once the profile/business details are ready.
+3. **Real completed-work pages** — publish customer-approved before/after jobs through the existing `/work` system with no private address exposure.
+4. **Original photography** — replace generic/interface-only trust with genuine Namdar equipment, team and completed-work images as they become available.
+5. **Homepage local-area hub** — keep a clear customer-facing area section linking every live borough and the wider London/South London coverage pages.
+6. **Local-business structured data** — add stronger public business details such as phone/hours/logo/service-area data once those details are final and intended for publication.
+7. **Trust and conversion proof** — add only genuine reviews, credentials, completed-job proof and service guarantees that Namdar can substantiate.
+8. **Core Web Vitals / mobile performance** — monitor LCP, INP and CLS as Search Console gathers enough production data, and fix regressions before adding visual weight.
+
 ## 7 Oct 2026 — Google indexing requests submitted
 - Google Search Console reported 7 sitemap URLs as `Discovered - currently not indexed`; all had `Last crawled: N/A`. The four commercially important SEO pages were live-tested successfully and Google reported `URL is available to Google` / `Page can be indexed`.
 - Manual indexing requests were submitted for `/services/window-cleaning`, `/areas/lewisham`, `/areas/south-london`, and `/areas/london`. Do not repeatedly resubmit; wait for Google to crawl them and recheck Search Console after about 7 days.
