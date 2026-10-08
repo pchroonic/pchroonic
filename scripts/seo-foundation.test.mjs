@@ -60,13 +60,25 @@ test('sitemap contains only live service catalog entries and SEO lastmod signals
   assert.doesNotMatch(src,/\/services\/gutter-cleaning/);
 });
 
-test('local-business contact fallbacks stay credible and match live borough coverage',()=>{
+test('Google Business contact details stay consistent across visible UI and schema',()=>{
   const home=read('index.html'),runtime=read('app.js');
   assert.doesNotMatch(home,/Business phone coming soon/);
-  assert.match(home,/<span class="hidden" id="publicPhone"><\/span>/);
+  assert.match(home,/href="tel:\+447946679694">☎ 07946 679694<\/a>/);
+  assert.match(home,/Mon–Thu 08:00–17:00 · Fri 09:00–15:00 · Sat–Sun closed/);
   assert.match(home,/Lewisham, Southwark, Lambeth, Wandsworth &amp; Greenwich/);
-  assert.match(runtime,/phone\.classList\.add\('hidden'\)/);
+  assert.match(home,/"telephone":"\+447946679694"/);
+  assert.match(home,/"hoursAvailable":\[/);
+  assert.match(runtime,/business_hours_text/);
+  assert.match(runtime,/tel:/);
   assert.match(runtime,/Lewisham, Southwark, Lambeth, Wandsworth & Greenwich/);
+});
+test('indexable SEO pages carry the public business phone without inventing an address',()=>{
+  for(const path of ['services/window-cleaning.html','areas/london.html','areas/south-london.html','areas/lewisham.html','areas/southwark.html','areas/lambeth.html','areas/wandsworth.html','areas/greenwich.html']){
+    const html=read(path);
+    assert.match(html,/"telephone":"\\+447946679694"/);
+    assert.match(html,/"contactPoint":\{"@type":"ContactPoint"/);
+    assert.doesNotMatch(html,/"streetAddress":/);
+  }
 });
 test('robots advertises the sitemap and leaves public pages crawlable',()=>{
   const robots=read('robots.txt');
