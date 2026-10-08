@@ -1,10 +1,11 @@
 # Namdar project status
 
-## 8 Oct 2026 — Bing Webmaster Tools verification — CANDIDATE
+## 8 Oct 2026 — Bing Webmaster Tools verification — LIVE
 - Bing Places for Business has been created for Namdar, synced from Google, verified, and is pending publication.
 - Bing Webmaster Tools manual verification is using the XML-file method.
 - Added root verification file `BingSiteAuth.xml` with the exact token supplied by Bing. Keep this file deployed after verification so ownership remains verifiable.
 - Target verification URL: `https://namdar.co.uk/BingSiteAuth.xml`.
+- PR #198 merged as `85744353623d1da7037c9e83e089ddceadd4fe1c`. Production deployment `dpl_3BwSD9tgNNj14RMzzhN3tajnxqPs` is READY. Live verification confirmed `https://namdar.co.uk/BingSiteAuth.xml` returns HTTP 200 with the exact Bing token.
 
 ## 8 Oct 2026 — Google Business Profile review link — LIVE
 - Official Google Business Profile **Ask for reviews** URL configured in production: `https://g.page/r/CSGKgJbnDkHYEBM/review`.
