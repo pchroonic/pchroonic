@@ -1,6 +1,6 @@
 (()=>{
   const v='6.4.37-admin-website-crash-fix-1';
-  const adminCoreV='6.4.99-real-work-publication-1';
+  const adminCoreV='6.4.100-indexnow-1';
   const modalLayoutV='6.4.38-admin-wide-modal-fix-1';
   const roleV='6.4.39-access-roles-1';
   const fieldOpsV='6.4.41-staff-operations-v3-1';
