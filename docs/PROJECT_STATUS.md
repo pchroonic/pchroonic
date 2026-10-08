@@ -1,12 +1,15 @@
 # Namdar project status
 
-## 8 Oct 2026 — IndexNow integration — CANDIDATE
+## 8 Oct 2026 — IndexNow integration — LIVE
 - Bing Webmaster Tools is verified for `https://namdar.co.uk/` via the root `BingSiteAuth.xml` file.
 - IndexNow owner key supplied by Bing: `9b012fe757f449ddaf8832421f580676`; candidate root file: `https://namdar.co.uk/9b012fe757f449ddaf8832421f580676.txt`. Keep this file deployed while IndexNow is in use.
 - Added `lib/indexnow.js`, which submits only HTTPS URLs on the exact `namdar.co.uk` host to `https://api.indexnow.org/indexnow`, using the root key location. HTTP 200 and first-request HTTP 202 are treated as accepted responses.
 - Public portfolio publication now notifies IndexNow for `/work` and `/work/{id}`. Deleting a previously published case study also notifies IndexNow for those URLs. Draft-only changes do not notify search engines.
 - Admin portfolio deletion now routes through the protected server API instead of deleting the database row directly, so delete notifications and audit logging cannot be bypassed by the normal Admin flow.
 - IndexNow should be used for URLs that are actually added, updated or deleted; do not repeatedly submit unchanged pages.
+- PR #200 merged as `48c929c371696ff800a613c01ca254bdf3572712`. Production deployment `dpl_D4VsdZgcdqGd4tDizfd5ixYu67Wn` is READY on `namdar.co.uk`; the root IndexNow key URL returns HTTP 200 with the exact key.
+- Initial IndexNow bootstrap submitted 9 public URLs changed on 8 Oct 2026: homepage, Window Cleaning service page, London/South London and the five borough pages. IndexNow returned HTTP 202 (accepted; first-request key validation pending), which is a valid successful receipt state for a first submission.
+- The temporary preview-only bootstrap trigger was removed immediately after the accepted submission and was never merged to production.
 
 ## 8 Oct 2026 — Bing Webmaster Tools verification — LIVE
 - Bing Places for Business has been created for Namdar, synced from Google, verified, and is pending publication.
