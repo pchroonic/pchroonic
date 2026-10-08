@@ -1,4 +1,5 @@
 const {json,parseBody,db,requireStaff,auditLog,safeError,safeHttpsUrl,env}=require('../lib/server');
+const {submitIndexNow}=require('../lib/indexnow');
 
 const BOROUGHS=new Set(['Lewisham','Southwark','Lambeth','Wandsworth','Greenwich']);
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -53,6 +54,16 @@ module.exports=async function handler(req,res){
       }});
       return json(res,200,{ok:true,candidates});
     }
+    if(req.method==='DELETE'){
+      const body=parseBody(req),id=String(body.id||'').trim();
+      if(!UUID.test(id))return json(res,400,{ok:false,error:'Choose a valid case study.'});
+      const job=(await db(`portfolio_jobs?id=eq.${encodeURIComponent(id)}&select=id,title,published&limit=1`))?.[0]||null;
+      if(!job)return json(res,404,{ok:false,error:'Case study not found.'});
+      await db(`portfolio_jobs?id=eq.${encodeURIComponent(id)}`,{method:'DELETE'});
+      await auditLog(req,staff,{action:'portfolio.delete',entityType:'portfolio_job',entityId:id,summary:`Deleted ${job.published?'published':'draft'} case study ${job.title||id}`});
+      if(job.published)submitIndexNow([`https://namdar.co.uk/work/${id}`,'https://namdar.co.uk/work']).catch(()=>null);
+      return json(res,200,{ok:true,deletedId:id});
+    }
     if(req.method!=='POST')return json(res,405,{ok:false,error:'Method not allowed'});
     const body=parseBody(req),bookingId=String(body.bookingId||'').trim();
     if(!UUID.test(bookingId))return json(res,400,{ok:false,error:'Choose a genuine completed booking.'});
@@ -81,6 +92,7 @@ module.exports=async function handler(req,res){
       publication_consent_at:consent?now:null,publication_consent_by:consent?staff.user.id:null,published_at:published?now:null
     }}))?.[0];
     await auditLog(req,staff,{action:published?'portfolio.publish':'portfolio.draft_create',entityType:'portfolio_job',entityId:row?.id||null,summary:`${published?'Published':'Created draft'} real-work case study from completed booking ${booking.id}`});
+    if(published&&row?.id)submitIndexNow(['https://namdar.co.uk/work',`https://namdar.co.uk/work/${row.id}`]).catch(()=>null);
     return json(res,201,{ok:true,job:row});
   }catch(error){return safeError(res,error)}
 };

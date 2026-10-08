@@ -1,5 +1,13 @@
 # Namdar project status
 
+## 8 Oct 2026 — IndexNow integration — CANDIDATE
+- Bing Webmaster Tools is verified for `https://namdar.co.uk/` via the root `BingSiteAuth.xml` file.
+- IndexNow owner key supplied by Bing: `9b012fe757f449ddaf8832421f580676`; candidate root file: `https://namdar.co.uk/9b012fe757f449ddaf8832421f580676.txt`. Keep this file deployed while IndexNow is in use.
+- Added `lib/indexnow.js`, which submits only HTTPS URLs on the exact `namdar.co.uk` host to `https://api.indexnow.org/indexnow`, using the root key location. HTTP 200 and first-request HTTP 202 are treated as accepted responses.
+- Public portfolio publication now notifies IndexNow for `/work` and `/work/{id}`. Deleting a previously published case study also notifies IndexNow for those URLs. Draft-only changes do not notify search engines.
+- Admin portfolio deletion now routes through the protected server API instead of deleting the database row directly, so delete notifications and audit logging cannot be bypassed by the normal Admin flow.
+- IndexNow should be used for URLs that are actually added, updated or deleted; do not repeatedly submit unchanged pages.
+
 ## 8 Oct 2026 — Bing Webmaster Tools verification — LIVE
 - Bing Places for Business has been created for Namdar, synced from Google, verified, and is pending publication.
 - Bing Webmaster Tools manual verification is using the XML-file method.

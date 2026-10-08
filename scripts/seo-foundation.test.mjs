@@ -105,6 +105,18 @@ test('Google review flow remains honest and disabled until the official link is 
   assert.match(feedbackPage,/same optional public-review choice is available whatever rating/);
   assert.match(feedback,/Leave an honest Google review/);
 });
+test('IndexNow uses the hosted owner key and only submits Namdar URLs',()=>{
+  const key=read('9b012fe757f449ddaf8832421f580676.txt').trim();
+  const helper=read('lib/indexnow.js'),portfolio=read('api/admin-portfolio.js'),core=read('admin-original.js');
+  assert.equal(key,'9b012fe757f449ddaf8832421f580676');
+  assert.match(helper,/https:\/\/api\.indexnow\.org\/indexnow/);
+  assert.match(helper,/hostname!==HOST/);
+  assert.match(helper,/status===200\|\|response\.status===202/);
+  assert.match(portfolio,/submitIndexNow\(\['https:\/\/namdar\.co\.uk\/work'/);
+  assert.match(portfolio,/portfolio\.delete/);
+  assert.match(core,/method:'DELETE'/);
+});
+
 test('robots advertises the sitemap and leaves public pages crawlable',()=>{
   const robots=read('robots.txt');
   assert.match(robots,/User-agent: \*/);
