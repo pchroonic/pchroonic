@@ -158,6 +158,20 @@ test('borough SEO pages are distinct, canonical and tied to postcode verificatio
 });
 
 
+test('borough landing pages target high-intent local window-cleaner searches without cloning copy',()=>{
+  const boroughs=['lewisham','southwark','lambeth','wandsworth','greenwich'];
+  const bodies=[];
+  for(const slug of boroughs){
+    const html=read(`areas/${slug}.html`),name=slug[0].toUpperCase()+slug.slice(1);
+    bodies.push(html);
+    assert.match(html,new RegExp(`window cleaner in ${name}`,'i'));
+    assert.match(html,new RegExp(`Get a ${name} Window Cleaning estimate`));
+    assert.match(html,/conversion-faq-grid/);
+    assert.ok((html.match(/<details>/g)||[]).length>=4,`${slug} should answer at least four high-intent questions`);
+    assert.doesNotMatch(html,/FAQPage/);
+  }
+  assert.equal(new Set(bodies).size,bodies.length,'borough pages must remain genuinely distinct');
+});
 test('portfolio SEO fails closed until genuine live-service work is published',()=>{
   const handler=read('api/public-work-page.js');
   const vercel=read('vercel.json');
