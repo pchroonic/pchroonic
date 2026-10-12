@@ -1,5 +1,11 @@
 # Namdar AI fast resume
 
+## 12 Oct 2026 — Admin SEO deployment approval gate (candidate)
+- Adds POST /api/admin-area-seo-approve for administrator-only approval of review-requested borough SEO drafts, requiring existing MFA staff auth.
+- Checks the expected saved revision and review request timestamp and appends bounded private approval history to the existing site_settings draft record; writes an audit log.
+- Explicitly does not push GitHub files, modify live HTML, publish changes or request indexing. Static site publication remains dependent on a separately reviewed trusted build/deployment workflow.
+- Existing shared JSON site_settings editing is not transactional; concurrent modifications may overwrite changes. Do not claim this endpoint is a complete concurrent-safe CMS publishing solution.
+
 ## 12 Oct 2026 — Area SEO review-request workflow (candidate)
 - Adds explicit Request editorial review for fully populated saved SEO drafts; status persists privately in existing staff-protected site_settings.
 - Editing a reviewed draft and saving resets its state to draft. Submission checks the previously loaded revision timestamp before changing status.
