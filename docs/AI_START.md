@@ -1,5 +1,11 @@
 # Namdar AI fast resume
 
+## 12 Oct 2026 — SEO editor draft-loss protection (candidate)
+- Added a browser unload warning for unsaved SEO area changes and confirmation when explicitly reloading saved content.
+- Failed database loads preserve existing editing fields rather than resetting them before the request succeeds.
+- Pre-save checks detect changes in stored revision timestamp, review status and review request timestamp before replacing draft content.
+- This remains a best-effort client preflight, not an atomic compare-and-swap; simultaneous writers can still race. Protected server-side revision locking and publication remain future work.
+
 ## 12 Oct 2026 — Server-verified SEO publishing export (candidate)
 - Added MFA-protected admin-only GET `/api/admin-area-seo-export?area=` to read a currently approved SEO revision from server-side `site_settings` and return the exact content with a SHA-256 fingerprint.
 - Admin now exposes `Download verified approved draft`. This does not deploy or publish; reviewer must still compare with the private approved record and inspect the generated Git diff, CI, preview and production deployment.
