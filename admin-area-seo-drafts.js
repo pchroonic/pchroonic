@@ -132,7 +132,12 @@ document.getElementById('areaSeoVerifiedExport').addEventListener('click',async(
  }catch(e){status.textContent='Verified export unavailable: '+String(e.message||e);}
  finally{button.disabled=false;}
 });
-document.getElementById('areaSeoCompare').addEventListener('click',()=>{const selected=chosenRevision();if(!selected){revisionComparison.textContent='Choose an older version first.';return;}const current=currentFields();revisionComparison.textContent=Object.keys(revisionFields).map(key=>key+'\nCURRENT: '+current[key]+'\nOLDER: '+String(selected.snapshot[key]||'')).join('\n\n');});
+document.getElementById('areaSeoCompare').addEventListener('click',()=>{const selected=chosenRevision();if(!selected){revisionComparison.textContent='Choose an older version first.';return;}const current=currentFields();revisionComparison.replaceChildren();
+ const table=document.createElement('table');table.className='admin-table';const head=document.createElement('thead');const hr=document.createElement('tr');['Field','Older version','Current editor'].forEach(label=>{const th=document.createElement('th');th.textContent=label;hr.append(th);});head.append(hr);table.append(head);
+ const body=document.createElement('tbody');let changed=0;
+ Object.keys(revisionFields).forEach(key=>{const before=String(selected.snapshot[key]||''),after=current[key];const row=document.createElement('tr');if(before!==after){changed++;row.style.background='rgba(245,158,11,.12)';}
+ [key,before,after].forEach((value,index)=>{const cell=document.createElement('td');cell.style.whiteSpace='pre-wrap';cell.style.overflowWrap='anywhere';cell.textContent=value;row.append(cell);});body.append(row);});
+ table.append(body);const summary=document.createElement('p');summary.textContent=changed+' of '+Object.keys(revisionFields).length+' fields changed since the older version.';revisionComparison.append(summary,table);});
 document.getElementById('areaSeoRestore').addEventListener('click',()=>{const selected=chosenRevision();if(!selected){status.textContent='Select an older version to restore.';return;}if(!confirm('Load this older revision into your editor? Unsaved edits will be replaced. This does not save or publish.'))return;Object.entries(revisionFields).forEach(([key,node])=>{node.value=String(selected.snapshot[key]||'');});markDirty();status.textContent='Older revision loaded as unsaved draft. Click Save private draft to save it.';});
 reset();markClean('Suggested copy · not saved');
 })();

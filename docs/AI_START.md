@@ -1,5 +1,9 @@
 # Namdar AI fast resume
 
+## 12 Oct 2026 — Visual SEO revision comparison (candidate)
+- Replaces plain-text revision compare with a responsive, accessible per-field comparison table highlighting changed fields and counting differences.
+- All content is inserted using DOM textContent, not raw HTML. Restore remains a separate action that only fills an unsaved draft; no production publication or live rollback changes.
+
 ## 12 Oct 2026 — Private SEO draft revision history (candidate)
 - Area SEO saves now archive the previous draft snapshot into a bounded private `_revisions` list in the staff-protected `area_seo_drafts` settings key; retains last 60 history entries across boroughs.
 - Admin displays recent versions for selected borough, allows side-by-side field comparison in text, and restores an older snapshot to UNSAVED editor fields. Saving a restoration creates a new draft and resets approvals; public pages do not change.
