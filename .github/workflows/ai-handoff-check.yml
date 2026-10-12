@@ -47,6 +47,9 @@ jobs:
           node --check account-payments.js
           node --check privileged-login-captcha.js
           node --test scripts/privileged-login-captcha.test.mjs
+          node --check scripts/apply-approved-area-seo.cjs
+          node --test scripts/apply-approved-area-seo.test.cjs
+          node --check admin-area-seo-drafts.js
           node --check admin.js
           node --check admin-page-analytics.js
           node --check admin-report-hub.js
