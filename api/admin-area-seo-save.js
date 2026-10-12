@@ -25,7 +25,11 @@ module.exports=async function(req,res){
   const row=rows?.[0]||null;
   if((row?.updated_at||null)!==input.expectedVersion)throw invalid('Draft changed elsewhere; reload before saving',409);
   const stamp=new Date().toISOString();
-  const value={...(row?.value||{}),[area]:{...fields,updatedAt:stamp,status:'draft'}};
+  const prior=row?.value?.[area];
+  const historyKey='_revisions';
+  const allHistory=Array.isArray(row?.value?.[historyKey])?row.value[historyKey]:[];
+  const history=prior?[...allHistory,{area,snapshot:{title:prior.title,metaDescription:prior.metaDescription,heading:prior.heading,intro:prior.intro,faqQuestion:prior.faqQuestion,faqAnswer:prior.faqAnswer},previousStatus:prior.status||'draft',timestamp:prior.updatedAt||row.updated_at,archivedAt:stamp,archivedBy:staff.user.id}].slice(-60):allHistory;
+  const value={...(row?.value||{}),[area]:{...fields,updatedAt:stamp,status:'draft'},[historyKey]:history};
   let saved;
   if(row){
    const filter='site_settings?key=eq.area_seo_drafts&updated_at=eq.'+encodeURIComponent(row.updated_at)+'&select=value,updated_at';
