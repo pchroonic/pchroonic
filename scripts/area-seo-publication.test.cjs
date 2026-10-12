@@ -1,0 +1,5 @@
+const test=require('node:test'),assert=require('node:assert/strict');const {identity,verified}=require('../lib/area-seo-publication');
+const draft={status:'approved_for_deployment',approvedAt:'2026-10-12T00:00:00Z',approvedBy:'admin',updatedAt:'revision',title:'Title',metaDescription:'Description',heading:'Heading',intro:'Introduction'};
+test('approved identity is deterministic',()=>{const a=identity('lambeth',draft);assert.equal(a.contentSha256,identity('lambeth',draft).contentSha256);assert.notEqual(a.contentSha256,identity('lambeth',{...draft,title:'Different'}).contentSha256)});
+test('unapproved drafts cannot form publication identity',()=>assert.throws(()=>identity('lambeth',{...draft,status:'draft'})));
+test('exact public HTML fingerprint required',()=>{const {sha256}=require('../lib/area-seo-publication');const html='<html>hello</html>';const m={area:'lambeth',url:'https://namdar.co.uk/areas/lambeth',htmlSha256:sha256(html)};assert.equal(verified(m,html,'lambeth'),true);assert.equal(verified(m,html+'x','lambeth'),false)});
