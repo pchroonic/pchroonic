@@ -1,5 +1,10 @@
 # Namdar project status
 
+## 12 Oct 2026 — Manual approved SEO publish preflight (candidate)
+- Added `workflow_dispatch` GitHub Actions `seo-publish-prepare.yml` for an explicitly selected borough and approved draft revision, using a GitHub environment named `seo-publishing` and running existing SEO safety tests.
+- IMPORTANT: This is a non-deploying preflight, NOT one-click publication and NOT an approved export fetch. An authorised administrator must first create and approve a draft and retrieve the verified export from Namdar. Never upload private tokens or unverified draft text as workflow inputs.
+- Pending secure publication automation requires a trusted approved-export fetch method and constrained GitHub PR workflow; Vercel's production environment was found without `VERCEL_TOKEN` and `GITHUB_TOKEN`, and no approved SEO drafts were found in production at last check. Existing PR reviewer/deployment gates remain mandatory.
+
 ## 12 Oct 2026 — Publication verification and borough-only rollback preparation (candidate)
 - Offline reviewed publisher now records `contentSha256` for the *approved draft fields* and the `htmlSha256` for the generated page in `areas/{borough}.publication.json`; manifests require committed HTML in the same Git change.
 - MFA-protected admin endpoint `GET /api/admin-area-seo-publication-verify?area=` checks exact LIVE public HTML+manifest, then checks matching `areas/{borough}.html` and `.publication.json` retrieved from the corresponding GitHub tree at an actual READY production Vercel commit (server-only `VERCEL_TOKEN`; optional server-side `GITHUB_TOKEN` for private repository). No matching evidence => UNVERIFIED. It does not claim production alias ownership or Google indexing. The admin Publishing readiness view exposes the result.
