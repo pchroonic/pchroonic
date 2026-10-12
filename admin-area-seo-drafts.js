@@ -51,7 +51,7 @@ async function saveDraft(){
  try{
   const {data,error}=await sb.from('site_settings').select('value').eq('key','area_seo_drafts').maybeSingle();if(error)throw error;
   const remote=data?.value?.[slug]||null;
-  if((remote?.updatedAt||null)!==(storedDraft?.updatedAt||null))throw new Error('A newer draft exists for this area. Load the saved draft before editing.');
+  if((remote?.updatedAt||null)!==(storedDraft?.updatedAt||null)||(remote?.status||null)!==(storedDraft?.status||null)||(remote?.reviewRequestedAt||null)!==(storedDraft?.reviewRequestedAt||null))throw new Error('This draft was changed or reviewed elsewhere. Reload the saved draft before editing.');
   const value={...(data?.value||{}),[slug]:{title:t,metaDescription:d,heading:heading.value.trim(),intro:intro.value.trim(),faqQuestion:faqQuestion.value.trim(),faqAnswer:faqAnswer.value.trim(),updatedAt:new Date().toISOString(),status:'draft'}};
   const {error:writeError}=await sb.from('site_settings').upsert({key:'area_seo_drafts',value,updated_at:new Date().toISOString()});if(writeError)throw writeError;
   storedDraft=value[slug];workflowState.textContent='Draft saved · not submitted for review';status.textContent='Private SEO draft saved. Public page unchanged.';markClean('Saved draft · '+new Date().toLocaleString());
