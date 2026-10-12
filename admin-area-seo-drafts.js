@@ -28,15 +28,20 @@ function render(){
 function reset(){const v=defaults(location.value);title.value=v.title;desc.value=v.description;heading.value='Window Cleaning in '+location.value[0].toUpperCase()+location.value.slice(1);intro.value='';faqQuestion.value='';faqAnswer.value='';status.textContent='Suggested draft loaded; live website unchanged.';render();markDirty();}
 
 async function loadSaved(){
- reset();
+ const slug=location.value;
+ const previous={title:title.value,desc:desc.value,heading:heading.value,intro:intro.value,faqQuestion:faqQuestion.value,faqAnswer:faqAnswer.value};
+
  if(typeof sb==='undefined'||!sb){status.textContent='Sign in before loading saved drafts.';return;}
  try{
    const {data,error}=await sb.from('site_settings').select('value').eq('key','area_seo_drafts').maybeSingle();
    if(error)throw error;
-   const saved=data?.value?.[location.value];storedDraft=saved||null;
+   if(slug!==location.value)return;
+   const saved=data?.value?.[slug];storedDraft=saved||null;
+   const suggested=defaults(slug);
+   title.value=suggested.title;desc.value=suggested.description;heading.value='Window Cleaning in '+slug[0].toUpperCase()+slug.slice(1);intro.value='';faqQuestion.value='';faqAnswer.value='';
    workflowState.textContent=saved?.status==='approved_for_deployment'?'Approved for deployment · NOT live':saved?.status==='review_requested'?'Review requested · changes are NOT published':saved?.status==='draft'?'Saved draft · not submitted':'No review request';
-   if(saved){title.value=String(saved.title||'').slice(0,100);desc.value=String(saved.metaDescription||'').slice(0,300);heading.value=String(saved.heading||heading.value).slice(0,120);intro.value=String(saved.intro||'').slice(0,1200);faqQuestion.value=String(saved.faqQuestion||'').slice(0,200);faqAnswer.value=String(saved.faqAnswer||'').slice(0,1000);render();status.textContent='Saved draft loaded. Nothing published.';markClean('Saved draft · '+(saved.updatedAt?new Date(saved.updatedAt).toLocaleString():'date unknown'));}else{markClean('No saved draft for this area');}
- }catch(e){status.textContent='Could not load private drafts: '+String(e.message||e);}
+   if(saved){title.value=String(saved.title||'').slice(0,100);desc.value=String(saved.metaDescription||'').slice(0,300);heading.value=String(saved.heading||heading.value).slice(0,120);intro.value=String(saved.intro||'').slice(0,1200);faqQuestion.value=String(saved.faqQuestion||'').slice(0,200);faqAnswer.value=String(saved.faqAnswer||'').slice(0,1000);render();status.textContent='Saved draft loaded. Nothing published.';markClean('Saved draft · '+(saved.updatedAt?new Date(saved.updatedAt).toLocaleString():'date unknown'));}else{render();workflowState.textContent='No saved draft';markClean('No saved draft for this area');status.textContent='No saved draft; suggested copy displayed.';}
+ }catch(e){title.value=previous.title;desc.value=previous.desc;heading.value=previous.heading;intro.value=previous.intro;faqQuestion.value=previous.faqQuestion;faqAnswer.value=previous.faqAnswer;render();status.textContent='Could not load private drafts. Existing editor fields preserved: '+String(e.message||e);}
 }
 async function saveDraft(){
  if(typeof sb==='undefined'||!sb){status.textContent='Sign in with Settings permission first.';return;}
@@ -45,6 +50,8 @@ async function saveDraft(){
  const button=document.getElementById('areaSeoSave');button.disabled=true;
  try{
   const {data,error}=await sb.from('site_settings').select('value').eq('key','area_seo_drafts').maybeSingle();if(error)throw error;
+  const remote=data?.value?.[slug]||null;
+  if((remote?.updatedAt||null)!==(storedDraft?.updatedAt||null)||(remote?.status||null)!==(storedDraft?.status||null)||(remote?.reviewRequestedAt||null)!==(storedDraft?.reviewRequestedAt||null))throw new Error('This draft was changed or reviewed elsewhere. Reload the saved draft before editing.');
   const value={...(data?.value||{}),[slug]:{title:t,metaDescription:d,heading:heading.value.trim(),intro:intro.value.trim(),faqQuestion:faqQuestion.value.trim(),faqAnswer:faqAnswer.value.trim(),updatedAt:new Date().toISOString(),status:'draft'}};
   const {error:writeError}=await sb.from('site_settings').upsert({key:'area_seo_drafts',value,updated_at:new Date().toISOString()});if(writeError)throw writeError;
   storedDraft=value[slug];workflowState.textContent='Draft saved · not submitted for review';status.textContent='Private SEO draft saved. Public page unchanged.';markClean('Saved draft · '+new Date().toLocaleString());
@@ -92,7 +99,8 @@ location.addEventListener('change',async()=>{if(dirty&&!confirm('You have unsave
 title.addEventListener('input',markDirty);desc.addEventListener('input',markDirty);copyFields.forEach(el=>el.addEventListener('input',markDirty));
 document.getElementById('areaSeoReset').addEventListener('click',()=>{if(dirty&&!confirm('Reset this unsaved draft to suggested text?'))return;reset();});
 document.getElementById('areaSeoSave').addEventListener('click',saveDraft);
-document.getElementById('areaSeoLoad').addEventListener('click',loadSaved);
+document.getElementById('areaSeoLoad').addEventListener('click',()=>{if(dirty&&!confirm('Discard unsaved changes and reload the stored draft?'))return;loadSaved();});
+window.addEventListener('beforeunload',event=>{if(!dirty)return;event.preventDefault();event.returnValue='';});
 document.getElementById('areaSeoExport').addEventListener('click',()=>{
  if(!areas.includes(location.value))return;
  const approved=!dirty&&storedDraft?.status==='approved_for_deployment';
