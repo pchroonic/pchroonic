@@ -63,23 +63,17 @@ async function saveDraft(){
 }
 
 async function submitReview(){
- if(dirty){status.textContent='Save your draft before requesting review.';return;}
- const slug=location.value;
- if(!storedDraft||!areas.includes(slug)){status.textContent='Save a draft before requesting review.';return;}
- if(!storedDraft.heading||!storedDraft.intro||Boolean(storedDraft.faqQuestion)!==Boolean(storedDraft.faqAnswer)){
-  status.textContent='Add a page heading and local introduction, and either complete both FAQ fields or leave both blank.';return;
- }
- if(!confirm('Submit this saved draft for editorial review? This will not publish the public page.'))return;
+ if(dirty||!storedDraft){status.textContent='Save and load your draft before requesting review.';return;}
+ if(!storedDraft.heading||!storedDraft.intro||Boolean(storedDraft.faqQuestion)!==Boolean(storedDraft.faqAnswer)){status.textContent='Complete heading, introduction and any FAQ pair first.';return;}
+ if(!confirm('Request editorial review? The public page will not change.'))return;
  requestReview.disabled=true;
  try{
-  const {data,error}=await sb.from('site_settings').select('value').eq('key','area_seo_drafts').maybeSingle();
-  if(error)throw error;
-  const current=data?.value?.[slug];
-  if(!current||current.updatedAt!==storedDraft.updatedAt)throw new Error('Saved draft has changed. Reload before requesting review.');
-  const value={...(data.value||{}),[slug]:{...current,status:'review_requested',reviewRequestedAt:new Date().toISOString()}};
-  const {error:writeError}=await sb.from('site_settings').upsert({key:'area_seo_drafts',value,updated_at:new Date().toISOString()});
-  if(writeError)throw writeError;
-  storedDraft=value[slug];workflowState.textContent='Review requested · public page unchanged';status.textContent='Draft marked for review. A code/deployment review is still required to publish.';
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session?.access_token)throw new Error('Sign in required');
+  const response=await fetch('/api/admin-area-seo-review',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token},body:JSON.stringify({area:location.value,expectedVersion:storedVersion})});
+  const result=await response.json();if(!response.ok)throw new Error(result.error||'Request failed');
+  storedDraft=result.draft;storedVersion=result.version;
+  workflowState.textContent='Review requested · not published';status.textContent=result.message;
  }catch(e){status.textContent='Review request failed: '+String(e.message||e);}
  finally{requestReview.disabled=false;}
 }
@@ -91,7 +85,7 @@ approveButton.addEventListener('click',async()=>{
  try{
   const {data:{session}}=await sb.auth.getSession();
   if(!session?.access_token)throw new Error('Staff sign-in required');
-  const r=await fetch('/api/admin-area-seo-approve',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token},body:JSON.stringify({area:location.value,expectedUpdatedAt:storedDraft.updatedAt,expectedReviewRequestedAt:storedDraft.reviewRequestedAt})});
+  const r=await fetch('/api/admin-area-seo-approve',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token},body:JSON.stringify({area:location.value,expectedVersion:storedVersion,expectedUpdatedAt:storedDraft.updatedAt,expectedReviewRequestedAt:storedDraft.reviewRequestedAt})});
   const result=await r.json();if(!r.ok)throw new Error(result.error||'Approval failed');
   status.textContent=result.message;await loadSaved();
  }catch(e){status.textContent='Approval failed: '+String(e.message||e);}

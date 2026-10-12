@@ -1,5 +1,11 @@
 # Namdar AI fast resume
 
+## 12 Oct 2026 — Revision-locked SEO review and approval (candidate)
+- Added MFA-protected `/api/admin-area-seo-review` so review requests use the same `site_settings.updated_at` conditional PATCH as saving; rejects outdated revisions.
+- Protected admin approval endpoint now also compares the latest record version and uses conditional PATCH, returning HTTP 409 if another editor changed it first.
+- The SEO admin client sends the currently loaded version for both actions. Saving, requesting review, and approving a draft now use database-level compare-and-set on the shared settings row.
+- Public borough pages are unchanged. Approval still does not publish. Full history and a dedicated row-per-borough model remain future enhancements.
+
 ## 12 Oct 2026 — Atomic SEO draft saving (candidate)
 - Adds MFA-protected `/api/admin-area-seo-save` requiring the staff `settings` permission and validating the exact existing five boroughs and field lengths.
 - On every editor load, reads `site_settings.updated_at` and submits it with saves. Server updates the single settings row with an exact-version predicate and `return=representation`; zero updated rows return a conflict rather than overwriting another save. Initial row creation is guarded by the existing primary key.
