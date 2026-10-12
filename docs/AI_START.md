@@ -1,5 +1,10 @@
 # Namdar AI fast resume
 
+## 12 Oct 2026 — Area SEO review-request workflow (candidate)
+- Adds explicit Request editorial review for fully populated saved SEO drafts; status persists privately in existing staff-protected site_settings.
+- Editing a reviewed draft and saving resets its state to draft. Submission checks the previously loaded revision timestamp before changing status.
+- There is deliberately no browser-to-GitHub/Vercel publishing endpoint: a reviewed change still requires trusted server-side build, approvals, deploy and verification. No public borough pages are affected by this stage.
+
 ## 12 Oct 2026 — Area landing-page content drafts (candidate)
 - Admin area SEO drafts now include H1 heading, local introductory content, one FAQ question and answer, as well as existing metadata.
 - Fields are private drafts stored in the existing staff-protected settings key. There is no live publishing or fabricated SEO proof, and public pages, quote routes, canonical URLs and sitemap remain unchanged.
