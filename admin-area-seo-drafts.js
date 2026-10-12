@@ -177,5 +177,20 @@ document.getElementById('areaSeoDeploymentRefresh').addEventListener('click',asy
  }catch(e){deploymentStatus.textContent='Deployment history unavailable: '+String(e.message||e);}
  finally{button.disabled=false;}
 });
+document.getElementById('areaSeoRollbackRequest').addEventListener('click',async()=>{
+ const selected=chosenRevision();
+ if(!selected||!storedVersion||dirty){status.textContent='Load an unchanged saved area draft and select a historical revision first.';return;}
+ if(!confirm('Request a manual rollback review for this borough revision? This will NOT change the public website.'))return;
+ const button=document.getElementById('areaSeoRollbackRequest');button.disabled=true;
+ try{
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session?.access_token)throw new Error('Administrator sign-in required');
+  const response=await fetch('/api/admin-area-seo-rollback-request',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token},body:JSON.stringify({area:location.value,revision:selected.timestamp,expectedVersion:storedVersion})});
+  const result=await response.json();if(!response.ok)throw new Error(result.error||'Request unsuccessful');
+  storedVersion=result.version;
+  status.textContent='Manual rollback review recorded: '+result.request.id+'. Nothing deployed or restored.';
+ }catch(e){status.textContent='Rollback review request failed: '+String(e.message||e);}
+ finally{button.disabled=false;}
+});
 reset();markClean('Suggested copy · not saved');
 })();
