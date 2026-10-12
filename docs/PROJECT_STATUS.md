@@ -1,5 +1,10 @@
 # Namdar project status
 
+## 12 Oct 2026 — Area landing-page content drafts (candidate)
+- Admin area SEO drafts now include H1 heading, local introductory content, one FAQ question and answer, as well as existing metadata.
+- Fields are private drafts stored in the existing staff-protected settings key. There is no live publishing or fabricated SEO proof, and public pages, quote routes, canonical URLs and sitemap remain unchanged.
+- Preview and regression checks required before merge.
+
 ## 12 Oct 2026 — Area SEO editor usability upgrade (candidate)
 - Adds live SEO title/description length guidance, an explicit saved/unsaved state and confirmation before switching boroughs or resetting unsaved edits.
 - No changes to public SEO metadata, publishing permissions, quote flow or existing persistent staff draft storage.
