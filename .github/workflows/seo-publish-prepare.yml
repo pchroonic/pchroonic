@@ -27,6 +27,11 @@ jobs:
           test -n "$REVISION"
           echo "Requested $AREA revision $REVISION"
           echo "No production files will be altered by this workflow without an approved server-export artifact."
+      - name: Run publication and rollback safety tests
+        run: |
+          node --test scripts/apply-approved-area-seo.test.cjs
+          node --test scripts/area-seo-publication.test.cjs
+          node --check scripts/prepare-area-seo-rollback.cjs
       - name: Explain manual publication gate
         run: |
           echo "::notice::An approved export must be retrieved from the authenticated Namdar server and its exact revision verified. No secret or browser-generated draft is trusted by this workflow."
