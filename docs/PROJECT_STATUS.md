@@ -1,5 +1,9 @@
 # Namdar project status
 
+## 12 Oct 2026 — Lambeth SEO customer guide (PR #205)
+- Added a customer-focused exterior window cleaning preparation checklist to `areas/lambeth.html`: window layout, access restrictions, condition and visit frequency.
+- Existing postcode quote flow, canonical, structured data and service-area claims are unchanged. Review preview and CI before merging.
+
 ## 8 Oct 2026 — Free organic growth: borough conversion SEO — LIVE
 - User chose the **free traffic** path rather than paid ads. Goal is qualified local quote requests/jobs, not raw page-view volume.
 - Strengthened the five live borough landing pages: Lewisham, Southwark, Lambeth, Wandsworth and Greenwich.
