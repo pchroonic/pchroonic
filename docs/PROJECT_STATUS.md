@@ -1,5 +1,10 @@
 # Namdar project status
 
+## 12 Oct 2026 — Read-only rollback provenance checks (candidate)
+- New MFA-protected admin endpoint `/api/admin-area-seo-rollback-evidence` displays recent pending manual rollback reviews and optional recent Vercel production commit metadata using a server-only `VERCEL_TOKEN`.
+- Critically, legacy draft snapshots do not have an immutable link to a deployed Git commit. Every existing request therefore remains `UNVERIFIED_DRAFT_SNAPSHOT`; merely finding deployments is NOT proof of a matching publication. No automatic rollback or publication is possible.
+- Admin now has Review rollback evidence, showing clear missing-proof messages. Actual verified draft-to-Git-to-Vercel provenance must be built and audited before a rollback action can safely be enabled.
+
 ## 12 Oct 2026 — Manual area SEO rollback review requests (candidate)
 - Admins with MFA can select a private historical draft revision and create a pending manual rollback review request from the area SEO admin screen.
 - Protected `POST /api/admin-area-seo-rollback-request` checks the allowed borough, historical snapshot existence, and `site_settings` revision and records up to 50 pending-request history entries in the same private settings record; emits a staff audit event.
