@@ -1,5 +1,9 @@
 # Namdar AI handoff
 
+## 12 Oct 2026 — Area SEO editor usability upgrade (candidate)
+- Adds live SEO title/description length guidance, an explicit saved/unsaved state and confirmation before switching boroughs or resetting unsaved edits.
+- No changes to public SEO metadata, publishing permissions, quote flow or existing persistent staff draft storage.
+
 ## 12 Oct 2026 — Persistent private SEO drafts (candidate)
 - Area SEO manager now supports explicit Save private draft / Load saved draft using the existing `site_settings` key `area_seo_drafts`.
 - Existing RLS permits only authenticated staff with `settings` permission to read/write this key; the public read policy does not expose it.
