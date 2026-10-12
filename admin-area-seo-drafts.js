@@ -12,7 +12,13 @@ const savedState=document.getElementById('areaSeoSavedState');
 const workflowState=document.getElementById('areaSeoWorkflowState');
 const requestReview=document.getElementById('areaSeoRequestReview');
 const approveButton=document.getElementById('areaSeoApprove');
-let storedDraft=null,storedVersion=null;
+let storedDraft=null,storedVersion=null,revisions=[];
+const revisionSelect=document.getElementById('areaSeoRevisionSelect'),revisionComparison=document.getElementById('areaSeoRevisionComparison');
+const revisionFields={title,metaDescription:desc,heading,intro,faqQuestion,faqAnswer};
+function currentFields(){return Object.fromEntries(Object.entries(revisionFields).map(([key,node])=>[key,node.value]));}
+function chosenRevision(){return revisions[Number(revisionSelect.value)]||null;}
+function showHistory(all,slug){revisions=(Array.isArray(all)?all:[]).filter(x=>x?.area===slug&&x.snapshot).slice(-20).reverse();revisionSelect.replaceChildren(new Option('Select an older saved version',''));revisions.forEach((r,i)=>revisionSelect.add(new Option((r.timestamp||'Unknown date')+' · '+(r.previousStatus||'draft'),String(i))));revisionComparison.textContent='';}
+
 function markClean(message){dirty=false;loadedArea=location.value;savedState.textContent=message;}
 function markDirty(){workflowState.textContent='Editing — not submitted for review';dirty=true;savedState.textContent='Unsaved changes — save before leaving this area';render();}
 const defaults=slug=>({title:'Window Cleaning in '+slug[0].toUpperCase()+slug.slice(1)+' | Namdar',description:'Exterior window cleaning for homes, flats and commercial properties in '+slug[0].toUpperCase()+slug.slice(1)+'. Check your postcode and request a reviewed quote.'});
@@ -36,7 +42,7 @@ async function loadSaved(){
    const {data,error}=await sb.from('site_settings').select('value,updated_at').eq('key','area_seo_drafts').maybeSingle();
    if(error)throw error;
    if(slug!==location.value)return;
-   const saved=data?.value?.[slug];storedDraft=saved||null;storedVersion=data?.updated_at||null;
+   const saved=data?.value?.[slug];storedDraft=saved||null;storedVersion=data?.updated_at||null;showHistory(data?.value?._revisions,slug);
    const suggested=defaults(slug);
    title.value=suggested.title;desc.value=suggested.description;heading.value='Window Cleaning in '+slug[0].toUpperCase()+slug.slice(1);intro.value='';faqQuestion.value='';faqAnswer.value='';
    workflowState.textContent=saved?.status==='approved_for_deployment'?'Approved for deployment · NOT live':saved?.status==='review_requested'?'Review requested · changes are NOT published':saved?.status==='draft'?'Saved draft · not submitted':'No review request';
@@ -55,6 +61,9 @@ async function saveDraft(){
   const result=await response.json();
   if(!response.ok)throw new Error(result.error||'Save unsuccessful');
   storedDraft=result.draft;storedVersion=result.version;
+  // Refresh private revision history after the successful version-locked save.
+  const {data:historyData}=await sb.from('site_settings').select('value').eq('key','area_seo_drafts').maybeSingle();
+  showHistory(historyData?.value?._revisions,slug);
   workflowState.textContent='Draft saved · not submitted for review';
   status.textContent='Private draft saved with revision protection. Public page unchanged.';
   markClean('Saved · '+new Date().toLocaleString());
@@ -123,5 +132,7 @@ document.getElementById('areaSeoVerifiedExport').addEventListener('click',async(
  }catch(e){status.textContent='Verified export unavailable: '+String(e.message||e);}
  finally{button.disabled=false;}
 });
+document.getElementById('areaSeoCompare').addEventListener('click',()=>{const selected=chosenRevision();if(!selected){revisionComparison.textContent='Choose an older version first.';return;}const current=currentFields();revisionComparison.textContent=Object.keys(revisionFields).map(key=>key+'\nCURRENT: '+current[key]+'\nOLDER: '+String(selected.snapshot[key]||'')).join('\n\n');});
+document.getElementById('areaSeoRestore').addEventListener('click',()=>{const selected=chosenRevision();if(!selected){status.textContent='Select an older version to restore.';return;}if(!confirm('Load this older revision into your editor? Unsaved edits will be replaced. This does not save or publish.'))return;Object.entries(revisionFields).forEach(([key,node])=>{node.value=String(selected.snapshot[key]||'');});markDirty();status.textContent='Older revision loaded as unsaved draft. Click Save private draft to save it.';});
 reset();markClean('Suggested copy · not saved');
 })();
