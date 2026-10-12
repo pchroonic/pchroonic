@@ -11,6 +11,7 @@ let dirty=false,loading=false,loadedArea=location.value;
 const savedState=document.getElementById('areaSeoSavedState');
 const workflowState=document.getElementById('areaSeoWorkflowState');
 const requestReview=document.getElementById('areaSeoRequestReview');
+const approveButton=document.getElementById('areaSeoApprove');
 let storedDraft=null;
 function markClean(message){dirty=false;loadedArea=location.value;savedState.textContent=message;}
 function markDirty(){workflowState.textContent='Editing — not submitted for review';dirty=true;savedState.textContent='Unsaved changes — save before leaving this area';render();}
@@ -33,7 +34,7 @@ async function loadSaved(){
    const {data,error}=await sb.from('site_settings').select('value').eq('key','area_seo_drafts').maybeSingle();
    if(error)throw error;
    const saved=data?.value?.[location.value];storedDraft=saved||null;
-   workflowState.textContent=saved?.status==='review_requested'?'Review requested · changes are NOT published':saved?.status==='draft'?'Saved draft · not submitted':'No review request';
+   workflowState.textContent=saved?.status==='approved_for_deployment'?'Approved for deployment · NOT live':saved?.status==='review_requested'?'Review requested · changes are NOT published':saved?.status==='draft'?'Saved draft · not submitted':'No review request';
    if(saved){title.value=String(saved.title||'').slice(0,100);desc.value=String(saved.metaDescription||'').slice(0,300);heading.value=String(saved.heading||heading.value).slice(0,120);intro.value=String(saved.intro||'').slice(0,1200);faqQuestion.value=String(saved.faqQuestion||'').slice(0,200);faqAnswer.value=String(saved.faqAnswer||'').slice(0,1000);render();status.textContent='Saved draft loaded. Nothing published.';markClean('Saved draft · '+(saved.updatedAt?new Date(saved.updatedAt).toLocaleString():'date unknown'));}else{markClean('No saved draft for this area');}
  }catch(e){status.textContent='Could not load private drafts: '+String(e.message||e);}
 }
@@ -73,6 +74,19 @@ async function submitReview(){
  finally{requestReview.disabled=false;}
 }
 requestReview.addEventListener('click',submitReview);
+approveButton.addEventListener('click',async()=>{
+ if(dirty||!storedDraft||storedDraft.status!=='review_requested'){status.textContent='Load an unchanged, review-requested draft before approval.';return;}
+ if(!confirm('Approve this exact SEO draft for later deployment review? This will NOT publish it.'))return;
+ approveButton.disabled=true;
+ try{
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session?.access_token)throw new Error('Staff sign-in required');
+  const r=await fetch('/api/admin-area-seo-approve',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token},body:JSON.stringify({area:location.value,expectedUpdatedAt:storedDraft.updatedAt,expectedReviewRequestedAt:storedDraft.reviewRequestedAt})});
+  const result=await r.json();if(!r.ok)throw new Error(result.error||'Approval failed');
+  status.textContent=result.message;await loadSaved();
+ }catch(e){status.textContent='Approval failed: '+String(e.message||e);}
+ finally{approveButton.disabled=false;}
+});
 
 location.addEventListener('change',async()=>{if(dirty&&!confirm('You have unsaved SEO changes. Switch areas and discard them?')){location.value=loadedArea;return;}loading=true;await loadSaved();loading=false;});
 title.addEventListener('input',markDirty);desc.addEventListener('input',markDirty);copyFields.forEach(el=>el.addEventListener('input',markDirty));
