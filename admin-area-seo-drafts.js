@@ -139,5 +139,23 @@ document.getElementById('areaSeoCompare').addEventListener('click',()=>{const se
  [key,before,after].forEach((value,index)=>{const cell=document.createElement('td');cell.style.whiteSpace='pre-wrap';cell.style.overflowWrap='anywhere';cell.textContent=value;row.append(cell);});body.append(row);});
  table.append(body);const summary=document.createElement('p');summary.textContent=changed+' of '+Object.keys(revisionFields).length+' fields changed since the older version.';revisionComparison.append(summary,table);});
 document.getElementById('areaSeoRestore').addEventListener('click',()=>{const selected=chosenRevision();if(!selected){status.textContent='Select an older version to restore.';return;}if(!confirm('Load this older revision into your editor? Unsaved edits will be replaced. This does not save or publish.'))return;Object.entries(revisionFields).forEach(([key,node])=>{node.value=String(selected.snapshot[key]||'');});markDirty();status.textContent='Older revision loaded as unsaved draft. Click Save private draft to save it.';});
+const publicStatus=document.getElementById('areaSeoPublicStatus'),publicLink=document.getElementById('areaSeoPublicLink');
+function updatePublicLink(){publicLink.href='/areas/'+location.value;publicStatus.textContent='Not checked for this area';}
+location.addEventListener('change',updatePublicLink);
+document.getElementById('areaSeoCheckPublic').addEventListener('click',async()=>{
+ const slug=location.value;publicStatus.textContent='Checking published page…';
+ try{
+  const response=await fetch('/areas/'+encodeURIComponent(slug),{cache:'no-store'});
+  if(!response.ok)throw new Error('Public page returned HTTP '+response.status);
+  const html=await response.text(),doc=new DOMParser().parseFromString(html,'text/html');
+  const canonical=doc.querySelector('link[rel="canonical"]')?.getAttribute('href');
+  if(canonical!=='https://namdar.co.uk/areas/'+slug)throw new Error('Public page canonical mismatch');
+  const publishedTitle=doc.querySelector('title')?.textContent||'',publishedDescription=doc.querySelector('meta[name="description"]')?.getAttribute('content')||'';
+  const draftTitle=storedDraft?.title||'',draftDescription=storedDraft?.metaDescription||'';
+  if(!storedDraft){publicStatus.textContent='Public page responds correctly. No saved draft loaded for comparison.';return;}
+  const sameTitle=publishedTitle===draftTitle,sameDescription=publishedDescription===draftDescription;
+  publicStatus.textContent='Public page verified (HTTP '+response.status+'). Title '+(sameTitle?'matches':'differs from')+' saved draft; description '+(sameDescription?'matches':'differs from')+' saved draft. This comparison does not establish deployment or indexing.';
+ }catch(e){publicStatus.textContent='Public check unsuccessful: '+String(e.message||e);}
+});
 reset();markClean('Suggested copy · not saved');
 })();

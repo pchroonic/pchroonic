@@ -1,5 +1,10 @@
 # Namdar AI fast resume
 
+## 12 Oct 2026 — SEO public-page readiness checks (candidate)
+- Adds Admin → Website & legal → Area page SEO drafts → Publishing readiness panel with a link to the current live borough page.
+- Browser fetch verifies response and expected canonical URL, and compares the current saved draft's title and meta description against the public page. Reports differences without making publishing or indexing claims; matching metadata is NOT proof the entire revision was deployed.
+- No GitHub/Vercel write from browser, no production rollback button, and no modification to customer booking or public content. Deployment proof and rollback require a separate server-backed trusted workflow.
+
 ## 12 Oct 2026 — Visual SEO revision comparison (candidate)
 - Replaces plain-text revision compare with a responsive, accessible per-field comparison table highlighting changed fields and counting differences.
 - All content is inserted using DOM textContent, not raw HTML. Restore remains a separate action that only fills an unsaved draft; no production publication or live rollback changes.
