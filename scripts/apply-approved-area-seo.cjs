@@ -51,7 +51,13 @@ if(require.main===module){
  const target=path.join(root,'areas',String(draft.area||'')+'.html');
  assert(allowed.has(draft.area),'Unsupported area');
  const updated=publish(fs.readFileSync(target,'utf8'),draft);
+ const crypto=require('node:crypto');
+ const hash=content=>crypto.createHash('sha256').update(content).digest('hex');
+ const manifestPath=path.join(root,'areas',draft.area+'.publication.json');
+ const manifest={schemaVersion:1,area:draft.area,url:'https://namdar.co.uk/areas/'+draft.area,approvedAt:draft.approvedAt,approvedBy:draft.approvedBy,draftRevision:draft.updatedAt,htmlSha256:hash(updated),publishedBy:'reviewed-git-deployment',note:'Build artifact; deployment and live response must be verified independently.'};
+ // A manifest is a claim bundled in the same commit, not evidence of completed deployment on its own.
  fs.writeFileSync(target,updated);
+ fs.writeFileSync(manifestPath,JSON.stringify(manifest,null,2)+'\n');
  console.log('Updated '+path.relative(root,target)+'; review diff and CI before merging.');
 }
 module.exports={publish};
