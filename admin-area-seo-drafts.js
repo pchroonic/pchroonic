@@ -192,5 +192,19 @@ document.getElementById('areaSeoRollbackRequest').addEventListener('click',async
  }catch(e){status.textContent='Rollback review request failed: '+String(e.message||e);}
  finally{button.disabled=false;}
 });
+document.getElementById('areaSeoEvidenceRefresh').addEventListener('click',async()=>{
+ const button=document.getElementById('areaSeoEvidenceRefresh'),statusNode=document.getElementById('areaSeoEvidenceStatus'),results=document.getElementById('areaSeoEvidenceResults');
+ button.disabled=true;statusNode.textContent='Checking rollback evidence…';results.replaceChildren();
+ try{
+  const {data:{session}}=await sb.auth.getSession();if(!session?.access_token)throw Error('Administrator sign-in required');
+  const response=await fetch('/api/admin-area-seo-rollback-evidence',{headers:{Authorization:'Bearer '+session.access_token},cache:'no-store'});
+  const data=await response.json();if(!response.ok)throw Error(data.error||'Evidence check failed');
+  statusNode.textContent=data.evidenceStatus+'; rollback remains disabled.';
+  const list=document.createElement('ul');
+  (data.requests||[]).forEach(item=>{const li=document.createElement('li');li.textContent=item.area+' · '+item.revision+' · '+item.verification+' — '+item.reason;list.append(li);});
+  if(!list.childElementCount){const note=document.createElement('p');note.textContent='No rollback requests have been recorded.';results.append(note);}else results.append(list);
+ }catch(e){statusNode.textContent='Unable to check evidence: '+String(e.message||e);}
+ finally{button.disabled=false;}
+});
 reset();markClean('Suggested copy · not saved');
 })();
