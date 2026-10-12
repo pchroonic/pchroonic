@@ -95,7 +95,8 @@ document.getElementById('areaSeoSave').addEventListener('click',saveDraft);
 document.getElementById('areaSeoLoad').addEventListener('click',loadSaved);
 document.getElementById('areaSeoExport').addEventListener('click',()=>{
  if(!areas.includes(location.value))return;
- const data={schemaVersion:1,status:'draft-only',area:location.value,url:'https://namdar.co.uk/areas/'+location.value,title:title.value.trim(),metaDescription:desc.value.trim(),heading:heading.value.trim(),intro:intro.value.trim(),faqQuestion:faqQuestion.value.trim(),faqAnswer:faqAnswer.value.trim(),note:'Not published. Requires editorial review and deployment.'};
+ const approved=!dirty&&storedDraft?.status==='approved_for_deployment';
+ const data={schemaVersion:1,status:approved?'approved_for_deployment':'draft-only',area:location.value,url:'https://namdar.co.uk/areas/'+location.value,title:title.value.trim(),metaDescription:desc.value.trim(),heading:heading.value.trim(),intro:intro.value.trim(),faqQuestion:faqQuestion.value.trim(),faqAnswer:faqAnswer.value.trim(),...(approved?{approvedAt:storedDraft.approvedAt,approvedBy:storedDraft.approvedBy,updatedAt:storedDraft.updatedAt}:{}),note:approved?'Approved export for offline code review; not yet published.':'Not published. Requires editorial review and deployment.'};
  if(!data.title||!data.metaDescription){status.textContent='Enter both a title and description before exporting.';return;}
  const blob=new Blob([JSON.stringify(data,null,2)+'\n'],{type:'application/json'});
  const url=URL.createObjectURL(blob);
