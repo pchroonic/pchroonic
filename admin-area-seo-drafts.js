@@ -157,5 +157,25 @@ document.getElementById('areaSeoCheckPublic').addEventListener('click',async()=>
   publicStatus.textContent='Public page verified (HTTP '+response.status+'). Title '+(sameTitle?'matches':'differs from')+' saved draft; description '+(sameDescription?'matches':'differs from')+' saved draft. This comparison does not establish deployment or indexing.';
  }catch(e){publicStatus.textContent='Public check unsuccessful: '+String(e.message||e);}
 });
+const deploymentStatus=document.getElementById('areaSeoDeploymentStatus'),deploymentHistory=document.getElementById('areaSeoDeploymentHistory');
+document.getElementById('areaSeoDeploymentRefresh').addEventListener('click',async()=>{
+ const button=document.getElementById('areaSeoDeploymentRefresh');button.disabled=true;deploymentStatus.textContent='Checking deployment records…';deploymentHistory.replaceChildren();
+ try{
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session?.access_token)throw new Error('Administrator sign-in required');
+  const response=await fetch('/api/admin-area-seo-deployments',{headers:{Authorization:'Bearer '+session.access_token},cache:'no-store'});
+  const data=await response.json();if(!response.ok)throw new Error(data.error||'Deployment lookup failed');
+  deploymentStatus.textContent=data.message||'Deployment records loaded';
+  if(!data.configured||!data.deployments?.length)return;
+  const table=document.createElement('table');table.className='admin-table';const thead=document.createElement('thead');const headings=document.createElement('tr');
+  ['Deployment','Created','Status','Git revision','Rollback eligibility'].forEach(label=>{const th=document.createElement('th');th.textContent=label;headings.append(th);});thead.append(headings);table.append(thead);
+  const tbody=document.createElement('tbody');
+  data.deployments.forEach(item=>{
+   const tr=document.createElement('tr');const values=[item.id,new Date(item.created).toLocaleString(),item.state,item.sha?.slice(0,10)||'Unknown',item.rollbackCandidate?'Vercel candidate — review required':'Not marked eligible'];
+   values.forEach((value,i)=>{const td=document.createElement('td');td.textContent=value;if(i===0&&item.url){const link=document.createElement('a');link.href=item.url;link.target='_blank';link.rel='noopener noreferrer';link.textContent=value;td.replaceChildren(link);}tr.append(td);});tbody.append(tr);
+  });table.append(tbody);deploymentHistory.append(table);
+ }catch(e){deploymentStatus.textContent='Deployment history unavailable: '+String(e.message||e);}
+ finally{button.disabled=false;}
+});
 reset();markClean('Suggested copy · not saved');
 })();
