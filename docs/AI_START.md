@@ -1,5 +1,11 @@
 # Namdar AI fast resume
 
+## 12 Oct 2026 — Persistent private SEO drafts (candidate)
+- Area SEO manager now supports explicit Save private draft / Load saved draft using the existing `site_settings` key `area_seo_drafts`.
+- Existing RLS permits only authenticated staff with `settings` permission to read/write this key; the public read policy does not expose it.
+- Saved fields include borough, SEO title and meta description. These are private drafts, NOT deployed or published to public HTML; safe static publishing is a separate future task.
+- Concurrent edits to the same settings JSON object are last-write-wins; avoid simultaneous editing until revision locking is implemented.
+
 ## 12 Oct 2026 — Area SEO draft editor (candidate)
 - Added a draft-only SEO editor inside Admin → Website & legal for the five existing live borough pages.
 - Supports title/description editing, character counts, search snippet preview and JSON draft download. Deliberately does not save, publish or alter live pages; defaults are suggested copy, not synchronized source metadata.
