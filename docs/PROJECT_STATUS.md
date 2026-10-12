@@ -1,5 +1,10 @@
 # Namdar project status
 
+## 12 Oct 2026 — Server-verified SEO publishing export (candidate)
+- Added MFA-protected admin-only GET `/api/admin-area-seo-export?area=` to read a currently approved SEO revision from server-side `site_settings` and return the exact content with a SHA-256 fingerprint.
+- Admin now exposes `Download verified approved draft`. This does not deploy or publish; reviewer must still compare with the private approved record and inspect the generated Git diff, CI, preview and production deployment.
+- Browser-produced JSON remains an untrusted planning artifact; use the server-verified export for reviewed publishing. Shared JSON editing remains non-transactional, and automatic publishing / rollback are not yet enabled.
+
 ## 12 Oct 2026 — Reviewed area SEO publishing tool (candidate)
 - Added `scripts/apply-approved-area-seo.cjs` which accepts a reviewed approved-draft JSON export and deterministically changes only the chosen borough static HTML: title, meta description, H1, plus a marked local guide section. Existing canonical and booking flow must remain intact.
 - Added regression tests in main CI for approval requirement, escaping, URL matching, FAQ consistency and repeatability.

@@ -103,5 +103,20 @@ document.getElementById('areaSeoExport').addEventListener('click',()=>{
  const a=document.createElement('a');a.href=url;a.download='namdar-'+data.area+'-seo-draft.json';document.body.append(a);a.click();a.remove();
  URL.revokeObjectURL(url);status.textContent='Draft downloaded. No live changes were made.';
 });
+document.getElementById('areaSeoVerifiedExport').addEventListener('click',async()=>{
+ const button=document.getElementById('areaSeoVerifiedExport');button.disabled=true;
+ try{
+  if(dirty)throw new Error('Save and reload this draft before exporting');
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session?.access_token)throw new Error('Administrator sign-in required');
+  const response=await fetch('/api/admin-area-seo-export?area='+encodeURIComponent(location.value),{headers:{Authorization:'Bearer '+session.access_token}});
+  const result=await response.json();if(!response.ok)throw new Error(result.error||'Export not available');
+  const blob=new Blob([JSON.stringify(result.export,null,2)+'\n'],{type:'application/json'});
+  const url=URL.createObjectURL(blob),link=document.createElement('a');
+  link.href=url;link.download='namdar-'+location.value+'-approved-seo.json';document.body.append(link);link.click();link.remove();URL.revokeObjectURL(url);
+  status.textContent='Server-verified approved export downloaded. This does NOT publish the page.';
+ }catch(e){status.textContent='Verified export unavailable: '+String(e.message||e);}
+ finally{button.disabled=false;}
+});
 reset();markClean('Suggested copy · not saved');
 })();
