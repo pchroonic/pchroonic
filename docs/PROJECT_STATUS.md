@@ -1,5 +1,11 @@
 # Namdar project status
 
+## 12 Oct 2026 — Publication verification and borough-only rollback preparation (candidate)
+- Offline reviewed publisher now records `contentSha256` for the *approved draft fields* and the `htmlSha256` for the generated page in `areas/{borough}.publication.json`; manifests require committed HTML in the same Git change.
+- MFA-protected admin endpoint `GET /api/admin-area-seo-publication-verify?area=` checks exact LIVE public HTML+manifest, then checks matching `areas/{borough}.html` and `.publication.json` retrieved from the corresponding GitHub tree at an actual READY production Vercel commit (server-only `VERCEL_TOKEN`; optional server-side `GITHUB_TOKEN` for private repository). No matching evidence => UNVERIFIED. It does not claim production alias ownership or Google indexing. The admin Publishing readiness view exposes the result.
+- `scripts/prepare-area-seo-rollback.cjs BOROUGH VERIFIED_FULL_GIT_SHA` prepares only the selected borough's HTML and manifest from an inspected Git commit, refusing unsupported boroughs, invalid SHAs, or mismatched manifest hashes. It NEVER deploys, merges, resets the repository or edits other services. Operator must inspect the PR diff, confirm the source deployment, pass CI and check the live site after deployment.
+- Actual GitHub PR creation, approval, branch protection, deployment, rollback execution and post-deployment SEO indexing checks remain manual; no privileged token is exposed in the browser. Existing borough pages remain unchanged by this feature until an approved draft is deliberately published.
+
 ## 12 Oct 2026 — SEO publication manifest verification (candidate)
 - The reviewed offline publisher now generates `areas/<borough>.publication.json` alongside the modified borough HTML, containing approved draft revision and SHA-256 of exact generated HTML. Manifest and page must be reviewed and committed together.
 - Admin's Check public page fetches the live page and matching manifest, hashes the returned HTML with browser Web Crypto and compares exact bytes; only a matching hash reports that the public page matches the approved revision manifest. A manifest alone, a draft title match, or a Vercel deployment record alone does not prove the published approved content.
