@@ -12,7 +12,7 @@ const savedState=document.getElementById('areaSeoSavedState');
 const workflowState=document.getElementById('areaSeoWorkflowState');
 const requestReview=document.getElementById('areaSeoRequestReview');
 const approveButton=document.getElementById('areaSeoApprove');
-let storedDraft=null;
+let storedDraft=null,storedVersion=null;
 function markClean(message){dirty=false;loadedArea=location.value;savedState.textContent=message;}
 function markDirty(){workflowState.textContent='Editing — not submitted for review';dirty=true;savedState.textContent='Unsaved changes — save before leaving this area';render();}
 const defaults=slug=>({title:'Window Cleaning in '+slug[0].toUpperCase()+slug.slice(1)+' | Namdar',description:'Exterior window cleaning for homes, flats and commercial properties in '+slug[0].toUpperCase()+slug.slice(1)+'. Check your postcode and request a reviewed quote.'});
@@ -33,10 +33,10 @@ async function loadSaved(){
 
  if(typeof sb==='undefined'||!sb){status.textContent='Sign in before loading saved drafts.';return;}
  try{
-   const {data,error}=await sb.from('site_settings').select('value').eq('key','area_seo_drafts').maybeSingle();
+   const {data,error}=await sb.from('site_settings').select('value,updated_at').eq('key','area_seo_drafts').maybeSingle();
    if(error)throw error;
    if(slug!==location.value)return;
-   const saved=data?.value?.[slug];storedDraft=saved||null;
+   const saved=data?.value?.[slug];storedDraft=saved||null;storedVersion=data?.updated_at||null;
    const suggested=defaults(slug);
    title.value=suggested.title;desc.value=suggested.description;heading.value='Window Cleaning in '+slug[0].toUpperCase()+slug.slice(1);intro.value='';faqQuestion.value='';faqAnswer.value='';
    workflowState.textContent=saved?.status==='approved_for_deployment'?'Approved for deployment · NOT live':saved?.status==='review_requested'?'Review requested · changes are NOT published':saved?.status==='draft'?'Saved draft · not submitted':'No review request';
@@ -45,16 +45,19 @@ async function loadSaved(){
 }
 async function saveDraft(){
  if(typeof sb==='undefined'||!sb){status.textContent='Sign in with Settings permission first.';return;}
- const slug=location.value,t=title.value.trim(),d=desc.value.trim();
- if(!areas.includes(slug)||!t||!d){status.textContent='Choose an area and enter both SEO fields.';return;}
+ const slug=location.value;
+ if(!areas.includes(slug)||!title.value.trim()||!desc.value.trim()){status.textContent='Choose an area and enter both SEO fields.';return;}
  const button=document.getElementById('areaSeoSave');button.disabled=true;
  try{
-  const {data,error}=await sb.from('site_settings').select('value').eq('key','area_seo_drafts').maybeSingle();if(error)throw error;
-  const remote=data?.value?.[slug]||null;
-  if((remote?.updatedAt||null)!==(storedDraft?.updatedAt||null)||(remote?.status||null)!==(storedDraft?.status||null)||(remote?.reviewRequestedAt||null)!==(storedDraft?.reviewRequestedAt||null))throw new Error('This draft was changed or reviewed elsewhere. Reload the saved draft before editing.');
-  const value={...(data?.value||{}),[slug]:{title:t,metaDescription:d,heading:heading.value.trim(),intro:intro.value.trim(),faqQuestion:faqQuestion.value.trim(),faqAnswer:faqAnswer.value.trim(),updatedAt:new Date().toISOString(),status:'draft'}};
-  const {error:writeError}=await sb.from('site_settings').upsert({key:'area_seo_drafts',value,updated_at:new Date().toISOString()});if(writeError)throw writeError;
-  storedDraft=value[slug];workflowState.textContent='Draft saved · not submitted for review';status.textContent='Private SEO draft saved. Public page unchanged.';markClean('Saved draft · '+new Date().toLocaleString());
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session?.access_token)throw new Error('Sign in before saving');
+  const response=await fetch('/api/admin-area-seo-save',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token},body:JSON.stringify({area:slug,expectedVersion:storedVersion,draft:{title:title.value,metaDescription:desc.value,heading:heading.value,intro:intro.value,faqQuestion:faqQuestion.value,faqAnswer:faqAnswer.value}})});
+  const result=await response.json();
+  if(!response.ok)throw new Error(result.error||'Save unsuccessful');
+  storedDraft=result.draft;storedVersion=result.version;
+  workflowState.textContent='Draft saved · not submitted for review';
+  status.textContent='Private draft saved with revision protection. Public page unchanged.';
+  markClean('Saved · '+new Date().toLocaleString());
  }catch(e){status.textContent='Save failed: '+String(e.message||e);}
  finally{button.disabled=false;}
 }
