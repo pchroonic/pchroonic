@@ -1,5 +1,10 @@
 # Namdar project status
 
+## 12 Oct 2026 — Read-only deployment history (candidate)
+- Admin SEO Manager now includes a read-only production deployment history panel. MFA-protected admin endpoint `/api/admin-area-seo-deployments` fetches up to 12 recent production deployments from the Vercel API with optional server-only `VERCEL_TOKEN`, returning limited deployment metadata.
+- If `VERCEL_TOKEN` is not configured, endpoint returns a clear setup message without exposing credentials; Vercel dashboard is linked for manual review. Do not put token in frontend variables.
+- Rollback candidates are marked informational only. There is no executable rollback button; real rollback requires Vercel review, verification of affected changes and bookings, and explicit approval. The public SEO pages and client quotation flows are unchanged.
+
 ## 12 Oct 2026 — SEO public-page readiness checks (candidate)
 - Adds Admin → Website & legal → Area page SEO drafts → Publishing readiness panel with a link to the current live borough page.
 - Browser fetch verifies response and expected canonical URL, and compares the current saved draft's title and meta description against the public page. Reports differences without making publishing or indexing claims; matching metadata is NOT proof the entire revision was deployed.
