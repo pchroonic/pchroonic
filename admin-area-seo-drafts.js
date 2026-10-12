@@ -151,10 +151,22 @@ document.getElementById('areaSeoCheckPublic').addEventListener('click',async()=>
   const canonical=doc.querySelector('link[rel="canonical"]')?.getAttribute('href');
   if(canonical!=='https://namdar.co.uk/areas/'+slug)throw new Error('Public page canonical mismatch');
   const publishedTitle=doc.querySelector('title')?.textContent||'',publishedDescription=doc.querySelector('meta[name="description"]')?.getAttribute('content')||'';
+  let publicationProof='No verified publication manifest';
+  try{
+   const manifestResponse=await fetch('/areas/'+encodeURIComponent(slug)+'.publication.json',{cache:'no-store'});
+   if(manifestResponse.ok&&globalThis.crypto?.subtle){
+    const manifest=await manifestResponse.json();
+    const bytes=new TextEncoder().encode(html),digest=await crypto.subtle.digest('SHA-256',bytes);
+    const actual=Array.from(new Uint8Array(digest),byte=>byte.toString(16).padStart(2,'0')).join('');
+    publicationProof=manifest.area===slug&&manifest.url==='https://namdar.co.uk/areas/'+slug&&actual===manifest.htmlSha256
+     ?'Verified: public HTML matches the publication manifest for approved revision '+manifest.draftRevision+'. This does not prove Google indexing.'
+     :'Publication manifest mismatch — verify deployed files before any rollback.';
+   }else if(manifestResponse.ok){publicationProof='Manifest available, but browser could not verify HTML fingerprint';}
+  }catch(e){publicationProof='Publication manifest could not be verified';}
   const draftTitle=storedDraft?.title||'',draftDescription=storedDraft?.metaDescription||'';
-  if(!storedDraft){publicStatus.textContent='Public page responds correctly. No saved draft loaded for comparison.';return;}
+  if(!storedDraft){publicStatus.textContent='Public page responds correctly. '+publicationProof+' No saved draft loaded for comparison.';return;}
   const sameTitle=publishedTitle===draftTitle,sameDescription=publishedDescription===draftDescription;
-  publicStatus.textContent='Public page verified (HTTP '+response.status+'). Title '+(sameTitle?'matches':'differs from')+' saved draft; description '+(sameDescription?'matches':'differs from')+' saved draft. This comparison does not establish deployment or indexing.';
+  publicStatus.textContent='Public page verified (HTTP '+response.status+'). Title '+(sameTitle?'matches':'differs from')+' saved draft; description '+(sameDescription?'matches':'differs from')+' saved draft. '+publicationProof+' Metadata comparison alone does not establish indexing.';
  }catch(e){publicStatus.textContent='Public check unsuccessful: '+String(e.message||e);}
 });
 const deploymentStatus=document.getElementById('areaSeoDeploymentStatus'),deploymentHistory=document.getElementById('areaSeoDeploymentHistory');
