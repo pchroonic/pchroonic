@@ -1,0 +1,33 @@
+name: Prepare approved borough SEO publishing PR
+on:
+  workflow_dispatch:
+    inputs:
+      area:
+        description: 'Borough slug'
+        required: true
+        type: choice
+        options: [lambeth, lewisham, southwark, wandsworth, greenwich]
+      approved_revision:
+        description: 'Exact approved draft updatedAt timestamp'
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    environment: seo-publishing
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure approved input exists
+        env:
+          AREA: ${{ inputs.area }}
+          REVISION: ${{ inputs.approved_revision }}
+        run: |
+          test -n "$REVISION"
+          echo "Requested $AREA revision $REVISION"
+          echo "No production files will be altered by this workflow without an approved server-export artifact."
+      - name: Explain manual publication gate
+        run: |
+          echo "::notice::An approved export must be retrieved from the authenticated Namdar server and its exact revision verified. No secret or browser-generated draft is trusted by this workflow."
+          echo "::notice::Use scripts/apply-approved-area-seo.cjs only after export verification. Open a reviewed PR, pass CI and inspect Vercel preview."
