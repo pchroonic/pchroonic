@@ -1,5 +1,11 @@
 # Namdar AI handoff
 
+## 12 Oct 2026 — Lambeth visit-preparation content (PR #205)
+- Added a practical customer checklist to `/areas/lambeth` covering window layouts, safe access, exterior condition, and cleaning frequency.
+- Preserves the existing postcode-first quote flow, canonical, schema and other borough content. No fabricated customer reviews, completed work or pricing claims.
+- Preview deployment built successfully; existing GitHub checks must pass before merge.
+
+
 ## 8 Oct 2026 — Free organic growth: borough conversion SEO — LIVE
 - User chose the **free traffic** path rather than paid ads. Goal is qualified local quote requests/jobs, not raw page-view volume.
 - Strengthened the five live borough landing pages: Lewisham, Southwark, Lambeth, Wandsworth and Greenwich.
