@@ -5,15 +5,21 @@ const location=document.getElementById('areaSeoLocation');
 if(!location)return;
 const title=document.getElementById('areaSeoTitle'),desc=document.getElementById('areaSeoDescription');
 const status=document.getElementById('areaSeoDraftStatus'),count=document.getElementById('areaSeoLength');
+let dirty=false,loading=false,loadedArea=location.value;
+const savedState=document.getElementById('areaSeoSavedState');
+function markClean(message){dirty=false;loadedArea=location.value;savedState.textContent=message;}
+function markDirty(){dirty=true;savedState.textContent='Unsaved changes — save before leaving this area';render();}
 const defaults=slug=>({title:'Window Cleaning in '+slug[0].toUpperCase()+slug.slice(1)+' | Namdar',description:'Exterior window cleaning for homes, flats and commercial properties in '+slug[0].toUpperCase()+slug.slice(1)+'. Check your postcode and request a reviewed quote.'});
 function render(){
  const slug=location.value;
  document.getElementById('areaSeoPreviewTitle').textContent=title.value||'Untitled area page';
  document.getElementById('areaSeoPreviewUrl').textContent='https://namdar.co.uk/areas/'+slug;
  document.getElementById('areaSeoPreviewDescription').textContent=desc.value;
- count.textContent='Title: '+title.value.length+' characters · Description: '+desc.value.length+' characters (Google may display different snippets).';
+ const t=title.value.length,d=desc.value.length;
+ count.textContent='Title: '+t+'/100 characters · Description: '+d+'/300 characters. Suggested title: roughly 45–65; description: roughly 120–160 (not Google limits).';
+ document.getElementById('areaSeoQuality').textContent=(t<25?'Title could be more descriptive. ':t>65?'Title may be truncated in search. ':'')+(d<90?'Description could explain more customer benefits. ':d>160?'Description may be shortened by Google. ':'')+'Google may choose its own snippet.';
 }
-function reset(){const v=defaults(location.value);title.value=v.title;desc.value=v.description;status.textContent='Editable draft loaded; live website unchanged.';render();}
+function reset(){const v=defaults(location.value);title.value=v.title;desc.value=v.description;status.textContent='Suggested draft loaded; live website unchanged.';render();markDirty();}
 
 async function loadSaved(){
  reset();
@@ -22,7 +28,7 @@ async function loadSaved(){
    const {data,error}=await sb.from('site_settings').select('value').eq('key','area_seo_drafts').maybeSingle();
    if(error)throw error;
    const saved=data?.value?.[location.value];
-   if(saved){title.value=String(saved.title||'').slice(0,100);desc.value=String(saved.metaDescription||'').slice(0,300);render();status.textContent='Saved draft loaded. Nothing published.';}
+   if(saved){title.value=String(saved.title||'').slice(0,100);desc.value=String(saved.metaDescription||'').slice(0,300);render();status.textContent='Saved draft loaded. Nothing published.';markClean('Saved draft · '+(saved.updatedAt?new Date(saved.updatedAt).toLocaleString():'date unknown'));}else{markClean('No saved draft for this area');}
  }catch(e){status.textContent='Could not load private drafts: '+String(e.message||e);}
 }
 async function saveDraft(){
@@ -34,14 +40,14 @@ async function saveDraft(){
   const {data,error}=await sb.from('site_settings').select('value').eq('key','area_seo_drafts').maybeSingle();if(error)throw error;
   const value={...(data?.value||{}),[slug]:{title:t,metaDescription:d,updatedAt:new Date().toISOString(),status:'draft'}};
   const {error:writeError}=await sb.from('site_settings').upsert({key:'area_seo_drafts',value,updated_at:new Date().toISOString()});if(writeError)throw writeError;
-  status.textContent='Private SEO draft saved. Public page unchanged.';
+  status.textContent='Private SEO draft saved. Public page unchanged.';markClean('Saved draft · '+new Date().toLocaleString());
  }catch(e){status.textContent='Save failed: '+String(e.message||e);}
  finally{button.disabled=false;}
 }
 
-location.addEventListener('change',loadSaved);
-title.addEventListener('input',render);desc.addEventListener('input',render);
-document.getElementById('areaSeoReset').addEventListener('click',reset);
+location.addEventListener('change',async()=>{if(dirty&&!confirm('You have unsaved SEO changes. Switch areas and discard them?')){location.value=loadedArea;return;}loading=true;await loadSaved();loading=false;});
+title.addEventListener('input',markDirty);desc.addEventListener('input',markDirty);
+document.getElementById('areaSeoReset').addEventListener('click',()=>{if(dirty&&!confirm('Reset this unsaved draft to suggested text?'))return;reset();});
 document.getElementById('areaSeoSave').addEventListener('click',saveDraft);
 document.getElementById('areaSeoLoad').addEventListener('click',loadSaved);
 document.getElementById('areaSeoExport').addEventListener('click',()=>{
@@ -53,5 +59,5 @@ document.getElementById('areaSeoExport').addEventListener('click',()=>{
  const a=document.createElement('a');a.href=url;a.download='namdar-'+data.area+'-seo-draft.json';document.body.append(a);a.click();a.remove();
  URL.revokeObjectURL(url);status.textContent='Draft downloaded. No live changes were made.';
 });
-reset();
+reset();markClean('Suggested copy · not saved');
 })();
