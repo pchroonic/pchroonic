@@ -14,9 +14,36 @@ function render(){
  count.textContent='Title: '+title.value.length+' characters · Description: '+desc.value.length+' characters (Google may display different snippets).';
 }
 function reset(){const v=defaults(location.value);title.value=v.title;desc.value=v.description;status.textContent='Editable draft loaded; live website unchanged.';render();}
-location.addEventListener('change',reset);
+
+async function loadSaved(){
+ reset();
+ if(typeof sb==='undefined'||!sb){status.textContent='Sign in before loading saved drafts.';return;}
+ try{
+   const {data,error}=await sb.from('site_settings').select('value').eq('key','area_seo_drafts').maybeSingle();
+   if(error)throw error;
+   const saved=data?.value?.[location.value];
+   if(saved){title.value=String(saved.title||'').slice(0,100);desc.value=String(saved.metaDescription||'').slice(0,300);render();status.textContent='Saved draft loaded. Nothing published.';}
+ }catch(e){status.textContent='Could not load private drafts: '+String(e.message||e);}
+}
+async function saveDraft(){
+ if(typeof sb==='undefined'||!sb){status.textContent='Sign in with Settings permission first.';return;}
+ const slug=location.value,t=title.value.trim(),d=desc.value.trim();
+ if(!areas.includes(slug)||!t||!d){status.textContent='Choose an area and enter both SEO fields.';return;}
+ const button=document.getElementById('areaSeoSave');button.disabled=true;
+ try{
+  const {data,error}=await sb.from('site_settings').select('value').eq('key','area_seo_drafts').maybeSingle();if(error)throw error;
+  const value={...(data?.value||{}),[slug]:{title:t,metaDescription:d,updatedAt:new Date().toISOString(),status:'draft'}};
+  const {error:writeError}=await sb.from('site_settings').upsert({key:'area_seo_drafts',value,updated_at:new Date().toISOString()});if(writeError)throw writeError;
+  status.textContent='Private SEO draft saved. Public page unchanged.';
+ }catch(e){status.textContent='Save failed: '+String(e.message||e);}
+ finally{button.disabled=false;}
+}
+
+location.addEventListener('change',loadSaved);
 title.addEventListener('input',render);desc.addEventListener('input',render);
 document.getElementById('areaSeoReset').addEventListener('click',reset);
+document.getElementById('areaSeoSave').addEventListener('click',saveDraft);
+document.getElementById('areaSeoLoad').addEventListener('click',loadSaved);
 document.getElementById('areaSeoExport').addEventListener('click',()=>{
  if(!areas.includes(location.value))return;
  const data={schemaVersion:1,status:'draft-only',area:location.value,url:'https://namdar.co.uk/areas/'+location.value,title:title.value.trim(),metaDescription:desc.value.trim(),note:'Not published. Requires editorial review and deployment.'};
