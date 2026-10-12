@@ -9,8 +9,11 @@ const heading=document.getElementById('areaSeoHeading'),intro=document.getElemen
 const copyFields=[heading,intro,faqQuestion,faqAnswer];
 let dirty=false,loading=false,loadedArea=location.value;
 const savedState=document.getElementById('areaSeoSavedState');
+const workflowState=document.getElementById('areaSeoWorkflowState');
+const requestReview=document.getElementById('areaSeoRequestReview');
+let storedDraft=null;
 function markClean(message){dirty=false;loadedArea=location.value;savedState.textContent=message;}
-function markDirty(){dirty=true;savedState.textContent='Unsaved changes — save before leaving this area';render();}
+function markDirty(){workflowState.textContent='Editing — not submitted for review';dirty=true;savedState.textContent='Unsaved changes — save before leaving this area';render();}
 const defaults=slug=>({title:'Window Cleaning in '+slug[0].toUpperCase()+slug.slice(1)+' | Namdar',description:'Exterior window cleaning for homes, flats and commercial properties in '+slug[0].toUpperCase()+slug.slice(1)+'. Check your postcode and request a reviewed quote.'});
 function render(){
  const slug=location.value;
@@ -29,7 +32,8 @@ async function loadSaved(){
  try{
    const {data,error}=await sb.from('site_settings').select('value').eq('key','area_seo_drafts').maybeSingle();
    if(error)throw error;
-   const saved=data?.value?.[location.value];
+   const saved=data?.value?.[location.value];storedDraft=saved||null;
+   workflowState.textContent=saved?.status==='review_requested'?'Review requested · changes are NOT published':saved?.status==='draft'?'Saved draft · not submitted':'No review request';
    if(saved){title.value=String(saved.title||'').slice(0,100);desc.value=String(saved.metaDescription||'').slice(0,300);heading.value=String(saved.heading||heading.value).slice(0,120);intro.value=String(saved.intro||'').slice(0,1200);faqQuestion.value=String(saved.faqQuestion||'').slice(0,200);faqAnswer.value=String(saved.faqAnswer||'').slice(0,1000);render();status.textContent='Saved draft loaded. Nothing published.';markClean('Saved draft · '+(saved.updatedAt?new Date(saved.updatedAt).toLocaleString():'date unknown'));}else{markClean('No saved draft for this area');}
  }catch(e){status.textContent='Could not load private drafts: '+String(e.message||e);}
 }
@@ -42,10 +46,33 @@ async function saveDraft(){
   const {data,error}=await sb.from('site_settings').select('value').eq('key','area_seo_drafts').maybeSingle();if(error)throw error;
   const value={...(data?.value||{}),[slug]:{title:t,metaDescription:d,heading:heading.value.trim(),intro:intro.value.trim(),faqQuestion:faqQuestion.value.trim(),faqAnswer:faqAnswer.value.trim(),updatedAt:new Date().toISOString(),status:'draft'}};
   const {error:writeError}=await sb.from('site_settings').upsert({key:'area_seo_drafts',value,updated_at:new Date().toISOString()});if(writeError)throw writeError;
-  status.textContent='Private SEO draft saved. Public page unchanged.';markClean('Saved draft · '+new Date().toLocaleString());
+  storedDraft=value[slug];workflowState.textContent='Draft saved · not submitted for review';status.textContent='Private SEO draft saved. Public page unchanged.';markClean('Saved draft · '+new Date().toLocaleString());
  }catch(e){status.textContent='Save failed: '+String(e.message||e);}
  finally{button.disabled=false;}
 }
+
+async function submitReview(){
+ if(dirty){status.textContent='Save your draft before requesting review.';return;}
+ const slug=location.value;
+ if(!storedDraft||!areas.includes(slug)){status.textContent='Save a draft before requesting review.';return;}
+ if(!storedDraft.heading||!storedDraft.intro||Boolean(storedDraft.faqQuestion)!==Boolean(storedDraft.faqAnswer)){
+  status.textContent='Add a page heading and local introduction, and either complete both FAQ fields or leave both blank.';return;
+ }
+ if(!confirm('Submit this saved draft for editorial review? This will not publish the public page.'))return;
+ requestReview.disabled=true;
+ try{
+  const {data,error}=await sb.from('site_settings').select('value').eq('key','area_seo_drafts').maybeSingle();
+  if(error)throw error;
+  const current=data?.value?.[slug];
+  if(!current||current.updatedAt!==storedDraft.updatedAt)throw new Error('Saved draft has changed. Reload before requesting review.');
+  const value={...(data.value||{}),[slug]:{...current,status:'review_requested',reviewRequestedAt:new Date().toISOString()}};
+  const {error:writeError}=await sb.from('site_settings').upsert({key:'area_seo_drafts',value,updated_at:new Date().toISOString()});
+  if(writeError)throw writeError;
+  storedDraft=value[slug];workflowState.textContent='Review requested · public page unchanged';status.textContent='Draft marked for review. A code/deployment review is still required to publish.';
+ }catch(e){status.textContent='Review request failed: '+String(e.message||e);}
+ finally{requestReview.disabled=false;}
+}
+requestReview.addEventListener('click',submitReview);
 
 location.addEventListener('change',async()=>{if(dirty&&!confirm('You have unsaved SEO changes. Switch areas and discard them?')){location.value=loadedArea;return;}loading=true;await loadSaved();loading=false;});
 title.addEventListener('input',markDirty);desc.addEventListener('input',markDirty);copyFields.forEach(el=>el.addEventListener('input',markDirty));
