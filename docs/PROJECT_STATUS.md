@@ -1,5 +1,10 @@
 # Namdar project status
 
+## 12 Oct 2026 — Approved SEO export integrity gate (candidate)
+- `scripts/apply-approved-area-seo.cjs` now refuses malformed, altered, or unapproved JSON downloads using `lib/area-seo-export-integrity.js`; verifies the server-exported deterministic SHA-256 checksum and complete required SEO content before preparing any HTML changes.
+- The export checksum is NOT a signature, and can be recomputed by an attacker; obtain exports only directly from authenticated admin endpoint and still review source, revision, Git diff and deployment. This does not add credentials or autonomous publication.
+- New regression tests cover changed content, wrong approval status and invalid FAQ pairing. No live borough files or booking features changed.
+
 ## 12 Oct 2026 — Manual approved SEO publish preflight (candidate)
 - Added `workflow_dispatch` GitHub Actions `seo-publish-prepare.yml` for an explicitly selected borough and approved draft revision, using a GitHub environment named `seo-publishing` and running existing SEO safety tests.
 - IMPORTANT: This is a non-deploying preflight, NOT one-click publication and NOT an approved export fetch. An authorised administrator must first create and approve a draft and retrieve the verified export from Namdar. Never upload private tokens or unverified draft text as workflow inputs.
