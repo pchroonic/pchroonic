@@ -41,5 +41,5 @@
   document.write(`<script src="/admin-newsletter-center.js?v=${v}"><\/script>`);
   document.write(`<script src="/admin-privacy-center.js?v=${v}"><\/script>`);
   document.write(`<script src="/admin-report-hub.js?v=${reportHubV}"><\/script>`);
-  document.write(`<script src="/admin-area-seo-drafts.js?v=20261012-5"><\/script>`);
+  document.write(`<script src="/admin-area-seo-drafts.js?v=20261012-6"><\/script>`);
 })();
