@@ -16,7 +16,7 @@ let storedDraft=null,storedVersion=null,revisions=[];
 const revisionSelect=document.getElementById('areaSeoRevisionSelect'),revisionComparison=document.getElementById('areaSeoRevisionComparison');
 const revisionFields={title,metaDescription:desc,heading,intro,faqQuestion,faqAnswer};
 function currentFields(){return Object.fromEntries(Object.entries(revisionFields).map(([key,node])=>[key,node.value]));}
-function chosenRevision(){return revisions[Number(revisionSelect.value)]||null;}
+function chosenRevision(){return revisionSelect.value===''?null:revisions[Number(revisionSelect.value)]||null;}
 function showHistory(all,slug){revisions=(Array.isArray(all)?all:[]).filter(x=>x?.area===slug&&x.snapshot).slice(-20).reverse();revisionSelect.replaceChildren(new Option('Select an older saved version',''));revisions.forEach((r,i)=>revisionSelect.add(new Option((r.timestamp||'Unknown date')+' · '+(r.previousStatus||'draft'),String(i))));revisionComparison.textContent='';}
 
 function markClean(message){dirty=false;loadedArea=location.value;savedState.textContent=message;}
