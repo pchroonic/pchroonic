@@ -1,0 +1,6 @@
+const test=require('node:test'),assert=require('node:assert/strict'),crypto=require('node:crypto');const {validateExport}=require('../lib/area-seo-export-integrity');
+function sample(){const data={schemaVersion:1,area:'lambeth',status:'approved_for_deployment',approvedAt:'2026-10-12T00:00:00Z',approvedBy:'admin-id',updatedAt:'2026-10-12T00:00:00Z',title:'Cleaning',metaDescription:'Description',heading:'Heading',intro:'Intro',faqQuestion:'',faqAnswer:''};return {...data,fingerprint:crypto.createHash('sha256').update(JSON.stringify(data)).digest('hex')};}
+test('accepts unchanged approved export',()=>assert.equal(validateExport(sample()).area,'lambeth'));
+test('rejects altered export',()=>assert.throws(()=>validateExport({...sample(),title:'Altered'}),/checksum mismatch/));
+test('rejects non-approved export even with recomputed hash',()=>{const data=sample();data.status='draft';delete data.fingerprint;data.fingerprint=crypto.createHash('sha256').update(JSON.stringify(data)).digest('hex');assert.throws(()=>validateExport(data),/approved SEO export/)});
+test('rejects partial FAQ',()=>{const data=sample();data.faqQuestion='A question';delete data.fingerprint;data.fingerprint=crypto.createHash('sha256').update(JSON.stringify(data)).digest('hex');assert.throws(()=>validateExport(data),/Incomplete approved content/)});

@@ -47,6 +47,8 @@ if(require.main===module){
  const file=process.argv[2];
  if(!file||process.argv.length!==3){console.error('Usage: node scripts/apply-approved-area-seo.cjs approved-draft.json');process.exit(2);}
  const draft=JSON.parse(fs.readFileSync(file,'utf8'));
+ const integrity=require('../lib/area-seo-export-integrity').validateExport(draft);
+ console.log('Export checksum valid for '+integrity.area+' revision '+integrity.revision+'. CAUTION: checksum is not an authenticity signature; confirm export came directly from authenticated server.');
  const root=path.resolve(__dirname,'..');
  const target=path.join(root,'areas',String(draft.area||'')+'.html');
  assert(allowed.has(draft.area),'Unsupported area');
