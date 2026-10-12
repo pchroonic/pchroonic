@@ -1,5 +1,10 @@
 # Namdar AI handoff
 
+## 12 Oct 2026 — SEO publication manifest verification (candidate)
+- The reviewed offline publisher now generates `areas/<borough>.publication.json` alongside the modified borough HTML, containing approved draft revision and SHA-256 of exact generated HTML. Manifest and page must be reviewed and committed together.
+- Admin's Check public page fetches the live page and matching manifest, hashes the returned HTML with browser Web Crypto and compares exact bytes; only a matching hash reports that the public page matches the approved revision manifest. A manifest alone, a draft title match, or a Vercel deployment record alone does not prove the published approved content.
+- There are NO publication manifests for existing pages until the offline publisher is actually used and the reviewed changes deployed. This feature does not automatically publish any page, correlate a specific Git commit to Vercel, or enable automatic rollback; indexing still needs separate checks.
+
 ## 12 Oct 2026 — Read-only rollback provenance checks (candidate)
 - New MFA-protected admin endpoint `/api/admin-area-seo-rollback-evidence` displays recent pending manual rollback reviews and optional recent Vercel production commit metadata using a server-only `VERCEL_TOKEN`.
 - Critically, legacy draft snapshots do not have an immutable link to a deployed Git commit. Every existing request therefore remains `UNVERIFIED_DRAFT_SNAPSHOT`; merely finding deployments is NOT proof of a matching publication. No automatic rollback or publication is possible.
