@@ -1,5 +1,10 @@
 # Namdar project status
 
+## 12 Oct 2026 — Private SEO draft revision history (candidate)
+- Area SEO saves now archive the previous draft snapshot into a bounded private `_revisions` list in the staff-protected `area_seo_drafts` settings key; retains last 60 history entries across boroughs.
+- Admin displays recent versions for selected borough, allows side-by-side field comparison in text, and restores an older snapshot to UNSAVED editor fields. Saving a restoration creates a new draft and resets approvals; public pages do not change.
+- History starts with future saves; no earlier snapshots can be reconstructed. History is bounded, not permanent. Editing and approval retain the established shared-row revision compare protections. No direct publishing or rollback of live HTML.
+
 ## 12 Oct 2026 — Revision-locked SEO review and approval (candidate)
 - Added MFA-protected `/api/admin-area-seo-review` so review requests use the same `site_settings.updated_at` conditional PATCH as saving; rejects outdated revisions.
 - Protected admin approval endpoint now also compares the latest record version and uses conditional PATCH, returning HTTP 409 if another editor changed it first.
