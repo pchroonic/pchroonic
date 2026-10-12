@@ -1,5 +1,10 @@
 # Namdar AI fast resume
 
+## 12 Oct 2026 — Atomic SEO draft saving (candidate)
+- Adds MFA-protected `/api/admin-area-seo-save` requiring the staff `settings` permission and validating the exact existing five boroughs and field lengths.
+- On every editor load, reads `site_settings.updated_at` and submits it with saves. Server updates the single settings row with an exact-version predicate and `return=representation`; zero updated rows return a conflict rather than overwriting another save. Initial row creation is guarded by the existing primary key.
+- Existing draft content and private approval history are preserved. This protects draft SAVE operations but other legacy review/approval writes still use their older non-atomic path; full transactional workflow and production publishing remain incomplete.
+
 ## 12 Oct 2026 — SEO editor draft-loss protection (candidate)
 - Added a browser unload warning for unsaved SEO area changes and confirmation when explicitly reloading saved content.
 - Failed database loads preserve existing editing fields rather than resetting them before the request succeeds.
