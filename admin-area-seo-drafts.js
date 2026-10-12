@@ -218,5 +218,15 @@ document.getElementById('areaSeoEvidenceRefresh').addEventListener('click',async
  }catch(e){statusNode.textContent='Unable to check evidence: '+String(e.message||e);}
  finally{button.disabled=false;}
 });
+document.getElementById('areaSeoVerifyPublication').addEventListener('click',async()=>{
+ const button=document.getElementById('areaSeoVerifyPublication'),message=document.getElementById('areaSeoVerifiedPublicationStatus');button.disabled=true;message.textContent='Checking approved publication provenance…';
+ try{
+  const {data:{session}}=await sb.auth.getSession();if(!session?.access_token)throw Error('Administrator sign-in required');
+  const response=await fetch('/api/admin-area-seo-publication-verify?area='+encodeURIComponent(location.value),{headers:{Authorization:'Bearer '+session.access_token},cache:'no-store'});
+  const result=await response.json();if(!response.ok)throw Error(result.error||'Verification failed');
+  message.textContent=result.verified?'Verified revision '+result.draftRevision+' at GitHub '+result.commitSha.slice(0,12)+' and Vercel '+result.deploymentId+'. '+result.reason:'Not verified: '+result.reason+'. Production rollback remains disabled.';
+ }catch(e){message.textContent='Could not verify publication: '+String(e.message||e);}
+ finally{button.disabled=false;}
+});
 reset();markClean('Suggested copy · not saved');
 })();
