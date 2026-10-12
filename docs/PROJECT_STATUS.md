@@ -1,5 +1,10 @@
 # Namdar project status
 
+## 12 Oct 2026 — Manual area SEO rollback review requests (candidate)
+- Admins with MFA can select a private historical draft revision and create a pending manual rollback review request from the area SEO admin screen.
+- Protected `POST /api/admin-area-seo-rollback-request` checks the allowed borough, historical snapshot existence, and `site_settings` revision and records up to 50 pending-request history entries in the same private settings record; emits a staff audit event.
+- No GitHub/Vercel rollback or deploy is performed, and an archived draft revision is NOT proof that matching content was previously published. An operator must inspect deployed Git history and production behavior before any actual rollback. This is a request log, not a rollback executor or immutable audit trail.
+
 ## 12 Oct 2026 — Read-only deployment history (candidate)
 - Admin SEO Manager now includes a read-only production deployment history panel. MFA-protected admin endpoint `/api/admin-area-seo-deployments` fetches up to 12 recent production deployments from the Vercel API with optional server-only `VERCEL_TOKEN`, returning limited deployment metadata.
 - If `VERCEL_TOKEN` is not configured, endpoint returns a clear setup message without exposing credentials; Vercel dashboard is linked for manual review. Do not put token in frontend variables.
