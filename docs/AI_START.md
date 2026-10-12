@@ -1,5 +1,11 @@
 # Namdar AI fast resume
 
+## 12 Oct 2026 — Reviewed area SEO publishing tool (candidate)
+- Added `scripts/apply-approved-area-seo.cjs` which accepts a reviewed approved-draft JSON export and deterministically changes only the chosen borough static HTML: title, meta description, H1, plus a marked local guide section. Existing canonical and booking flow must remain intact.
+- Added regression tests in main CI for approval requirement, escaping, URL matching, FAQ consistency and repeatability.
+- Admin JSON export includes approval metadata only when the saved approved draft is loaded unchanged. Export metadata alone is NOT cryptographic authorization: reviewer must independently verify approval against Namdar's private server records before running the tool and opening a pull request.
+- Publisher is offline and does not merge, deploy, update sitemaps or issue indexing requests. Review the Git diff and require CI checks and Vercel preview before a human-controlled production merge. Git history supports code rollback.
+
 ## 12 Oct 2026 — Admin SEO deployment approval gate (candidate)
 - Adds POST /api/admin-area-seo-approve for administrator-only approval of review-requested borough SEO drafts, requiring existing MFA staff auth.
 - Checks the expected saved revision and review request timestamp and appends bounded private approval history to the existing site_settings draft record; writes an audit log.
