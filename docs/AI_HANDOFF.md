@@ -1,5 +1,10 @@
 # Namdar AI handoff
 
+## 12 Oct 2026 — Area SEO draft editor (candidate)
+- Added a draft-only SEO editor inside Admin → Website & legal for the five existing live borough pages.
+- Supports title/description editing, character counts, search snippet preview and JSON draft download. Deliberately does not save, publish or alter live pages; defaults are suggested copy, not synchronized source metadata.
+- Publishing requires a separate protected server-backed workflow with permissions, editorial review and safe static-page regeneration. No schema changes or private data exposure.
+
 ## 12 Oct 2026 — Lambeth visit-preparation content (PR #205)
 - Added a practical customer checklist to `/areas/lambeth` covering window layouts, safe access, exterior condition, and cleaning frequency.
 - Preserves the existing postcode-first quote flow, canonical, schema and other borough content. No fabricated customer reviews, completed work or pricing claims.
